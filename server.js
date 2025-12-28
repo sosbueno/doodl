@@ -107,8 +107,8 @@ const SETTINGS = {
 
 const GAME_STATE = {
   LOBBY: 7,
-  ROUND_START: 1,
-  DRAWING: 2,
+  ROUND_START: 2,  // Client expects F = 2 (not K = 1 which shows "Game starting...")
+  DRAWING: 4,       // Client expects j = 4 (not 2)
   ROUND_END: 5,
   GAME_END: 6
 };
