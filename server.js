@@ -226,8 +226,20 @@ app.post('/api/play', (req, res) => {
     let lang = parseInt(body.lang || req.query.lang) || 0;
     
     // Check for room code in body, query, or URL params (for invite links)
-    const roomCode = body.roomCode || req.query.roomCode || body.room || req.query.room || 
-                     Object.keys(req.query).find(key => key.length === 8 && /^[A-Za-z0-9]+$/.test(key));
+    let roomCode = body.roomCode || req.query.roomCode || body.room || req.query.room || 
+                   Object.keys(req.query).find(key => key.length === 8 && /^[A-Za-z0-9]+$/.test(key));
+    
+    // IMPORTANT: game.js sends id=ROOMCODE when URL has room code (e.g., ?UsCN6Pnv)
+    // Check if roomId is actually a room code (8 alphanumeric chars)
+    if (roomId && roomId.length === 8 && /^[A-Za-z0-9]+$/.test(roomId) && !rooms.has(roomId)) {
+      // roomId looks like a room code, try to resolve it
+      const codeRoomId = roomCodes.get(roomId);
+      if (codeRoomId && rooms.has(codeRoomId)) {
+        console.log('🔗 Resolved room code from id param:', roomId, '→', codeRoomId);
+        roomCode = roomId;
+        roomId = codeRoomId;
+      }
+    }
     
     console.log('📥 /api/play - Parsed:', { isPrivate, roomId, lang, roomCode });
     
@@ -240,7 +252,6 @@ app.post('/api/play', (req, res) => {
     // - If only lang: create/join public room (Socket.IO will handle create flag)
     
     // Check for room code in query (for invite links like ?UsCN6Pnv)
-    // roomCode was already declared above, so use it here
     if (roomCode && !roomId) {
       const codeRoomId = roomCodes.get(roomCode);
       if (codeRoomId && rooms.has(codeRoomId)) {

@@ -2,6 +2,7 @@
 <html data-theme="">
     <script>
         // Handle room code from URL (e.g., ?UsCN6Pnv)
+        // Store it for the Play button to use, but DON'T auto-join
         (function() {
           const urlParams = new URLSearchParams(window.location.search);
           const roomCode = urlParams.get('room') || Array.from(urlParams.keys()).find(key => key.length === 8 && /^[A-Za-z0-9]+$/.test(key));
@@ -9,7 +10,7 @@
             console.log('🔗 Room code detected in URL:', roomCode);
             window._roomCodeFromUrl = roomCode;
             window._joinRoomCode = roomCode;
-            window._autoJoinRoomCode = roomCode; // Flag to auto-join
+            // NO auto-join - user should click Play button to join
           }
         })();
         
@@ -978,16 +979,61 @@
                     window._roomCode = data.data.code;
                     console.log('🔗 Room code received:', data.data.code);
   
-                    // Patch both invite buttons to use our room code (silently, no notification)
+                    // Patch invite input field and buttons to use our domain and room code
                     setTimeout(function() {
+                      // Helper function to show chat message (like game.js does)
+                      function showChatMessage(text, color) {
+                        const chatContent = document.querySelector('#game-chat .chat-content');
+                        if (chatContent) {
+                          const msg = document.createElement('p');
+                          const bold = document.createElement('b');
+                          bold.textContent = '';
+                          const span = document.createElement('span');
+                          span.textContent = text;
+                          msg.appendChild(bold);
+                          msg.appendChild(span);
+                          msg.style.color = color || '#e2cb00';
+                          chatContent.appendChild(msg);
+                          // Auto-scroll if near bottom
+                          const shouldScroll = chatContent.scrollHeight - chatContent.scrollTop - chatContent.clientHeight <= 20;
+                          if (shouldScroll) {
+                            chatContent.scrollTop = chatContent.scrollHeight + 100;
+                          }
+                        }
+                      }
+                      
+                      // Update the invite input field value (game.js sets it to skribbl.io URL)
+                      const inviteInput = document.querySelector('#input-invite');
+                      if (inviteInput && window._roomCode) {
+                        // Patch the value property to always return our URL
+                        let originalValue = inviteInput.value;
+                        Object.defineProperty(inviteInput, 'value', {
+                          get: function() { 
+                            return location.origin + '/?' + window._roomCode; 
+                          },
+                          set: function(val) { 
+                            // Store but ignore skribbl.io URLs
+                            originalValue = val;
+                            if (val && val.includes('skribbl.io')) {
+                              this.setAttribute('value', location.origin + '/?' + window._roomCode);
+                            } else {
+                              this.setAttribute('value', val);
+                            }
+                          },
+                          configurable: true
+                        });
+                        inviteInput.value = location.origin + '/?' + window._roomCode;
+                      }
+                      
+                      // Patch both invite buttons - copy our URL and show chat message
                       const inviteBtns = document.querySelectorAll('#button-invite, #modal-player-button-invite');
                       inviteBtns.forEach(function(inviteBtn) {
                         if (inviteBtn && window._roomCode) {
-                          // Remove ALL existing click handlers by cloning
+                          // Remove existing handlers by cloning
                           const newBtn = inviteBtn.cloneNode(true);
                           inviteBtn.parentNode.replaceChild(newBtn, inviteBtn);
                           
-                          // Add our own handler that runs FIRST (capture phase)
+                          // Add handler that copies our URL and shows chat message
                           newBtn.addEventListener('click', function(e) {
                             e.preventDefault();
                             e.stopPropagation();
@@ -995,33 +1041,36 @@
                             
                             const inviteUrl = location.origin + '/?' + window._roomCode;
                             
-                            // Copy to clipboard (silently, no alert or chat message)
+                            // Copy to clipboard
                             if (navigator.clipboard) {
                               navigator.clipboard.writeText(inviteUrl).then(function() {
                                 console.log('✅ Copied invite link:', inviteUrl);
+                                // Show chat message (manually add to chat)
+                                showChatMessage("Copied room link to clipboard!", "#e2cb00");
                               }).catch(function(err) {
                                 console.error('❌ Failed to copy:', err);
-                                // Fallback: select text
+                                // Fallback
                                 const input = document.createElement('input');
                                 input.value = inviteUrl;
                                 document.body.appendChild(input);
                                 input.select();
                                 document.execCommand('copy');
                                 document.body.removeChild(input);
+                                showChatMessage("Copied room link to clipboard!", "#e2cb00");
                               });
                             } else {
-                              // Fallback for older browsers
+                              // Fallback
                               const input = document.createElement('input');
                               input.value = inviteUrl;
                               document.body.appendChild(input);
                               input.select();
                               document.execCommand('copy');
                               document.body.removeChild(input);
+                              showChatMessage("Copied room link to clipboard!", "#e2cb00");
                             }
                             
-                            // Return false to prevent any other handlers
                             return false;
-                          }, true); // Capture phase - runs BEFORE game.js handlers
+                          }, true);
                         }
                       });
                     }, 1500);
@@ -1037,132 +1086,8 @@
     }
 })();
 
-// Auto-join room when room code is in URL
-(function() {
-  if (window._autoJoinRoomCode) {
-    // Wait for page to fully load and game.js to initialize
-    window.addEventListener('load', function() {
-      setTimeout(function() {
-        console.log('🔗 Auto-joining room with code:', window._autoJoinRoomCode);
-        
-        // Show loading screen
-        const loadScreen = document.getElementById('load');
-        if (loadScreen) {
-          loadScreen.style.display = 'block';
-          loadScreen.style.visibility = 'visible';
-          loadScreen.style.opacity = '1';
-          loadScreen.style.zIndex = '9999';
-        }
-        
-        // Get player name and language from inputs
-        const nameInput = document.querySelector('.input-name');
-        const langSelect = document.querySelector('.container-name-lang select');
-        const name = nameInput ? nameInput.value || 'Player' : 'Player';
-        const lang = langSelect ? parseInt(langSelect.value) || 0 : 0;
-        
-        // Make API call to join room
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/play', true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        
-        xhr.onreadystatechange = function() {
-          if (this.readyState === 4) {
-            if (this.status === 200) {
-          try {
-            const response = JSON.parse(this.responseText);
-                console.log('✅ Auto-join API response:', response);
-                
-                if (response.success && response.roomId) {
-                  window._lastApiRoomId = response.roomId;
-                  
-                  // Connect Socket.IO and join room
-                  const socket = window.io(location.origin, {
-                    path: '/socket.io/',
-                    transports: ['websocket', 'polling'],
-                    secure: location.protocol === 'https:'
-                  });
-                  
-                  // Make socket globally available
-                  window.S = socket;
-                  window.socket = socket;
-  
-                  // Wait for connection, then emit login
-                  socket.on('connect', function() {
-                    console.log('✅ Socket.IO connected for auto-join');
-                    
-                    // Get avatar from game state
-                    const avatar = window.game && window.game.avatar ? window.game.avatar : [0, 0, 0, -1];
-                    
-                    // Emit login with room code
-                    socket.emit('login', {
-                      join: response.roomId,
-                      code: response.roomId,
-                      name: name,
-                      lang: lang,
-                      avatar: avatar
-                    });
-                    
-                    console.log('📤 Auto-join login emitted:', {
-                      join: response.roomId,
-                      name: name,
-                      lang: lang
-                    });
-                  });
-                  
-                  socket.on('connect_error', function(error) {
-                    console.error('❌ Socket.IO connection error:', error);
-                    const loadScreen = document.getElementById('load');
-                    if (loadScreen) {
-                      loadScreen.style.display = 'none';
-                    }
-                  });
-                  
-                  // Handle GAME_DATA to transition to game screen
-                  socket.on('data', function(data) {
-                    if (data && data.id === 10) { // GAME_DATA
-                      console.log('✅ GAME_DATA received for auto-join');
-                      
-                      setTimeout(function() {
-                        const loadScreen = document.getElementById('load');
-                        if (loadScreen) {
-                          loadScreen.style.display = 'none';
-                          loadScreen.style.visibility = 'hidden';
-                          loadScreen.style.opacity = '0';
-                        }
-                        
-                        const home = document.getElementById('home');
-                        const game = document.getElementById('game');
-                        if (home && game) {
-                          home.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
-                          game.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
-            }
-                      }, 800);
-                    }
-                  });
-                }
-              } catch(e) {
-                console.error('❌ Error parsing auto-join response:', e);
-                const loadScreen = document.getElementById('load');
-                if (loadScreen) {
-                  loadScreen.style.display = 'none';
-        }
-              }
-            } else {
-              console.error('❌ Auto-join API failed:', this.status);
-              const loadScreen = document.getElementById('load');
-              if (loadScreen) {
-                loadScreen.style.display = 'none';
-              }
-            }
-          }
-        };
-        
-        // Send request with room code
-        xhr.send('roomCode=' + encodeURIComponent(window._autoJoinRoomCode) + '&lang=' + lang);
-      }, 1000); // Wait 1 second for game.js to initialize
-    });
-  }
-})();
+// NO AUTO-JOIN - User should go to home screen and click Play button
+// The Play button will automatically use the room code from URL (game.js handles this)
 </script>
         <script src="js/game.js"></script>
     </body>
