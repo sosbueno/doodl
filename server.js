@@ -20,6 +20,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files FIRST (CSS, JS, images, etc.) - MUST be before other routes
+app.use(express.static(__dirname, {
+  maxAge: '1d',
+  etag: true,
+  lastModified: true,
+  index: false // Don't serve index.html as directory index
+}));
+
 // Handle audio files - return empty response to prevent 404 errors
 app.get('/audio/*', (req, res) => {
   res.status(200).send('');
@@ -30,10 +38,7 @@ app.get('/favicon.png', (req, res) => {
   res.sendFile(path.join(__dirname, 'favicon.png'));
 });
 
-// Serve static files (CSS, JS, images, etc.)
-app.use(express.static(__dirname));
-
-// Serve index.html for root path
+// Serve index.html for root path (AFTER static files)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });

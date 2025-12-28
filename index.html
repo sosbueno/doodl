@@ -841,10 +841,10 @@
               // Track if GAME_DATA was received
               let gameDataReceived = false;
               
-              // Fallback: Force transition after 5 seconds if no GAME_DATA
+              // Fallback: Force transition after 10 seconds if no GAME_DATA (longer timeout for Render)
               const fallbackTimeout = setTimeout(function() {
                 if (!gameDataReceived) {
-                  console.warn('⚠️ No GAME_DATA received after 5s - forcing transition');
+                  console.warn('⚠️ No GAME_DATA received after 10s - forcing transition');
                   const loadScreen = document.getElementById('load');
                   if (loadScreen) {
                     loadScreen.style.display = 'none';
@@ -858,7 +858,7 @@
                     game.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
                   }
                 }
-              }, 5000);
+              }, 10000);
               
               // Log connection events
               socket.on('connect', function() {
@@ -901,7 +901,7 @@
                   clearTimeout(fallbackTimeout);
                   console.log('✅ GAME_DATA received, transitioning...');
                   
-                  // Hide loading screen
+                  // Hide loading screen (reduced delay for faster transition like localhost)
                   setTimeout(function() {
                     const loadScreen = document.getElementById('load');
                     if (loadScreen) {
@@ -910,17 +910,15 @@
                       loadScreen.style.opacity = '0';
                     }
                     
-                    // Transition to game screen
-                    setTimeout(function() {
-                      const home = document.getElementById('home');
-                      const game = document.getElementById('game');
-                      if (home && game) {
-                        home.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
-                        game.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
-                        console.log('✅ Page transition complete');
-                      }
-                    }, 100);
-                  }, 1200);
+                    // Transition to game screen immediately
+                    const home = document.getElementById('home');
+                    const game = document.getElementById('game');
+                    if (home && game) {
+                      home.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
+                      game.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
+                      console.log('✅ Page transition complete');
+                    }
+                  }, 800);
                   
                   // Handle private room display
                   if (data.data && data.data.type === 1) {
