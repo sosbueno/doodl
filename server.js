@@ -37,8 +37,20 @@ app.get('/favicon.png', (req, res) => {
   res.sendFile(path.join(__dirname, 'favicon.png'));
 });
 
-// Serve index.html for root path (AFTER static files)
+// Handle room code URLs (e.g., /?UsCN6Pnv or /?room=UsCN6Pnv)
 app.get('/', (req, res) => {
+  // Check for room code in query string
+  const roomCode = req.query.room || Object.keys(req.query).find(key => key.length === 8 && /^[A-Za-z0-9]+$/.test(key));
+  
+  if (roomCode && roomCode.length === 8 && /^[A-Za-z0-9]+$/.test(roomCode)) {
+    // Valid room code format - look up the room
+    const roomId = roomCodes.get(roomCode);
+    if (roomId && rooms.has(roomId)) {
+      console.log('🔗 Room code lookup:', roomCode, '→', roomId);
+    }
+  }
+  
+  // Always serve index.html (room code will be handled by client-side JS)
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
@@ -78,6 +90,8 @@ const wordLists = {
 const rooms = new Map();
 const players = new Map(); // socket.id -> player info
 const publicRooms = new Map(); // Persistent public rooms by language
+const roomCodes = new Map(); // roomCode -> roomId mapping for invite links
+const roomCodeToId = new Map(); // roomId -> roomCode reverse mapping
 
 // Settings constants
 const SETTINGS = {
@@ -134,6 +148,16 @@ const PACKET = {
 
 function generateRoomId() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+// Generate 8-character alphanumeric room code for invite links
+function generateRoomCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 }
 
 function getRandomWords(lang, count, customWords = null) {
@@ -198,7 +222,11 @@ app.post('/api/play', (req, res) => {
     let roomId = body.id || req.query.id || null;
     let lang = parseInt(body.lang || req.query.lang) || 0;
     
-    console.log('📥 /api/play - Parsed:', { isPrivate, roomId, lang });
+    // Check for room code in body, query, or URL params (for invite links)
+    const roomCode = body.roomCode || req.query.roomCode || body.room || req.query.room || 
+                     Object.keys(req.query).find(key => key.length === 8 && /^[A-Za-z0-9]+$/.test(key));
+    
+    console.log('📥 /api/play - Parsed:', { isPrivate, roomId, lang, roomCode });
     
     // IMPORTANT: game.js create button sends "lang=X" (no create param in API call)
     // The create flag is sent in Socket.IO login event (line 1753: create: n ? 1 : 0)
@@ -208,12 +236,25 @@ app.post('/api/play', (req, res) => {
     // - If id=ROOMID: return that room (or create if doesn't exist)  
     // - If only lang: create/join public room (Socket.IO will handle create flag)
     
-    // For private rooms (create=1), always generate a new room ID
+    // Check for room code in query (for invite links like ?UsCN6Pnv)
+    const roomCode = req.query.room || Object.keys(req.query).find(key => key.length === 8 && /^[A-Za-z0-9]+$/.test(key));
+    if (roomCode && !roomId) {
+      const codeRoomId = roomCodes.get(roomCode);
+      if (codeRoomId && rooms.has(codeRoomId)) {
+        roomId = codeRoomId;
+        console.log('🔗 Room code resolved:', roomCode, '→', roomId);
+      }
+    }
+    
+    // For private rooms (create=1), always generate a new room ID and code
     if (isPrivate && !roomId) {
       roomId = generateRoomId();
+      const roomCode = generateRoomCode();
+      
       // Create new private room
       const room = {
         id: roomId,
+        code: roomCode, // Store code in room object
         players: [],
         settings: [lang, 8, 80, 3, 3, 0, 0, 0],
         state: GAME_STATE.LOBBY,
@@ -230,6 +271,11 @@ app.post('/api/play', (req, res) => {
         isPublic: false
       };
       rooms.set(roomId, room);
+      
+      // Map room code to room ID for invite links
+      roomCodes.set(roomCode, roomId);
+      roomCodeToId.set(roomId, roomCode);
+      console.log('🔗 Created private room with code:', roomCode, '→', roomId);
     } else if (!roomId) {
       // No roomId provided - this could be:
       // 1. Public room join (Play button) - use public room for language
@@ -355,9 +401,35 @@ io.on('connection', (socket) => {
     // IMPORTANT: If create=1, this is a private room create request
     // The API might have returned a public room ID, but we need to create a private room
     if (create === 1 || create === '1') {
-      // This is a create private room request - generate new room ID
+      // This is a create private room request - generate new room ID and code
       roomId = generateRoomId();
-      console.log('🔧 Creating private room:', roomId);
+      const roomCode = generateRoomCode();
+      console.log('🔧 Creating private room:', roomId, 'with code:', roomCode);
+      
+      // Create the room if it doesn't exist
+      if (!rooms.has(roomId)) {
+        const room = {
+          id: roomId,
+          code: roomCode,
+          players: [],
+          settings: [parseInt(lang) || 0, 8, 80, 3, 3, 0, 0, 0],
+          state: GAME_STATE.LOBBY,
+          currentRound: 0,
+          currentDrawer: -1,
+          currentWord: '',
+          currentWordIndex: -1,
+          timer: 0,
+          drawCommands: [],
+          customWords: null,
+          owner: null,
+          startTime: null,
+          timerInterval: null,
+          isPublic: false
+        };
+        rooms.set(roomId, room);
+        roomCodes.set(roomCode, roomId);
+        roomCodeToId.set(roomId, roomCode);
+      }
     }
     
     if (!roomId) {
@@ -417,35 +489,42 @@ io.on('connection', (socket) => {
       room.owner = socket.id;
     }
     
-    // Send game data
+    // Send game data (include room code for private rooms)
+    const gameData = {
+      me: socket.id,
+      type: create === 1 || create === '1' ? 1 : 0,
+      id: roomId,
+      users: room.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        avatar: p.avatar,
+        score: p.score,
+        guessed: p.guessed,
+        flags: p.flags
+      })),
+      round: room.currentRound,
+      owner: room.owner,
+      settings: room.settings,
+      state: {
+        id: room.state,
+        time: room.timer,
+        data: room.state === GAME_STATE.DRAWING ? {
+          id: room.currentDrawer,
+          word: room.currentDrawer === socket.id ? room.currentWord : undefined,
+          hints: [],
+          drawCommands: room.drawCommands
+        } : {}
+      }
+    };
+    
+    // Add room code for private rooms (for invite links)
+    if (room.code) {
+      gameData.code = room.code;
+    }
+    
     socket.emit('data', {
       id: PACKET.GAME_DATA,
-      data: {
-        me: socket.id,
-        type: create === 1 || create === '1' ? 1 : 0,
-        id: roomId,
-        users: room.players.map(p => ({
-          id: p.id,
-          name: p.name,
-          avatar: p.avatar,
-          score: p.score,
-          guessed: p.guessed,
-          flags: p.flags
-        })),
-        round: room.currentRound,
-        owner: room.owner,
-        settings: room.settings,
-        state: {
-          id: room.state,
-          time: room.timer,
-          data: room.state === GAME_STATE.DRAWING ? {
-            id: room.currentDrawer,
-            word: room.currentDrawer === socket.id ? room.currentWord : undefined,
-            hints: [],
-            drawCommands: room.drawCommands
-          } : {}
-        }
-      }
+      data: gameData
     });
     
     // Broadcast join to other players

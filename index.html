@@ -1,6 +1,17 @@
 <!DOCTYPE html>
 <html data-theme="">
-<script>
+    <script>
+        // Handle room code from URL (e.g., ?UsCN6Pnv)
+        (function() {
+          const urlParams = new URLSearchParams(window.location.search);
+          const roomCode = urlParams.get('room') || Array.from(urlParams.keys()).find(key => key.length === 8 && /^[A-Za-z0-9]+$/.test(key));
+          if (roomCode) {
+            console.log('🔗 Room code detected in URL:', roomCode);
+            window._roomCodeFromUrl = roomCode;
+            window._joinRoomCode = roomCode;
+          }
+        })();
+        
         var aiptag = aiptag || {};
         aiptag.cmd = aiptag.cmd || [];
         aiptag.cmd.display = aiptag.cmd.display || [];
@@ -747,7 +758,15 @@
             };
             
             const originalSend = xhr.send;
-            xhr.send = function() {
+            xhr.send = function(data) {
+              // If we have a room code from URL, append it to the request
+              if (_requestUrl && _requestUrl.includes('/api/play') && window._joinRoomCode) {
+                const originalData = data || '';
+                const roomCodeParam = '&roomCode=' + encodeURIComponent(window._joinRoomCode);
+                data = originalData + (originalData ? roomCodeParam : roomCodeParam.substring(1));
+                console.log('🔗 Adding room code to API request:', window._joinRoomCode);
+              }
+              
               const originalOnReadyStateChange = xhr.onreadystatechange;
               xhr.onreadystatechange = function() {
                 if (this.readyState === 4 && _requestUrl && _requestUrl.includes('/api/play')) {
@@ -953,63 +972,59 @@
                     }
                   }, 800);
                   
-                  // Handle private room display
-                  if (data.data && data.data.type === 1) {
-                    const stateId = data.data.state && data.data.state.id;
-                    if (stateId === 7) {
-                      setTimeout(function() {
-                        const overlay = document.querySelector('#game-canvas .overlay');
-                        const overlayContent = document.querySelector('#game-canvas .overlay-content');
-                        const roomPanel = document.querySelector('#game-canvas .overlay-content .room');
-                        const gameWrapper = document.querySelector('#game-wrapper');
+                  // Store room code for invite button
+                  if (data.data && data.data.code) {
+                    window._roomCode = data.data.code;
+                    console.log('🔗 Room code received:', data.data.code);
+                    
+                    // Patch the invite button to use our room code
+                    setTimeout(function() {
+                      const inviteBtn = document.querySelector('#button-invite');
+                      if (inviteBtn && window._roomCode) {
+                        // Remove existing click handlers and add our own
+                        const newBtn = inviteBtn.cloneNode(true);
+                        inviteBtn.parentNode.replaceChild(newBtn, inviteBtn);
                         
-                        if (overlay && overlayContent && roomPanel && gameWrapper) {
-                          // Ensure game-canvas maintains full size
-                          const gameCanvas = document.querySelector('#game-canvas');
-                          if (gameCanvas) {
-                            gameCanvas.style.setProperty('width', '100%', 'important');
-                            gameCanvas.style.setProperty('height', '100%', 'important');
-                            gameCanvas.style.setProperty('display', 'flex', 'important');
+                        newBtn.addEventListener('click', function(e) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          e.stopImmediatePropagation();
+                          
+                          const inviteUrl = location.origin + '/?' + window._roomCode;
+                          
+                          // Copy to clipboard
+                          if (navigator.clipboard) {
+                            navigator.clipboard.writeText(inviteUrl).then(function() {
+                              console.log('✅ Copied invite link:', inviteUrl);
+                              alert('Copied room link to clipboard!');
+                            }).catch(function(err) {
+                              console.error('❌ Failed to copy:', err);
+                              // Fallback: select text
+                              const input = document.createElement('input');
+                              input.value = inviteUrl;
+                              document.body.appendChild(input);
+                              input.select();
+                              document.execCommand('copy');
+                              document.body.removeChild(input);
+                              alert('Copied room link to clipboard!');
+                            });
+                          } else {
+                            // Fallback for older browsers
+                            const input = document.createElement('input');
+                            input.value = inviteUrl;
+                            document.body.appendChild(input);
+                            input.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(input);
+                            alert('Copied room link to clipboard!');
                           }
-                          
-                          gameWrapper.classList.add('room');
-                          
-                          // Overlay should fill full canvas
-                          overlay.classList.add('show');
-                          overlay.style.setProperty('opacity', '1', 'important');
-                          overlay.style.setProperty('pointer-events', 'all', 'important');
-                          overlay.style.setProperty('width', '100%', 'important');
-                          overlay.style.setProperty('height', '100%', 'important');
-                          overlay.style.setProperty('position', 'absolute', 'important');
-                          
-                          // Overlay content should fill full size
-                          overlayContent.style.setProperty('top', '0', 'important');
-                          overlayContent.style.setProperty('width', '100%', 'important');
-                          overlayContent.style.setProperty('height', '100%', 'important');
-                          overlayContent.style.setProperty('position', 'absolute', 'important');
-                          
-                          // Room panel should fill full size
-                          roomPanel.classList.add('show');
-                          roomPanel.style.setProperty('display', 'flex', 'important');
-                          roomPanel.style.setProperty('width', '100%', 'important');
-                          roomPanel.style.setProperty('height', '100%', 'important');
-                          
-                          // Set WAITING text
-                          const gameWordDesc = document.querySelector('#game-word .description');
-                          if (gameWordDesc) {
-                            gameWordDesc.textContent = 'WAITING';
-                            gameWordDesc.classList.add('waiting');
-                          }
-                          
-                          // Hide canvas and toolbar
-                          const canvas = document.querySelector('#game-canvas canvas');
-                          const toolbar = document.querySelector('#game-toolbar');
-                          if (canvas) canvas.style.setProperty('display', 'none', 'important');
-                          if (toolbar) toolbar.style.setProperty('visibility', 'hidden', 'important');
-                        }
-                      }, 1300);
-                    }
+                        }, true); // Capture phase
+                      }
+                    }, 1500);
                   }
+                  
+                  // Let game.js handle private room display naturally (like play screen)
+                  // Don't add custom styling - let it work exactly like the play screen
                 }
               });
               
