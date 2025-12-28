@@ -10,10 +10,12 @@ const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"],
-    credentials: true,
-    transports: ['websocket', 'polling']
+    credentials: true
   },
-  allowEIO3: true
+  transports: ['websocket', 'polling'],
+  allowEIO3: true,
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 app.use(cors());
@@ -28,9 +30,11 @@ app.use(express.static(__dirname, {
   index: false // Don't serve index.html as directory index
 }));
 
-// Handle audio files - return empty response to prevent 404 errors
+// Handle audio files - return minimal valid OGG to prevent encoding errors
 app.get('/audio/*', (req, res) => {
-  res.status(200).send('');
+  // Return minimal valid OGG file to prevent "Unable to decode audio data" error
+  res.setHeader('Content-Type', 'audio/ogg');
+  res.status(200).send(Buffer.from([0x4F, 0x67, 0x67, 0x53]));
 });
 
 // Serve favicon

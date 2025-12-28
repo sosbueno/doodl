@@ -812,7 +812,7 @@
             }
           }, true);
           
-          // Patch Socket.IO to inject roomId
+          // Patch Socket.IO to inject roomId and fix HTTPS/WSS issues
           const originalIo = window.io;
           if (originalIo) {
             window.io = function(url, options) {
@@ -822,6 +822,23 @@
               } else if (typeof url !== 'string' || !url.match(/^https?:\/\//)) {
                 actualUrl = location.origin;
               }
+              
+              // Fix double slashes and ensure HTTPS uses WSS
+              actualUrl = actualUrl.replace(/\/\/+/g, '/'); // Remove double slashes
+              actualUrl = actualUrl.replace(/^http:\/\//, 'https://'); // Force HTTPS on Render
+              
+              // Ensure options object exists
+              if (!options) {
+                options = {};
+              }
+              
+              // Force secure transport on HTTPS
+              if (location.protocol === 'https:') {
+                options.secure = true;
+                options.transports = ['websocket', 'polling'];
+              }
+              
+              console.log('🔌 Connecting Socket.IO to:', actualUrl, 'with options:', options);
               
               // Show loading screen when Socket.IO connects
               const loadScreen = document.getElementById('load');
