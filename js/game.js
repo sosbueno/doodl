@@ -1899,10 +1899,22 @@
             Pn.classList.remove("toolbar-hidden"),
             yt(),
             // Enable chat input for drawer (they can type, messages appear in green)
+            // Force enable even if mobile keyboard is enabled
             _n[0].disabled = !1,
             _n[1].disabled = !1,
             _n[0].removeAttribute("readonly"),
-            _n[1].removeAttribute("readonly")) : (da(!0),
+            _n[1].removeAttribute("readonly"),
+            // Focus the appropriate input (desktop or mobile) so drawer can type immediately
+            setTimeout(function() {
+                // Try desktop input first, fallback to mobile
+                try {
+                    _n[0].focus();
+                } catch(e) {
+                    try {
+                        _n[1].focus();
+                    } catch(e2) {}
+                }
+            }, 100)) : (da(!0),
             // Enable chat input for guessing players
             _n[0].disabled = !1,
             _n[1].disabled = !1,
@@ -1992,10 +2004,15 @@
         if (typeof e === "string" && e.length > 0) {
             for (a = 0; a < e.length; a++) {
                 if (e[a] === " ") {
-                    // For spaces, create a hint-like element but with space character to preserve spacing
-                    var spaceEl = $("hint", " ");
-                    spaceEl.style.backgroundColor = "transparent";
-                    spaceEl.style.color = "transparent";
+                    // For spaces, create a visible spacer element to show the gap between words
+                    // This creates a clear visual separation like in the official skribbl.io
+                    var spaceEl = $("hint", "");
+                    spaceEl.style.width = "0.5ch";
+                    spaceEl.style.minWidth = "0.5ch";
+                    spaceEl.style.marginLeft = "0.5ch";
+                    spaceEl.style.marginRight = "0.5ch";
+                    spaceEl.style.display = "inline-block";
+                    spaceEl.style.visibility = "hidden"; // Invisible but takes up space
                     N[2].appendChild(spaceEl);
                     N[2].hints[a] = null; // No hint element for spaces (can't reveal letters on spaces)
                 } else {
