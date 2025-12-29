@@ -2135,9 +2135,13 @@
             o && r && y(E("$ is voting to kick $ ($/$)", [o.name, r.name, i, l]), "", f(Le), !0);
             break;
         case Da:
-            (a = W(n.id)) && (y(E("$ guessed the word!", a.name), "", f($e), !0).classList.add("guessed"),
+            (a = W(n.id)) && (
+            // Update player's score if provided
+            n.score !== undefined && (a.score = n.score),
+            y(E("$ guessed the word!", a.name), "", f(1), !0).classList.add("guessed"),  // Use GUESSED color (index 1 = green)
             Fa(a, !0),
             R.playSound(xn),
+            Ka(),  // Update score display
             n.id == x) && ga(n.word);
             break;
         case Sa:

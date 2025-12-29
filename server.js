@@ -718,7 +718,8 @@ io.on('connection', (socket) => {
               id: PACKET.GUESS,
               data: {
                 id: socket.id,
-                word: room.currentWord
+                word: room.currentWord,
+                score: player.score  // Send updated score
               }
             });
             
