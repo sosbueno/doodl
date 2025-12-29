@@ -651,7 +651,7 @@ io.on('connection', (socket) => {
             }
           });
           
-          // Send to other players without word
+          // Send to other players without word (but send word length for display)
           room.players.forEach(player => {
             if (player.id !== room.currentDrawer) {
               io.to(player.id).emit('data', {
@@ -662,6 +662,7 @@ io.on('connection', (socket) => {
                   data: {
                     id: room.currentDrawer,
                     word: undefined, // Others don't see the word
+                    wordLength: room.currentWord ? room.currentWord.length : 0, // Send word length for underscore display
                     hints: [],
                     drawCommands: []
                   }
@@ -1006,7 +1007,7 @@ io.on('connection', (socket) => {
             }
           });
           
-          // Send to other players without word
+          // Send to other players without word (but send word length for display)
           room.players.forEach(player => {
             if (player.id !== room.currentDrawer) {
               io.to(player.id).emit('data', {
@@ -1017,6 +1018,7 @@ io.on('connection', (socket) => {
                   data: {
                     id: room.currentDrawer,
                     word: undefined, // Others don't see the word
+                    wordLength: room.currentWord ? room.currentWord.length : 0, // Send word length for underscore display
                     hints: [],
                     drawCommands: []
                   }

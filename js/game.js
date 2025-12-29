@@ -1932,7 +1932,8 @@
             N[1].textContent = a,
             Pn.classList.remove("toolbar-hidden"),
             yt()) : (da(!0),
-            pa(e.data.word, !1),
+            // For guessing players, use wordLength if word is undefined, otherwise use word length
+            pa(e.data.word === undefined && e.data.wordLength !== undefined ? e.data.wordLength : (e.data.word ? e.data.word.length : 0), !1),
             ma(e.data.hints))
         } else {
             M = -1;
@@ -1983,11 +1984,25 @@
         })
     }
     function pa(e, t) {
-        for (var n = e.length - 1, a = 0; a < e.length; a++)
-            n += e[a];
+        var n, a;
+        // Handle both array (for combination mode) and number/string (for normal mode)
+        if (typeof e === "number") {
+            // Simple number - word length
+            n = e;
+        } else if (typeof e === "string") {
+            // String - use its length
+            n = e.length;
+        } else if (Array.isArray(e)) {
+            // Array - calculate total length (for combination mode)
+            for (n = e.length - 1, a = 0; a < e.length; a++)
+                n += e[a];
+        } else {
+            n = 0;
+        }
         var o = !t && 1 == An[te.WORDMODE];
         o && (n = 3),
-        N[0].textContent = E(o ? "WORD HIDDEN" : "GUESS THIS"),
+        // Display "GUESS THIS" with the number next to it
+        N[0].textContent = E(o ? "WORD HIDDEN" : "GUESS THIS") + (o ? "" : " " + n),
         N[1].style.display = "none",
         N[2].style.display = "",
         ce(N[2]),
@@ -1995,7 +2010,8 @@
         for (a = 0; a < n; a++)
             N[2].hints[a] = $("hint", o ? "?" : "_"),
             N[2].appendChild(N[2].hints[a]);
-        o || N[2].appendChild($("word-length", e.join(" ")))
+        // Only add word-length element for array mode (combination), otherwise number is in description
+        o || (Array.isArray(e) && N[2].appendChild($("word-length", e.join(" "))))
     }
     function ma(e) {
         for (var t = N[2].hints, n = 0; n < e.length; n++) {
