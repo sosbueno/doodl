@@ -1986,8 +1986,11 @@
         if (typeof e === "string" && e.length > 0) {
             for (a = 0; a < e.length; a++) {
                 if (e[a] === " ") {
-                    // For spaces, create a space element instead of underscore
-                    var spaceEl = document.createTextNode(" ");
+                    // For spaces, create a span element with width to preserve spacing (multiple spaces visible)
+                    var spaceEl = document.createElement("span");
+                    spaceEl.style.display = "inline-block";
+                    spaceEl.style.width = "1ch";
+                    spaceEl.style.textAlign = "center";
                     N[2].appendChild(spaceEl);
                     N[2].hints[a] = null; // No hint element for spaces
                 } else {
@@ -2150,7 +2153,7 @@
                 a.element.icons[2].classList.add("visible"),
                 setTimeout(function() {
                     a.element.icons && a.element.icons[2] && a.element.icons[2].classList.add("fadeout");
-                }, 3000)
+                }, 2000)
             ),
             n.vote ? y(E("$ liked the drawing!", a.name), "", f($e), !0) : y(E("$ disliked the drawing!", a.name), "", f(Ee), !0));
             break;
