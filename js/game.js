@@ -2138,7 +2138,20 @@
             (a = W(n.id)) && (
             // Update player's score if provided
             n.score !== undefined && (a.score = n.score),
-            y(E("$ guessed the word!", a.name), "", f(1), !0).classList.add("guessed"),  // Use GUESSED color (index 1 = green)
+            // Show message with word in green
+            (function() {
+                var msg = E("$ guessed the word!", a.name);
+                var msgEl = y(msg, "", f(1), !0);
+                msgEl.classList.add("guessed");
+                // Add word in green if available
+                if (n.word) {
+                    var wordSpan = c.createElement("span");
+                    wordSpan.textContent = " " + n.word;
+                    wordSpan.style.color = "var(--COLOR_CHAT_TEXT_GUESSED)";
+                    var spanEl = msgEl.querySelector("span");
+                    if (spanEl) spanEl.appendChild(wordSpan);
+                }
+            })(),
             Fa(a, !0),
             R.playSound(xn),
             Ka(),  // Update score display
@@ -2604,10 +2617,16 @@
         e.preventDefault();
         var e = this.querySelector("input");
         return e.value && (e = e.value,
-        S && S.connected ? S.emit("data", {
-            id: Na,
-            data: e
-        }) : Ba(W(x), e)),
+        S && S.connected ? (
+            // If in DRAWING state and not the drawer, send as GUESS, otherwise send as CHAT
+            L.id == j && M != x ? S.emit("data", {
+                id: Da,
+                data: e
+            }) : S.emit("data", {
+                id: Na,
+                data: e
+            })
+        ) : Ba(W(x), e)),
         this.reset(),
         mo(this, 0),
         !1
