@@ -247,7 +247,8 @@
     function qe(e, t) {
         m.style.display = "block";
         for (var n = 0; n < g.length; n++)
-            g[n].style.display = "none";
+            g[n] && (g[n].style.display = "none");
+        if (!g[e]) return;  // Safety check
         g[e].style.display = "flex";
         var a = g[e];
         switch (e) {
@@ -261,38 +262,47 @@
             break;
         case s:
             ke.textContent = t.id == x ? E("$ (You)", t.name) : t.name;
-            var o = (W(x).flags & k) == k
+            var currentPlayer = W(x);
+            var o = currentPlayer ? ((currentPlayer.flags & k) == k) : !1
               , r = (t.flags & k) == k
               , i = a.querySelector(".buttons")
               , n = x == En  // Current player is owner
-              , l = In !== void 0 ? In : !0  // Default to public if In not set (for backwards compat)
+              , l = (In !== void 0 && In !== null && In !== -1) ? In : !0  // Default to public if In not set (for backwards compat)
               , u = a.querySelector(".button-pair");  // Kick/Ban buttons
             // Show/hide buttons based on context:
             // - If clicking yourself: show invite only, hide all buttons
             // - If clicking others in public room: show Votekick, Mute, Report (no Kick/Ban)
             // - If clicking others in private room AND you're owner: show Kick, Ban, Votekick, Mute, Report
             // - If clicking others in private room AND you're NOT owner: show Votekick, Mute, Report (no Kick/Ban)
-            if (t.id == x) {
-                // Clicking yourself - show invite only
-                i.style.display = "none";
-                a.querySelector(".invite").style.display = "flex";
-            } else {
-                // Clicking someone else
-                i.style.display = "flex";
-                a.querySelector(".invite").style.display = "none";
-                // Show Kick/Ban pair only in private rooms AND if you're the owner
-                u.style.display = (!l && n) ? "flex" : "none";
+            if (i) {
+                if (t.id == x) {
+                    // Clicking yourself - show invite only
+                    i.style.display = "none";
+                    var inviteEl = a.querySelector(".invite");
+                    if (inviteEl) inviteEl.style.display = "flex";
+                } else {
+                    // Clicking someone else
+                    i.style.display = "flex";
+                    var inviteEl = a.querySelector(".invite");
+                    if (inviteEl) inviteEl.style.display = "none";
+                    // Show Kick/Ban pair only in private rooms AND if you're the owner
+                    if (u) u.style.display = (!l && n) ? "flex" : "none";
+                }
+                var reportBtn = i.querySelector("button.report");
+                if (reportBtn) reportBtn.style.display = t.reported ? "none" : "";
             }
-            i.querySelector("button.report").style.display = t.reported ? "none" : "";
             Ce(t.muted);
-            a.querySelector(".report-menu").style.display = "none";
+            var reportMenu = a.querySelector(".report-menu");
+            if (reportMenu) reportMenu.style.display = "none";
             r = we.querySelector(".player");
-            o = (r.style.display = "",
-            ce(r),
-            de(t.avatar));
-            he(o, En == t.id),
-            pe(o, Ya(t)),
-            r.appendChild(o);
+            if (r) {
+                o = (r.style.display = "",
+                ce(r),
+                de(t.avatar));
+                he(o, En == t.id),
+                pe(o, Ya(t)),
+                r.appendChild(o);
+            }
             break;
         case Se:
             ke.textContent = E("Rooms"),
