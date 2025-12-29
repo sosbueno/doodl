@@ -833,59 +833,39 @@
                     }
                   }, 800);
                   
-                  // Store room code for invite button (use code if available, otherwise use id)
+                  // Store room code immediately when GAME_DATA received
                   if (data.data) {
                     window._roomCode = data.data.code || data.data.id;
                     window._roomId = data.data.id;
                     console.log('🔗 Room code/ID received:', window._roomCode);
-  
-                    // Function to get the current room code (dynamic check)
-                    function getCurrentRoomCode() {
-                      // Check window._roomCode first (most recent)
-                      if (window._roomCode && window._roomCode !== 'PUBLIC-0' && !window._roomCode.includes('skribbl.io')) {
-                        return window._roomCode;
-                      }
-                      // Fallback: try to get from input field if available
-                      const inviteInput = document.querySelector('#input-invite');
-                      if (inviteInput && inviteInput.value) {
-                        const match = inviteInput.value.match(/\?([A-Za-z0-9]+)$/);
-                        if (match && match[1] && match[1] !== 'PUBLIC-0') {
-                          return match[1];
-                        }
-                      }
-                      // Last resort: return the stored code even if it's not ideal
-                      return window._roomCode || window._roomId;
-                    }
+                  }
                     
                     // Patch invite functionality to use our domain and room code
                     // Wait for game.js to initialize first, then patch continuously
                     function patchInviteButtons() {
                       // Patch the invite input field (game.js sets it to skribbl.io URL)
                       const inviteInput = document.querySelector('#input-invite');
-                      if (inviteInput) {
-                        const currentCode = getCurrentRoomCode();
-                        if (currentCode && currentCode !== 'PUBLIC-0') {
-                          // Override the value to use our domain and room code
-                          Object.defineProperty(inviteInput, 'value', {
-                            get: function() { 
-                              const code = getCurrentRoomCode();
-                              return code ? (location.origin + '/?' + code) : (location.origin + '/');
-                            },
-                            set: function(val) { 
-                              // Ignore skribbl.io URLs, use our domain
-                              if (val && (val.includes('skribbl.io') || val.includes('PUBLIC-0'))) {
-                                const code = getCurrentRoomCode();
-                                if (code) {
-                                  this.setAttribute('value', location.origin + '/?' + code);
-                                }
-                              } else {
-                                this.setAttribute('value', val);
+                      if (inviteInput && window._roomCode) {
+                        // Override the value to use our domain and room code
+                        Object.defineProperty(inviteInput, 'value', {
+                          get: function() { 
+                            const code = window._roomCode || window._roomId;
+                            return code ? (location.origin + '/?' + code) : (location.origin + '/');
+                          },
+                          set: function(val) { 
+                            // Ignore skribbl.io URLs, use our domain
+                            if (val && val.includes('skribbl.io')) {
+                              const code = window._roomCode || window._roomId;
+                              if (code) {
+                                this.setAttribute('value', location.origin + '/?' + code);
                               }
-                            },
-                            configurable: true
-                          });
-                          inviteInput.value = location.origin + '/?' + currentCode;
-                        }
+                            } else {
+                              this.setAttribute('value', val);
+                            }
+                          },
+                          configurable: true
+                        });
+                        inviteInput.value = location.origin + '/?' + window._roomCode;
                       }
                       
                       // Patch invite buttons to use our domain and show chat message
@@ -903,17 +883,10 @@
                             e.stopPropagation();
                             e.stopImmediatePropagation();
                             
-                            // Get room code dynamically at click time
-                            const roomCode = getCurrentRoomCode();
-                            if (!roomCode || roomCode === 'PUBLIC-0' || roomCode.includes('skribbl.io')) {
-                              console.warn('⚠️ Room code not ready yet, waiting...');
-                              // Wait a bit and try again
-                              setTimeout(function() {
-                                const retryCode = getCurrentRoomCode();
-                                if (retryCode && retryCode !== 'PUBLIC-0') {
-                                  copyInviteLink(retryCode);
-                                }
-                              }, 100);
+                            // Use stored room code directly (should always be available)
+                            const roomCode = window._roomCode || window._roomId;
+                            if (!roomCode) {
+                              console.error('❌ Room code not available');
                               return false;
                             }
                             
