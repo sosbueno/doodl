@@ -1897,15 +1897,12 @@
             N[2].style.display = "none",
             N[1].textContent = a,
             Pn.classList.remove("toolbar-hidden"),
-            yt(),
-            // Disable chat input for drawer during DRAWING state
-            _n[0].disabled = !0,
-            _n[1].disabled = !0) : (da(!0),
+            yt()) : (da(!0),
             // Enable chat input for guessing players
             _n[0].disabled = !1,
             _n[1].disabled = !1,
-            // For guessing players, use wordLength if word is undefined, otherwise use word length
-            pa(e.data.word === undefined && e.data.wordLength !== undefined ? e.data.wordLength : (e.data.word ? e.data.word.length : 0), !1),
+            // For guessing players, use wordStructure if available (preserves spaces), otherwise use wordLength or word length
+            pa(e.data.wordStructure || (e.data.word === undefined && e.data.wordLength !== undefined ? e.data.wordLength : (e.data.word ? e.data.word.length : 0)), !1),
             ma(e.data.hints))
         } else {
             M = -1;
@@ -1982,9 +1979,25 @@
         N[2].style.display = "",
         ce(N[2]),
         N[2].hints = [];
-        for (a = 0; a < n; a++)
-            N[2].hints[a] = $("hint", o ? "?" : "_"),
-            N[2].appendChild(N[2].hints[a]);
+        // If we have the actual word (string), handle spaces properly
+        if (typeof e === "string" && e.length > 0) {
+            for (a = 0; a < e.length; a++) {
+                if (e[a] === " ") {
+                    // For spaces, create a space element instead of underscore
+                    var spaceEl = document.createTextNode(" ");
+                    N[2].appendChild(spaceEl);
+                    N[2].hints[a] = null; // No hint element for spaces
+                } else {
+                    N[2].hints[a] = $("hint", o ? "?" : "_"),
+                    N[2].appendChild(N[2].hints[a]);
+                }
+            }
+        } else {
+            // For number or array mode, use underscores for all positions
+            for (a = 0; a < n; a++)
+                N[2].hints[a] = $("hint", o ? "?" : "_"),
+                N[2].appendChild(N[2].hints[a]);
+        }
         // Only add word-length element for array mode (combination), otherwise number is in description
         o || (Array.isArray(e) && N[2].appendChild($("word-length", e.join(" "))))
     }
