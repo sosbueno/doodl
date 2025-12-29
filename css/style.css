@@ -1048,7 +1048,8 @@ body .snow {
     width: 200px;
     border-radius: var(--BORDER_RADIUS);
     display: flex;
-    flex-direction: column
+    flex-direction: column;
+    overflow: visible
 }
 
 #game-players .players-list {
@@ -1101,7 +1102,8 @@ body .snow {
     position: relative;
     width: 100%;
     height: var(--UNIT);
-    color: var(--COLOR_PLAYER_TEXT_BASE)
+    color: var(--COLOR_PLAYER_TEXT_BASE);
+    overflow: visible
 }
 
 #game-players .player:hover .avatar {
@@ -1208,7 +1210,8 @@ body .snow {
     position: absolute;
     bottom: 0;
     left: 4px;
-    display: flex
+    display: flex;
+    overflow: visible
 }
 
 @keyframes icon_introduce {
