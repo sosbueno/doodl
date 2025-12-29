@@ -1262,11 +1262,17 @@ io.on('connection', (socket) => {
       scores.push(p.id, p.score, roundScore);
     });
     
+    // Check if this is the final round
+    const isFinalRound = room.currentRound >= room.settings[SETTINGS.ROUNDS];
+    
+    // Set timer to 7 seconds for countdown in top-left clock
+    room.timer = 7;
+    
     io.to(room.id).emit('data', {
       id: PACKET.STATE,
       data: {
         id: GAME_STATE.ROUND_END,
-        time: 0,
+        time: 7,  // Send 7 seconds for countdown
         data: {
           word: room.currentWord,
           reason: reason,
@@ -1275,23 +1281,26 @@ io.on('connection', (socket) => {
       }
     });
     
-    // Wait 7 seconds, then return to lobby (players stay in room)
-    setTimeout(() => {
-      room.state = GAME_STATE.LOBBY;
-      room.currentDrawer = -1;
-      room.currentWord = '';
-      room.timer = 0;
-      
-      // Send LOBBY state to all clients
+    // Start countdown timer in top-left clock
+    const countdownInterval = setInterval(() => {
+      room.timer--;
       io.to(room.id).emit('data', {
-        id: PACKET.STATE,
-        data: {
-          id: GAME_STATE.LOBBY,
-          time: 0,
-          data: {}
-        }
+        id: PACKET.TIMER,
+        data: room.timer
       });
-    }, 7000);
+      
+      if (room.timer <= 0) {
+        clearInterval(countdownInterval);
+        
+        if (isFinalRound) {
+          // Final round - go to game end
+          endGame(room);
+        } else {
+          // Not final round - start next round
+          startRound(room);
+        }
+      }
+    }, 1000);
   }
   
   function endGame(room) {
@@ -1309,37 +1318,51 @@ io.on('connection', (socket) => {
       rank[1] = index;
     });
     
+    // Set timer to 7 seconds for countdown in top-left clock
+    room.timer = 7;
+    
     io.to(room.id).emit('data', {
       id: PACKET.STATE,
       data: {
         id: GAME_STATE.GAME_END,
-        time: 0,
+        time: 7,  // Send 7 seconds for countdown
         data: rankings
       }
     });
     
-    // Reset room after 7 seconds and return to lobby (players stay in room)
-    setTimeout(() => {
-      room.state = GAME_STATE.LOBBY;
-      room.currentRound = 0;
-      room.currentDrawer = -1;
-      room.currentWord = '';
-      room.timer = 0;
-      room.players.forEach(p => {
-        p.score = 0;
-        p.guessed = false;
+    // Start countdown timer in top-left clock
+    const countdownInterval = setInterval(() => {
+      room.timer--;
+      io.to(room.id).emit('data', {
+        id: PACKET.TIMER,
+        data: room.timer
       });
       
-      // Send LOBBY state to all clients
-      io.to(room.id).emit('data', {
-        id: PACKET.STATE,
-        data: {
-          id: GAME_STATE.LOBBY,
-          time: 0,
-          data: {}
-        }
-      });
-    }, 7000);
+      if (room.timer <= 0) {
+        clearInterval(countdownInterval);
+        
+        // Reset room and return to lobby (players stay in room)
+        room.state = GAME_STATE.LOBBY;
+        room.currentRound = 0;
+        room.currentDrawer = -1;
+        room.currentWord = '';
+        room.timer = 0;
+        room.players.forEach(p => {
+          p.score = 0;
+          p.guessed = false;
+        });
+        
+        // Send LOBBY state to all clients
+        io.to(room.id).emit('data', {
+          id: PACKET.STATE,
+          data: {
+            id: GAME_STATE.LOBBY,
+            time: 0,
+            data: {}
+          }
+        });
+      }
+    }, 1000);
   }
   
   function kickPlayer(room, playerId, reason) {

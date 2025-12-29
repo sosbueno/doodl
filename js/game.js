@@ -2155,12 +2155,7 @@
                     var msg = E("$ guessed the word!", a.name);
                     var msgEl = y(msg, "", f(1), !0);
                     msgEl.classList.add("guessed");
-                    // Add word in green
-                    var wordSpan = c.createElement("span");
-                    wordSpan.textContent = " " + n.word;
-                    wordSpan.style.color = "var(--COLOR_CHAT_TEXT_GUESSED)";
-                    var spanEl = msgEl.querySelector("span");
-                    if (spanEl) spanEl.appendChild(wordSpan);
+                    // Don't add the word - just show "guessed the word!" message
                 })(),
                 Fa(a, !0),
                 R.playSound(xn),
