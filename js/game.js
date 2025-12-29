@@ -248,7 +248,10 @@
         m.style.display = "block";
         for (var n = 0; n < g.length; n++)
             g[n] && (g[n].style.display = "none");
-        if (!g[e]) return;  // Safety check
+        if (!g[e]) {
+            console.error("Modal container not found for index", e, "g array:", g, "m:", m);
+            return;
+        }
         g[e].style.display = "flex";
         var a = g[e];
         switch (e) {
@@ -262,38 +265,34 @@
             break;
         case s:
             ke.textContent = t.id == x ? E("$ (You)", t.name) : t.name;
-            var currentPlayer = W(x);
-            var o = currentPlayer ? ((currentPlayer.flags & k) == k) : !1
+            var o = (W(x) ? (W(x).flags & k) == k : !1)
               , r = (t.flags & k) == k
-              , i = a.querySelector(".buttons")
-              , n = x == En  // Current player is owner
+              , i = a.querySelector(".buttons");
+            if (!i) {
+                console.error("Buttons container not found in modal-container-player");
+                break;
+            }
+            var n = x == En  // Current player is owner
               , l = (In !== void 0 && In !== null && In !== -1) ? In : !0  // Default to public if In not set (for backwards compat)
-              , u = a.querySelector(".button-pair");  // Kick/Ban buttons
-            // Show/hide buttons based on context:
+              , u = i.querySelector(".button-pair");  // Kick/Ban buttons
+            // Show/hide buttons based on context (like official skribbl.io but with public/private logic):
             // - If clicking yourself: show invite only, hide all buttons
             // - If clicking others in public room: show Votekick, Mute, Report (no Kick/Ban)
             // - If clicking others in private room AND you're owner: show Kick, Ban, Votekick, Mute, Report
             // - If clicking others in private room AND you're NOT owner: show Votekick, Mute, Report (no Kick/Ban)
-            if (i) {
-                if (t.id == x) {
-                    // Clicking yourself - show invite only
-                    i.style.display = "none";
-                    var inviteEl = a.querySelector(".invite");
-                    if (inviteEl) inviteEl.style.display = "flex";
-                } else {
-                    // Clicking someone else
-                    i.style.display = "flex";
-                    var inviteEl = a.querySelector(".invite");
-                    if (inviteEl) inviteEl.style.display = "none";
-                    // Show Kick/Ban pair only in private rooms AND if you're the owner
-                    if (u) u.style.display = (!l && n) ? "flex" : "none";
-                }
-                var reportBtn = i.querySelector("button.report");
-                if (reportBtn) reportBtn.style.display = t.reported ? "none" : "";
-            }
+            // Hide buttons if clicking yourself or target is admin
+            i.style.display = (t.id == x || r) ? "none" : "flex";
+            // Show Kick/Ban pair only in private rooms AND if you're the owner (not in public rooms)
+            if (u) u.style.display = (!l && n) ? "flex" : "none";
+            // Hide report button if already reported
+            var reportBtn = i.querySelector("button.report");
+            if (reportBtn) reportBtn.style.display = t.reported ? "none" : "";
             Ce(t.muted);
             var reportMenu = a.querySelector(".report-menu");
             if (reportMenu) reportMenu.style.display = "none";
+            // Show invite only if clicking yourself
+            var inviteEl = a.querySelector(".invite");
+            if (inviteEl) inviteEl.style.display = (x == t.id) ? "flex" : "none";
             r = we.querySelector(".player");
             if (r) {
                 o = (r.style.display = "",
