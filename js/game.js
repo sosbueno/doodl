@@ -1846,7 +1846,9 @@
             w[e].score = 0;
         for (e = 0; e < w.length; e++)
             Fa(w[e], !1),
-            Va(w[e], !1);
+            Va(w[e], !1),
+            // Clear rate icon
+            w[e].element.icons && w[e].element.icons[2] && w[e].element.icons[2].classList.remove("visible");
         Ka()
     }
     function sa(e, t) {
@@ -1922,7 +1924,9 @@
             y(E("$ is drawing now!", W(M).name), "", f(De), !0),
             !t)
                 for (o = 0; o < w.length; o++)
-                    Fa(w[o], !1);
+                    Fa(w[o], !1),
+                    // Clear rate icon when new drawing starts
+                    w[o].element.icons && w[o].element.icons[2] && w[o].element.icons[2].classList.remove("visible");
             N[0].classList.remove("waiting"),
             M == x ? (a = e.data.word,
             N[0].textContent = E("DRAW THIS"),
@@ -2137,13 +2141,12 @@
             n.id == x) && ga(n.word);
             break;
         case Sa:
-            (a = W(n.id)) && (o = a,
-            r = 0 == n.vote ? "thumbsdown.gif" : "thumbsup.gif",
-            (i = $("icon")).style.backgroundImage = "url(/img/" + r + ")",
-            r = Ua(o, i).getBoundingClientRect(),
-            o = .9 * (r.bottom - r.top),
-            i.style.width = o + "px",
-            i.style.height = o + "px",
+            (a = W(n.id)) && (
+            // Add rate icon to player's icons (index 2 in icons array)
+            a.element.icons && a.element.icons[2] && (
+                a.element.icons[2].style.backgroundImage = "url(/img/" + (0 == n.vote ? "thumbsdown.gif" : "thumbsup.gif") + ")",
+                a.element.icons[2].classList.add("visible")
+            ),
             n.vote ? y(E("$ liked the drawing!", a.name), "", f($e), !0) : y(E("$ disliked the drawing!", a.name), "", f(Ee), !0));
             break;
         case Ea:
@@ -2242,11 +2245,13 @@
         }),
         $("player-icons"))
           , l = $("icon owner")
-          , a = $("icon muted");
+          , a = $("icon muted")
+          , s = $("icon rate");
         return e.appendChild(l),
         e.appendChild(a),
+        e.appendChild(s),
         n.element.appendChild(e),
-        n.element.icons = [l, a],
+        n.element.icons = [l, a, s],
         Fa(n, n.guessed),
         t && Ga(),
         n

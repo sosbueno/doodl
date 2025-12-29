@@ -743,7 +743,8 @@ io.on('connection', (socket) => {
         
       case PACKET.RATE:
         if (room.state === GAME_STATE.DRAWING) {
-          socket.to(currentRoomId).emit('data', {
+          // Broadcast to EVERYONE including the sender
+          io.to(currentRoomId).emit('data', {
             id: PACKET.RATE,
             data: {
               id: socket.id,

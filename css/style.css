@@ -1242,6 +1242,10 @@ body .snow {
     background-image: url(/img/mute.gif)
 }
 
+#game-players .player .player-icons .icon.rate {
+    background-size: cover
+}
+
 #game-players .player .player-icons .icon.visible {
     display: block
 }
