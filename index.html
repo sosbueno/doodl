@@ -937,101 +937,148 @@
                     window._roomId = data.data.id;
                     console.log('🔗 Room code/ID received:', window._roomCode);
   
+                    // Function to get the current room code (dynamic check)
+                    function getCurrentRoomCode() {
+                      // Check window._roomCode first (most recent)
+                      if (window._roomCode && window._roomCode !== 'PUBLIC-0' && !window._roomCode.includes('skribbl.io')) {
+                        return window._roomCode;
+                      }
+                      // Fallback: try to get from input field if available
+                      const inviteInput = document.querySelector('#input-invite');
+                      if (inviteInput && inviteInput.value) {
+                        const match = inviteInput.value.match(/\?([A-Za-z0-9]+)$/);
+                        if (match && match[1] && match[1] !== 'PUBLIC-0') {
+                          return match[1];
+                        }
+                      }
+                      // Last resort: return the stored code even if it's not ideal
+                      return window._roomCode || window._roomId;
+                    }
+                    
                     // Patch invite functionality to use our domain and room code
-                    // Wait for game.js to initialize first
-                    setTimeout(function() {
+                    // Wait for game.js to initialize first, then patch continuously
+                    function patchInviteButtons() {
                       // Patch the invite input field (game.js sets it to skribbl.io URL)
                       const inviteInput = document.querySelector('#input-invite');
-                      if (inviteInput && window._roomCode) {
-                        // Override the value to use our domain and room code
-                        Object.defineProperty(inviteInput, 'value', {
-                          get: function() { 
-                            return location.origin + '/?' + window._roomCode; 
-                          },
-                          set: function(val) { 
-                            // Ignore skribbl.io URLs, use our domain
-                            if (val && val.includes('skribbl.io')) {
-                              this.setAttribute('value', location.origin + '/?' + window._roomCode);
-                            } else {
-                              this.setAttribute('value', val);
-                            }
-                          },
-                          configurable: true
-                        });
-                        inviteInput.value = location.origin + '/?' + window._roomCode;
+                      if (inviteInput) {
+                        const currentCode = getCurrentRoomCode();
+                        if (currentCode && currentCode !== 'PUBLIC-0') {
+                          // Override the value to use our domain and room code
+                          Object.defineProperty(inviteInput, 'value', {
+                            get: function() { 
+                              const code = getCurrentRoomCode();
+                              return code ? (location.origin + '/?' + code) : (location.origin + '/');
+                            },
+                            set: function(val) { 
+                              // Ignore skribbl.io URLs, use our domain
+                              if (val && (val.includes('skribbl.io') || val.includes('PUBLIC-0'))) {
+                                const code = getCurrentRoomCode();
+                                if (code) {
+                                  this.setAttribute('value', location.origin + '/?' + code);
+                                }
+                              } else {
+                                this.setAttribute('value', val);
+                              }
+                            },
+                            configurable: true
+                          });
+                          inviteInput.value = location.origin + '/?' + currentCode;
+                        }
                       }
                       
                       // Patch invite buttons to use our domain and show chat message
                       // The official game.js adds click handlers, so we need to intercept them
                       const inviteBtns = document.querySelectorAll('#button-invite, #modal-player-button-invite');
                       inviteBtns.forEach(function(inviteBtn) {
-                        if (inviteBtn && window._roomCode) {
-                          // Clone to remove existing handlers
-                          const newBtn = inviteBtn.cloneNode(true);
-                          inviteBtn.parentNode.replaceChild(newBtn, inviteBtn);
+                        if (inviteBtn) {
+                          // Remove any existing patched handler (check for our marker)
+                          if (inviteBtn._patchedInvite) return;
+                          inviteBtn._patchedInvite = true;
                           
                           // Add our handler (runs first in capture phase)
-                          newBtn.addEventListener('click', function(e) {
+                          inviteBtn.addEventListener('click', function(e) {
                             e.preventDefault();
                             e.stopPropagation();
                             e.stopImmediatePropagation();
                             
-                            const inviteUrl = location.origin + '/?' + window._roomCode;
-                            
-                            // Show chat message (like official game.js does)
-                            // Access game.js's y function if available, otherwise create our own
-                            if (window.game && typeof window.game.y === 'function') {
-                              // Use game.js's chat function
-                              window.game.y("Copied room link to clipboard!", "", "var(--COLOR_CHAT_TEXT_CLOSE)", true);
-                            } else {
-                              // Fallback: manually add to chat
-                              const chatContent = document.querySelector('#game-chat .chat-content');
-                              if (chatContent) {
-                                const msg = document.createElement('p');
-                                const bold = document.createElement('b');
-                                bold.textContent = '';
-                                const span = document.createElement('span');
-                                span.textContent = "Copied room link to clipboard!";
-                                msg.appendChild(bold);
-                                msg.appendChild(span);
-                                msg.style.color = "#e2cb00";
-                                chatContent.appendChild(msg);
-                                const shouldScroll = chatContent.scrollHeight - chatContent.scrollTop - chatContent.clientHeight <= 20;
-                                if (shouldScroll) {
-                                  chatContent.scrollTop = chatContent.scrollHeight + 100;
+                            // Get room code dynamically at click time
+                            const roomCode = getCurrentRoomCode();
+                            if (!roomCode || roomCode === 'PUBLIC-0' || roomCode.includes('skribbl.io')) {
+                              console.warn('⚠️ Room code not ready yet, waiting...');
+                              // Wait a bit and try again
+                              setTimeout(function() {
+                                const retryCode = getCurrentRoomCode();
+                                if (retryCode && retryCode !== 'PUBLIC-0') {
+                                  copyInviteLink(retryCode);
                                 }
-                              }
+                              }, 100);
+                              return false;
                             }
                             
-                            // Copy to clipboard
-                            if (navigator.clipboard) {
-                              navigator.clipboard.writeText(inviteUrl).then(function() {
-                                console.log('✅ Copied invite link:', inviteUrl);
-                              }).catch(function(err) {
-                                console.error('❌ Failed to copy:', err);
-                                // Fallback
-                                const input = document.createElement('input');
-                                input.value = inviteUrl;
-                                document.body.appendChild(input);
-                                input.select();
-                                document.execCommand('copy');
-                                document.body.removeChild(input);
-                              });
-                            } else {
-                              // Fallback
-                              const input = document.createElement('input');
-                              input.value = inviteUrl;
-                              document.body.appendChild(input);
-                              input.select();
-                              document.execCommand('copy');
-                              document.body.removeChild(input);
-                            }
-                            
+                            copyInviteLink(roomCode);
                             return false;
                           }, true);
                         }
                       });
-                    }, 1500);
+                      
+                      function copyInviteLink(code) {
+                        const inviteUrl = location.origin + '/?' + code;
+                        
+                        // Show chat message (like official game.js does)
+                        // Access game.js's y function if available, otherwise create our own
+                        if (window.game && typeof window.game.y === 'function') {
+                          // Use game.js's chat function
+                          window.game.y("Copied room link to clipboard!", "", "var(--COLOR_CHAT_TEXT_CLOSE)", true);
+                        } else {
+                          // Fallback: manually add to chat
+                          const chatContent = document.querySelector('#game-chat .chat-content');
+                          if (chatContent) {
+                            const msg = document.createElement('p');
+                            const bold = document.createElement('b');
+                            bold.textContent = '';
+                            const span = document.createElement('span');
+                            span.textContent = "Copied room link to clipboard!";
+                            msg.appendChild(bold);
+                            msg.appendChild(span);
+                            msg.style.color = "#e2cb00";
+                            chatContent.appendChild(msg);
+                            const shouldScroll = chatContent.scrollHeight - chatContent.scrollTop - chatContent.clientHeight <= 20;
+                            if (shouldScroll) {
+                              chatContent.scrollTop = chatContent.scrollHeight + 100;
+                            }
+                          }
+                        }
+                        
+                        // Copy to clipboard
+                        if (navigator.clipboard) {
+                          navigator.clipboard.writeText(inviteUrl).then(function() {
+                            console.log('✅ Copied invite link:', inviteUrl);
+                          }).catch(function(err) {
+                            console.error('❌ Failed to copy:', err);
+                            // Fallback
+                            const input = document.createElement('input');
+                            input.value = inviteUrl;
+                            document.body.appendChild(input);
+                            input.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(input);
+                          });
+                        } else {
+                          // Fallback
+                          const input = document.createElement('input');
+                          input.value = inviteUrl;
+                          document.body.appendChild(input);
+                          input.select();
+                          document.execCommand('copy');
+                          document.body.removeChild(input);
+                        }
+                      }
+                    }
+                    
+                    // Patch immediately and also after a delay to catch late-loading elements
+                    patchInviteButtons();
+                    setTimeout(patchInviteButtons, 500);
+                    setTimeout(patchInviteButtons, 1500);
                   }
                   
                   // Let game.js handle private room display naturally (like play screen)

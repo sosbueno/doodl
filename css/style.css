@@ -1243,7 +1243,11 @@ body .snow {
 }
 
 #game-players .player .player-icons .icon.rate {
-    background-size: cover
+    background-size: cover;
+    position: absolute;
+    left: calc(200px - 48px - 24px - 8px);
+    bottom: 0;
+    margin-right: 0;
 }
 
 #game-players .player .player-icons .icon.visible {

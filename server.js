@@ -1265,42 +1265,30 @@ io.on('connection', (socket) => {
     // Check if this is the final round
     const isFinalRound = room.currentRound >= room.settings[SETTINGS.ROUNDS];
     
-    // Set timer to 7 seconds for countdown in top-left clock
-    room.timer = 7;
-    
-    io.to(room.id).emit('data', {
-      id: PACKET.STATE,
-      data: {
-        id: GAME_STATE.ROUND_END,
-        time: 7,  // Send 7 seconds for countdown
-        data: {
-          word: room.currentWord,
-          reason: reason,
-          scores: scores
-        }
-      }
-    });
-    
-    // Start countdown timer in top-left clock
-    const countdownInterval = setInterval(() => {
-      room.timer--;
+    if (isFinalRound) {
+      // Final round - go to game end (which shows the podium)
+      endGame(room);
+    } else {
+      // Regular round - just wait 5 seconds then start next round (no podium)
+      // Send a brief round end state without showing full podium
       io.to(room.id).emit('data', {
-        id: PACKET.TIMER,
-        data: room.timer
+        id: PACKET.STATE,
+        data: {
+          id: GAME_STATE.ROUND_END,
+          time: 0,
+          data: {
+            word: room.currentWord,
+            reason: reason,
+            scores: scores
+          }
+        }
       });
       
-      if (room.timer <= 0) {
-        clearInterval(countdownInterval);
-        
-        if (isFinalRound) {
-          // Final round - go to game end
-          endGame(room);
-        } else {
-          // Not final round - start next round
-          startRound(room);
-        }
-      }
-    }, 1000);
+      // Wait 3 seconds, then start next round
+      setTimeout(() => {
+        startRound(room);
+      }, 3000);
+    }
   }
   
   function endGame(room) {
