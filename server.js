@@ -738,6 +738,16 @@ io.on('connection', (socket) => {
               id: PACKET.CLOSE,
               data: data.data  // Send original guess (not lowercased) to preserve formatting
             });
+            // Don't display in chat if it's a close guess (player sees "close" message instead)
+          } else {
+            // Wrong guess - display as chat message
+            io.to(currentRoomId).emit('data', {
+              id: PACKET.CHAT,
+              data: {
+                id: socket.id,
+                msg: data.data
+              }
+            });
           }
           }
         }
