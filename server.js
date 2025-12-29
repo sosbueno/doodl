@@ -613,12 +613,12 @@ io.on('connection', (socket) => {
           }
           
           const wordIndex = Array.isArray(data.data) ? data.data[0] : data.data;
-          const words = getRandomWords(
+          const words = room.currentWords || getRandomWords(
             room.settings[SETTINGS.LANG],
             room.settings[SETTINGS.WORDCOUNT],
             room.customWords
           );
-          if (words[wordIndex] !== undefined) {
+          if (words && words[wordIndex] !== undefined) {
             room.currentWord = words[wordIndex];
             room.state = GAME_STATE.DRAWING;
             room.timer = room.settings[SETTINGS.DRAWTIME];
@@ -871,38 +871,71 @@ io.on('connection', (socket) => {
     );
     
     room.state = GAME_STATE.WORD_CHOICE;
-    room.timer = 4; // 4 second timer for word choice (matches client eo = 4)
+    room.timer = 15; // 15 second timer for word choice
     
-    // Step 1: Send "Round X" to ALL players (F = 2, ROUND_START)
+    // Step 1: Send "Round X" text to overlay (no countdown in overlay)
+    const roundNumber = room.currentRound - 1; // Round number (0-indexed, client adds 1)
+    
     io.to(room.id).emit('data', {
       id: PACKET.STATE,
       data: {
         id: GAME_STATE.ROUND_START, // F = 2
         time: 0,
-        data: room.currentRound - 1  // Round number (0-indexed, client adds 1)
+        data: roundNumber  // Normal round number (client will show "Round X")
       }
     });
     
-    // Step 2: Send word choice to DRAWER (V = 3, WORD_CHOICE with words and timer)
+    // Step 2: Send countdown (3, 2, 1) to clock only (using TIMER packets)
+    let countdown = 3;
+    
+    const sendCountdown = () => {
+      if (countdown > 0) {
+        // Send countdown value to clock (TIMER packet)
+        io.to(room.id).emit('data', {
+          id: PACKET.TIMER,
+          data: countdown
+        });
+        countdown--;
+        setTimeout(sendCountdown, 1000);
+      } else {
+        // Countdown finished, hide overlay and send word choice states
+        setTimeout(() => {
+          sendWordChoice(room, words);
+        }, 100);
+      }
+    };
+    
+    // Start countdown after a brief delay to show "Round X"
+    setTimeout(() => {
+      sendCountdown();
+    }, 500);
+  }
+  
+  function sendWordChoice(room, words) {
+    room.state = GAME_STATE.WORD_CHOICE;
+    room.timer = 15; // 15 second timer for word choice
+    room.currentWords = words; // Store words in room for timer access
+    
+    // Send word choice to DRAWER (V = 3, WORD_CHOICE with words and timer)
     io.to(room.currentDrawer).emit('data', {
       id: PACKET.STATE,
       data: {
         id: GAME_STATE.WORD_CHOICE, // V = 3
-        time: room.timer, // 4 seconds for word choice
+        time: room.timer, // 15 seconds for word choice
         data: {
           words: words
         }
       }
     });
     
-    // Step 3: Send "choosing word" message to OTHER players (V = 3, WORD_CHOICE without words, with timer)
+    // Send "choosing word" message to OTHER players (V = 3, WORD_CHOICE without words, with timer)
     room.players.forEach(player => {
       if (player.id !== room.currentDrawer) {
         io.to(player.id).emit('data', {
           id: PACKET.STATE,
           data: {
             id: GAME_STATE.WORD_CHOICE, // V = 3
-            time: room.timer, // 4 seconds timer
+            time: room.timer, // 15 seconds timer
             data: {
               id: room.currentDrawer  // Drawer's ID (client shows "$ is choosing a word!")
             }
@@ -911,7 +944,7 @@ io.on('connection', (socket) => {
       }
     });
     
-    // Start word choice timer (4 seconds)
+    // Start word choice timer (15 seconds)
     if (room.wordChoiceTimer) {
       clearInterval(room.wordChoiceTimer);
     }
@@ -929,8 +962,8 @@ io.on('connection', (socket) => {
         clearInterval(room.wordChoiceTimer);
         room.wordChoiceTimer = null;
         
-        if (words.length > 0) {
-          room.currentWord = words[0];
+        if (room.currentWords && room.currentWords.length > 0) {
+          room.currentWord = room.currentWords[0];
           room.state = GAME_STATE.DRAWING;
           room.timer = room.settings[SETTINGS.DRAWTIME];
           room.startTime = Date.now();
