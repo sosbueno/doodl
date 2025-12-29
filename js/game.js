@@ -1676,49 +1676,10 @@
         r.send(t)
     }
     Zn;
-    var ea = null;
-    adplayer = null;
-    try {
-        aiptag.cmd.player.push(function() {
-            console.log("ad player loaded"),
-            adplayer = new aipPlayer({
-                AD_WIDTH: 960,
-                AD_HEIGHT: 540,
-                AD_FULLSCREEN: !1,
-                AD_CENTERPLAYER: !0,
-                LOADING_TEXT: "loading advertisement",
-                PREROLL_ELEM: function() {
-                    return c.getElementById("preroll")
-                },
-                AIP_COMPLETE: function(e) {
-                    ea()
-                },
-                AIP_REMOVE: function() {}
-            })
-        })
-    } catch (e) {
-        console.log("ad push failed: "),
-        console.log(e)
-    }
+    // Ad player removed
     function ta(t) {
-        var e, n, a = !1;
-        if (h.localStorageAvailable && (n = d.getItem("lastAd"),
-        e = new Date,
-        d.setItem("lastAd", e.toString()),
-        null == n ? n = e : (n = new Date(Date.parse(n)),
-        a = 1 <= Math.abs(n - e) / 1e3 / 60)),
-        a)
-            try {
-                aiptag && adplayer && null != adplayer && "undefined" !== adplayer ? (ea = t,
-                aiptag.cmd.player.push(function() {
-                    adplayer.startPreRoll()
-                })) : t()
-            } catch (e) {
-                console.log(e),
-                t()
-            }
-        else
-            t()
+        // Ads removed - just call the callback immediately
+        if (t) t();
     }
     function na(e, t, n) {
         R.context && R.context.resume && R.context.resume(),
@@ -1773,23 +1734,14 @@
             o = e
         }),
         S.on("disconnect", function(e) {
-            switch (console.log("socket disconnect: " + e),
-            o) {
-            case Q:
-                qe(ve, E("You have been kicked!"));
-                break;
-            case ee:
-                qe(ve, E("You have been banned!"));
-                break;
-            default:
-                qe(ve, E("Connection lost!") + "\n" + e)
-            }
-            ua()
+            console.log("socket disconnect: " + e);
+            // Redirect to home page on disconnect
+            h.location.href = "/"
         }),
         S.on("connect_error", function(e) {
-            ua(),
-            Jn(!1),
-            qe(ye, e.message)
+            console.log("connect_error: " + e.message);
+            // Redirect to home page on connection error
+            h.location.href = "/"
         })
     }
     function aa(e) {

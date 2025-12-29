@@ -14,99 +14,8 @@
           }
         })();
         
-        var aiptag = aiptag || {};
-        aiptag.cmd = aiptag.cmd || [];
-        aiptag.cmd.display = aiptag.cmd.display || [];
-        aiptag.cmd.player = aiptag.cmd.player || [];
-        aiptag.gdprShowConsentTool = true;
-        aiptag.gdprAlternativeConsentTool = false;
-        aiptag.cmp = {
-            show: true,
-            position: "centered",
-            button: false
-        };
-
-        function addPrivacySettingsButton() {
-            var ps = document.createElement("a");
-            ps.textContent = "Privacy Settings";
-            ps.href = "javascript:void(0)";
-            ps.onclick = function() {
-                aipAPItag.showCMPScreen()
-            }
-            ;
-            document.querySelector("#home .tos").appendChild(ps);
-        }
-
-        function gads() {
-            if (window.gads_loaded)
-                return;
-            window.gads_loaded = true;
-            var element = document.createElement('script');
-            var firstScript = document.getElementsByTagName('script')[0];
-            var url = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js";
-            element.async = true;
-            element.type = 'text/javascript';
-            element.src = url;
-            firstScript.parentNode.insertBefore(element, firstScript);
-
-            (adsbygoogle = window.adsbygoogle || []).push({
-                google_ad_client: "ca-pub-9486091533756129",
-                enable_page_level_ads: (window.innerHeight < window.innerWidth),
-                overlays: {
-                    bottom: true
-                }
-            });
-
-            console.log("gads loaded.");
-        }
-        function gao() {
-            if (window.gao_loaded)
-                return;
-            window.gao_loaded = true;
-            var element = document.createElement('script');
-            var firstScript = document.getElementsByTagName('script')[0];
-            var url = "https://www.googletagmanager.com/gtag/js?id=G-YB9N45W3N0";
-            element.async = true;
-            element.type = 'text/javascript';
-            element.src = url;
-            firstScript.parentNode.insertBefore(element, firstScript);
-            window.dataLayer = window.dataLayer || [];
-            function gtag() {
-                dataLayer.push(arguments);
-            }
-            gtag('js', new Date());
-            gtag('config', 'G-YB9N45W3N0');
-            console.log("gao loaded.");
-        }
-        document.addEventListener("aip_consent", function() {
-            console.log("consent", arguments);
-            gads();
-            gao();
-        });
-        document.addEventListener("aip_consentapproved", function() {
-            console.log("consent_approved", arguments);
-            gads();
-            gao();
-        });
-        document.addEventListener("aip_consentrejected", function() {
-            console.log("consent_rejected", arguments);
-        });
-        document.addEventListener("aip_consentnotrequired", function() {
-            console.log("consent_not_required", arguments);
-            if (window == window.parent) {
-                gao();
-                gads();
-            }
-        });
-        window.addEventListener("load", function() {
-            addPrivacySettingsButton()
-            setTimeout(function() {
-                gads();
-                gao();
-            }, 1500);
-        });
+        // Ad-related code removed
     </script>
-    <script async src="//api.adinplay.com/libs/aiptag/pub/SKR/skribbl.io/tag.min.js"></script>
     <head>
         <title>skribbl - Free Multiplayer Drawing &amp;Guessing Game</title>
         <meta charset="utf-8">
@@ -176,12 +85,7 @@
                     </button>
                 </div>
                 <div class="panel-right">
-                    <div class="ad-side">
-                        <ins class="adsbygoogle" style="display:inline-block;width:336px;height:280px" data-ad-client="ca-pub-9486091533756129" data-ad-slot="6031846696"></ins>
-                        <script>
-                            (adsbygoogle = window.adsbygoogle || []).push({});
-                        </script>
-                    </div>
+                    <!-- Ads removed -->
                 </div>
             </div>
             <div class="bottom">
@@ -310,7 +214,7 @@
                         <img src="/img/logo.gif">
                     </a>
                     <div class="ad-1">
-                        <ins class="adsbygoogle" style="display:inline-block;width:728px;height:90px" data-ad-client="ca-pub-9486091533756129" data-ad-slot="6426007092"></ins>
+                        <!-- Ad removed -->
                     </div>
                 </div>
                 <div id="game-bar">
@@ -535,7 +439,7 @@
                 </div>
                 <div id="game-chat">
                     <div class="ad-2">
-                        <ins class="adsbygoogle" style="display:inline-block;width:300px;height:250px" data-ad-client="ca-pub-9486091533756129" data-ad-slot="2239808152"></ins>
+                        <!-- Ad removed -->
                     </div>
                     <div class="chat-content"></div>
                     <form class="chat-form">
@@ -676,9 +580,7 @@
           'use strict';
           
           // Stub aiptag to prevent errors
-          if (typeof window.aiptag === 'undefined') {
-            window.aiptag = { cmd: [] };
-          }
+          // Ad-related code removed
           
           // Patch URL constructor to handle room IDs
           const OriginalURL = window.URL;
