@@ -264,14 +264,30 @@
             var o = (W(x).flags & k) == k
               , r = (t.flags & k) == k
               , i = a.querySelector(".buttons")
-              , r = (i.style.display = t.id == x || r ? "none" : "flex",
-            i.querySelector(".button-pair").style.display = x == En || o ? "flex" : "none",
-            i.querySelector("button.report").style.display = t.reported ? "none" : "",
-            Ce(t.muted),
-            a.querySelector(".report-menu").style.display = "none",
-            a.querySelector(".invite").style.display = x == t.id ? "flex" : "none",
-            we.querySelector(".player"))
-              , o = (r.style.display = "",
+              , n = x == En  // Current player is owner
+              , l = In !== void 0 ? In : !0  // Default to public if In not set (for backwards compat)
+              , u = a.querySelector(".button-pair");  // Kick/Ban buttons
+            // Show/hide buttons based on context:
+            // - If clicking yourself: show invite only, hide all buttons
+            // - If clicking others in public room: show Votekick, Mute, Report (no Kick/Ban)
+            // - If clicking others in private room AND you're owner: show Kick, Ban, Votekick, Mute, Report
+            // - If clicking others in private room AND you're NOT owner: show Votekick, Mute, Report (no Kick/Ban)
+            if (t.id == x) {
+                // Clicking yourself - show invite only
+                i.style.display = "none";
+                a.querySelector(".invite").style.display = "flex";
+            } else {
+                // Clicking someone else
+                i.style.display = "flex";
+                a.querySelector(".invite").style.display = "none";
+                // Show Kick/Ban pair only in private rooms AND if you're the owner
+                u.style.display = (!l && n) ? "flex" : "none";
+            }
+            i.querySelector("button.report").style.display = t.reported ? "none" : "";
+            Ce(t.muted);
+            a.querySelector(".report-menu").style.display = "none";
+            r = we.querySelector(".player");
+            o = (r.style.display = "",
             ce(r),
             de(t.avatar));
             he(o, En == t.id),
@@ -1792,7 +1808,7 @@
         c.querySelector("#home").style.display = "none",
         c.querySelector("#game").style.display = "flex",
         x = e.me,
-        In = e.type,
+        In = e.isPublic !== void 0 ? e.isPublic : (e.type !== void 0 ? e.type : !0),  // Store isPublic flag (backwards compat with type)
         Tn = e.id,
         c.querySelector("#input-invite").value = "https://skribbl.io/?" + e.id,
         An = e.settings,

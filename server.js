@@ -544,7 +544,8 @@ io.on('connection', (socket) => {
           hints: (room.revealedIndices && room.currentWord) ? Array.from(room.revealedIndices).map(idx => [idx, room.currentWord.charAt(idx)]) : [], // Send already revealed hints
           drawCommands: room.drawCommands
         } : {}
-      }
+      },
+      isPublic: room.isPublic || false
     };
     
     // Add room code for private rooms (for invite links)
@@ -867,14 +868,32 @@ io.on('connection', (socket) => {
         
       case PACKET.KICK:
         if (room.owner === socket.id && data.data !== socket.id) {
-          kickPlayer(room, data.data, 1);
+          const targetPlayer = room.players.find(p => p.id === data.data);
+          if (targetPlayer) {
+            kickPlayer(room, data.data, 1);
+            // Message is sent from kickPlayer function
+          }
         }
         break;
         
       case PACKET.BAN:
         if (room.owner === socket.id && data.data !== socket.id) {
           kickPlayer(room, data.data, 2);
+          // Message is sent from kickPlayer function
         }
+        break;
+        
+      case PACKET.MUTE:
+        // Mute is client-side only (just filters chat), but we can track it server-side if needed
+        // For now, just acknowledge it
+        break;
+        
+      case PACKET.VOTEKICK:
+        handleVotekick(room, socket.id, data.data);
+        break;
+        
+      case PACKET.REPORT:
+        // Reports are handled client-side only
         break;
     }
   });
@@ -1169,8 +1188,15 @@ io.on('connection', (socket) => {
       room.revealedIndices = new Set();
     }
     
+    const word = room.currentWord;
+    if (!word) return;
+    
+    // Calculate max hints based on word length
+    // 3 letters and below: 1 hint at 44 seconds
+    // 4+ letters: 2 hints at 44s and 25s
+    const maxHints = word.length <= 3 ? 1 : 2;
+    
     // Check hints based on timer remaining (not intervals)
-    // Hints reveal at: 44 seconds and 25 seconds remaining
     room.hintInterval = setInterval(() => {
       if (room.state !== GAME_STATE.DRAWING) {
         clearInterval(room.hintInterval);
@@ -1179,17 +1205,21 @@ io.on('connection', (socket) => {
       }
       
       const timeRemaining = room.timer;
-      const word = room.currentWord;
+      const currentWord = room.currentWord;
       
-      if (!word) return;
+      if (!currentWord || currentWord !== word) {
+        clearInterval(room.hintInterval);
+        room.hintInterval = null;
+        return;
+      }
       
       // First hint at 44 seconds remaining (only if no hints revealed yet)
       if (timeRemaining === 44 && room.revealedIndices.size === 0) {
         revealHint(room);
       }
       
-      // Second hint at 25 seconds remaining (only if exactly 1 hint has been revealed)
-      if (timeRemaining === 25 && room.revealedIndices.size === 1) {
+      // Second hint at 25 seconds remaining (only if exactly 1 hint has been revealed and word is 4+ letters)
+      if (timeRemaining === 25 && room.revealedIndices.size === 1 && maxHints >= 2) {
         revealHint(room);
       }
       
@@ -1198,8 +1228,8 @@ io.on('connection', (socket) => {
         revealHint(room);
       }
       
-      // Clean up if all hints are revealed or timer is past hint times
-      if (room.revealedIndices.size >= 2 || timeRemaining < 25) {
+      // Clean up if max hints are revealed or timer is past hint times
+      if (room.revealedIndices.size >= maxHints || timeRemaining < 25) {
         clearInterval(room.hintInterval);
         room.hintInterval = null;
       }
@@ -1291,17 +1321,97 @@ io.on('connection', (socket) => {
     if (playerSocket) {
       const index = room.players.findIndex(p => p.id === playerId);
       if (index !== -1) {
+        const kickedPlayer = room.players[index];
         room.players.splice(index, 1);
         playerSocket.emit('reason', reason);
         playerSocket.disconnect();
         
-        socket.to(room.id).emit('data', {
+        io.to(room.id).emit('data', {
           id: PACKET.LEAVE,
           data: {
             id: playerId,
             reason: reason
           }
         });
+        
+        // Send message to chat
+        io.to(room.id).emit('data', {
+          id: PACKET.CHAT,
+          data: {
+            id: room.owner || 'system',
+            msg: reason === 1 ? `${kickedPlayer.name} has been kicked!` : `${kickedPlayer.name} has been banned!`
+          }
+        });
+      }
+    }
+  }
+  
+  // Handle votekick logic (like skribbl.io)
+  function handleVotekick(room, voterId, targetId) {
+    // Can't votekick yourself or the owner
+    if (voterId === targetId || targetId === room.owner) {
+      return;
+    }
+    
+    // Initialize votekick tracking if not exists
+    if (!room.votekicks) {
+      room.votekicks = new Map();
+    }
+    
+    const votekickKey = `${voterId}_${targetId}`;
+    
+    // Check if already voted
+    if (room.votekicks.has(votekickKey)) {
+      return; // Already voted
+    }
+    
+    // Add vote
+    room.votekicks.set(votekickKey, { voterId, targetId, timestamp: Date.now() });
+    
+    // Count votes for this target
+    let voteCount = 0;
+    for (const [key, vote] of room.votekicks.entries()) {
+      if (vote.targetId === targetId) {
+        voteCount++;
+      }
+    }
+    
+    const targetPlayer = room.players.find(p => p.id === targetId);
+    const voterPlayer = room.players.find(p => p.id === voterId);
+    
+    if (!targetPlayer || !voterPlayer) {
+      return;
+    }
+    
+    // Calculate required votes based on lobby size (like skribbl.io)
+    // Formula: Math.ceil((players - 1) / 2) - minimum 1 vote required
+    const requiredVotes = Math.max(1, Math.ceil((room.players.length - 1) / 2));
+    
+    // Broadcast vote progress
+    io.to(room.id).emit('data', {
+      id: PACKET.VOTEKICK,
+      data: [voterId, targetId, voteCount, requiredVotes]
+    });
+    
+    // Send message to chat
+    io.to(room.id).emit('data', {
+      id: PACKET.CHAT,
+      data: {
+        id: voterId,
+        msg: `${voterPlayer.name} is voting to kick ${targetPlayer.name} (${voteCount}/${requiredVotes})`
+      }
+    });
+    
+    // Check if enough votes reached
+    if (voteCount >= requiredVotes) {
+      // Kick the player
+      kickPlayer(room, targetId, 1);
+      
+      // Clear votekick entries for this target
+      for (const [key, vote] of room.votekicks.entries()) {
+        if (vote.targetId === targetId) {
+          room.votekicks.delete(key);
+        }
       }
     }
   }
