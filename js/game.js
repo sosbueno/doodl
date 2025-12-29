@@ -2169,7 +2169,11 @@
             // Add rate icon to player's icons (index 2 in icons array)
             a.element.icons && a.element.icons[2] && (
                 a.element.icons[2].style.backgroundImage = "url(/img/" + (0 == n.vote ? "thumbsdown.gif" : "thumbsup.gif") + ")",
-                a.element.icons[2].classList.add("visible")
+                a.element.icons[2].classList.remove("fadeout"),
+                a.element.icons[2].classList.add("visible"),
+                setTimeout(function() {
+                    a.element.icons && a.element.icons[2] && a.element.icons[2].classList.add("fadeout");
+                }, 3000)
             ),
             n.vote ? y(E("$ liked the drawing!", a.name), "", f($e), !0) : y(E("$ disliked the drawing!", a.name), "", f(Ee), !0));
             break;

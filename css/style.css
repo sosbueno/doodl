@@ -1245,9 +1245,23 @@ body .snow {
 #game-players .player .player-icons .icon.rate {
     background-size: cover;
     position: absolute;
-    left: calc(200px - 48px - 24px - 8px);
+    left: 200px;
     bottom: 0;
     margin-right: 0;
+    margin-left: 0;
+}
+
+@keyframes rate_fadeout {
+    0%, 80% {
+        opacity: .7;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+#game-players .player .player-icons .icon.rate.fadeout {
+    animation: rate_fadeout 1.5s ease-in-out forwards;
 }
 
 #game-players .player .player-icons .icon.visible {
