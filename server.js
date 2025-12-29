@@ -23,6 +23,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Block access to private data directory
+app.use('/data', (req, res) => {
+  res.status(403).send('Access forbidden');
+});
+
 // Serve static files FIRST (CSS, JS, images, etc.) - MUST be before other routes
 // Audio files are now valid OGG files, so they can be served as static files
 app.use(express.static(__dirname, {
@@ -54,37 +59,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Word lists for different languages
-const wordLists = {
-  0: ['cat', 'dog', 'house', 'car', 'tree', 'sun', 'moon', 'star', 'bird', 'fish', 'apple', 'banana', 'book', 'chair', 'table', 'computer', 'phone', 'bicycle', 'flower', 'mountain'],
-  1: ['Katze', 'Hund', 'Haus', 'Auto', 'Baum', 'Sonne', 'Mond', 'Stern', 'Vogel', 'Fisch', 'Apfel', 'Banane', 'Buch', 'Stuhl', 'Tisch', 'Computer', 'Telefon', 'Fahrrad', 'Blume', 'Berg'],
-  2: ['котка', 'куче', 'къща', 'кола', 'дърво', 'слънце', 'луна', 'звезда', 'птица', 'риба', 'ябълка', 'банан', 'книга', 'стол', 'маса', 'компютър', 'телефон', 'колело', 'цвете', 'планина'],
-  3: ['kočka', 'pes', 'dům', 'auto', 'strom', 'slunce', 'měsíc', 'hvězda', 'pták', 'ryba', 'jablko', 'banán', 'kniha', 'židle', 'stůl', 'počítač', 'telefon', 'kolo', 'květina', 'hora'],
-  4: ['kat', 'hund', 'hus', 'bil', 'træ', 'sol', 'måne', 'stjerne', 'fugl', 'fisk', 'æble', 'banan', 'bog', 'stol', 'bord', 'computer', 'telefon', 'cykel', 'blomst', 'bjerg'],
-  5: ['kat', 'hond', 'huis', 'auto', 'boom', 'zon', 'maan', 'ster', 'vogel', 'vis', 'appel', 'banaan', 'boek', 'stoel', 'tafel', 'computer', 'telefon', 'fiets', 'bloem', 'berg'],
-  6: ['kissa', 'koira', 'talo', 'auto', 'puu', 'aurinko', 'kuu', 'tähti', 'lintu', 'kala', 'omena', 'banaani', 'kirja', 'tuoli', 'pöytä', 'tietokone', 'puhelin', 'polkupyörä', 'kukka', 'vuori'],
-  7: ['chat', 'chien', 'maison', 'voiture', 'arbre', 'soleil', 'lune', 'étoile', 'oiseau', 'poisson', 'pomme', 'banane', 'livre', 'chaise', 'table', 'ordinateur', 'téléphone', 'vélo', 'fleur', 'montagne'],
-  8: ['kass', 'koer', 'maja', 'auto', 'puu', 'päike', 'kuu', 'täht', 'lind', 'kala', 'õun', 'banaan', 'raamat', 'tool', 'laud', 'arvuti', 'telefon', 'jalgratas', 'lill', 'mägi'],
-  9: ['γάτα', 'σκύλος', 'σπίτι', 'αυτοκίνητο', 'δένδρο', 'ήλιος', 'φεγγάρι', 'αστέρι', 'πουλί', 'ψάρι', 'μήλο', 'μπανάνα', 'βιβλίο', 'καρέκλα', 'τραπέζι', 'υπολογιστής', 'τηλέφωνο', 'ποδήλατο', 'λουλούδι', 'βουνό'],
-  10: ['חתול', 'כלב', 'בית', 'מכונית', 'עץ', 'שמש', 'ירח', 'כוכב', 'ציפור', 'דג', 'תפוח', 'בננה', 'ספר', 'כיסא', 'שולחן', 'מחשב', 'טלפון', 'אופניים', 'פרח', 'הר'],
-  11: ['macska', 'kutya', 'ház', 'autó', 'fa', 'nap', 'hold', 'csillag', 'madár', 'hal', 'alma', 'banán', 'könyv', 'szék', 'asztal', 'számítógép', 'telefon', 'kerékpár', 'virág', 'hegy'],
-  12: ['gatto', 'cane', 'casa', 'auto', 'albero', 'sole', 'luna', 'stella', 'uccello', 'pesce', 'mela', 'banana', 'libro', 'sedia', 'tavolo', 'computer', 'telefono', 'bicicletta', 'fiore', 'montagna'],
-  13: ['猫', '犬', '家', '車', '木', '太陽', '月', '星', '鳥', '魚', 'リンゴ', 'バナナ', '本', '椅子', 'テーブル', 'コンピューター', '電話', '自転車', '花', '山'],
-  14: ['고양이', '개', '집', '자동차', '나무', '태양', '달', '별', '새', '물고기', '사과', '바나나', '책', '의자', '테이블', '컴퓨터', '전화', '자전거', '꽃', '산'],
-  15: ['kaķis', 'suns', 'māja', 'mašīna', 'koks', 'saule', 'mēness', 'zvaigzne', 'putns', 'zivs', 'ābols', 'banāns', 'grāmata', 'krēsls', 'galds', 'dators', 'telefons', 'velosipēds', 'zieds', 'kalns'],
-  16: ['мачка', 'куче', 'куќа', 'автомобил', 'дрво', 'сонце', 'месечина', 'ѕвезда', 'птица', 'риба', 'јаболко', 'банана', 'книга', 'стол', 'маса', 'компјутер', 'телефон', 'велосипед', 'цвет', 'планина'],
-  17: ['katt', 'hund', 'hus', 'bil', 'tre', 'sol', 'måne', 'stjerne', 'fugl', 'fisk', 'eple', 'banan', 'bok', 'stol', 'bord', 'datamaskin', 'telefon', 'sykkel', 'blomst', 'fjell'],
-  18: ['gato', 'cachorro', 'casa', 'carro', 'árvore', 'sol', 'lua', 'estrela', 'pássaro', 'peixe', 'maçã', 'banana', 'livro', 'cadeira', 'mesa', 'computador', 'telefone', 'bicicleta', 'flor', 'montanha'],
-  19: ['kot', 'pies', 'dom', 'samochód', 'drzewo', 'słońce', 'księżyc', 'gwiazda', 'ptak', 'ryba', 'jabłko', 'banan', 'książka', 'krzesło', 'stół', 'komputer', 'telefon', 'rower', 'kwiat', 'góra'],
-  20: ['pisică', 'câine', 'casă', 'mașină', 'copac', 'soare', 'lună', 'stea', 'pasăre', 'pește', 'măr', 'banană', 'carte', 'scaun', 'masă', 'computer', 'telefon', 'bicicletă', 'floare', 'munte'],
-  21: ['кот', 'собака', 'дом', 'машина', 'дерево', 'солнце', 'луна', 'звезда', 'птица', 'рыба', 'яблоко', 'банан', 'книга', 'стул', 'стол', 'компьютер', 'телефон', 'велосипед', 'цветок', 'гора'],
-  22: ['мачка', 'пас', 'кућа', 'аутомобил', 'дрво', 'сунце', 'месец', 'звезда', 'птица', 'риба', 'јабука', 'банана', 'књига', 'столица', 'сто', 'рачунар', 'телефон', 'бицикл', 'цвет', 'планина'],
-  23: ['mačka', 'pes', 'dom', 'auto', 'strom', 'slnko', 'mesiac', 'hviezda', 'vták', 'ryba', 'jablko', 'banán', 'kniha', 'stolička', 'stôl', 'počítač', 'telefón', 'bicykel', 'kvetina', 'hora'],
-  24: ['gato', 'perro', 'casa', 'coche', 'árbol', 'sol', 'luna', 'estrella', 'pájaro', 'pez', 'manzana', 'plátano', 'libro', 'silla', 'mesa', 'ordenador', 'teléfono', 'bicicleta', 'flor', 'montaña'],
-  25: ['katt', 'hund', 'hus', 'bil', 'träd', 'sol', 'måne', 'stjärna', 'fågel', 'fisk', 'äpple', 'banan', 'bok', 'stol', 'bord', 'dator', 'telefon', 'cykel', 'blomma', 'berg'],
-  26: ['pusa', 'aso', 'bahay', 'kotse', 'punong kahoy', 'araw', 'buwan', 'bituin', 'ibon', 'isda', 'mansanas', 'saging', 'aklat', 'upuan', 'lamesa', 'kompyuter', 'telepono', 'bisikleta', 'bulaklak', 'bundok'],
-  27: ['kedi', 'köpek', 'ev', 'araba', 'ağaç', 'güneş', 'ay', 'yıldız', 'kuş', 'balık', 'elma', 'muz', 'kitap', 'sandalye', 'masa', 'bilgisayar', 'telefon', 'bisiklet', 'çiçek', 'dağ']
-};
+// Word lists for different languages (loaded from private data file)
+const wordLists = require('./data/words.js');
 
 // Game state
 const rooms = new Map();
@@ -189,15 +165,16 @@ function calculateScore(timeRemaining, totalTime, wordLength, guessPosition) {
   return Math.floor(baseScore * timeRatio * positionMultiplier);
 }
 
-// Initialize public rooms for each language
+// Initialize public rooms for each language (only English for now)
 function initializePublicRooms() {
-  for (let lang = 0; lang <= 27; lang++) {
+  // Only initialize English (lang = 0)
+  for (let lang = 0; lang <= 0; lang++) {
     const roomId = `PUBLIC-${lang}`;
     if (!publicRooms.has(roomId)) {
       const room = {
         id: roomId,
         players: [],
-        settings: [lang, 8, 80, 3, 3, 0, 0, 0], // Default settings
+        settings: [0, 8, 80, 3, 3, 0, 0, 0], // Default settings (English only)
         state: GAME_STATE.LOBBY,
         currentRound: 0,
         currentDrawer: -1,
@@ -234,7 +211,8 @@ app.post('/api/play', (req, res) => {
     // Express.urlencoded() should parse form data automatically
     let isPrivate = body.create === '1' || body.create === 1 || req.query.create === '1' || req.query.create === 1;
     let roomId = body.id || req.query.id || null;
-    let lang = parseInt(body.lang || req.query.lang) || 0;
+    // Force English only (lang = 0) - language selection is disabled
+    let lang = 0;
     
     // Check for room code in body, query, or URL params (for invite links)
     let roomCode = body.roomCode || req.query.roomCode || body.room || req.query.room || 
@@ -281,7 +259,7 @@ app.post('/api/play', (req, res) => {
         id: roomId,
         code: roomCode, // Store code in room object
         players: [],
-        settings: [lang, 8, 80, 3, 3, 0, 0, 0],
+        settings: [0, 8, 80, 3, 3, 0, 0, 0], // Force English (lang = 0)
         state: GAME_STATE.LOBBY,
         currentRound: 0,
         currentDrawer: -1,
@@ -321,7 +299,7 @@ app.post('/api/play', (req, res) => {
         publicRoom = {
           id: roomId,
           players: [],
-          settings: [lang, 8, 80, 3, 3, 0, 0, 0],
+          settings: [0, 8, 80, 3, 3, 0, 0, 0], // Force English (lang = 0)
           state: GAME_STATE.LOBBY,
           currentRound: 0,
           currentDrawer: -1,
@@ -347,7 +325,7 @@ app.post('/api/play', (req, res) => {
         const newRoom = {
           id: roomId,
           players: [],
-          settings: [lang, 8, 80, 3, 3, 0, 0, 0],
+          settings: [0, 8, 80, 3, 3, 0, 0, 0], // Force English (lang = 0)
           state: GAME_STATE.LOBBY,
           currentRound: 0,
           currentDrawer: -1,
@@ -422,7 +400,9 @@ io.on('connection', (socket) => {
   let currentRoomId = null;
   
   socket.on('login', (data) => {
-    const { join, create, name, lang, code, avatar } = data;
+    const { join, create, name, code, avatar } = data;
+    // Force English only (lang = 0)
+    const lang = 0;
     let roomId = join || code;
     
     console.log('🔐 Socket.IO login:', { join, create, name, lang, code, roomId });
@@ -441,7 +421,7 @@ io.on('connection', (socket) => {
           id: roomId,
           code: roomCode,
           players: [],
-          settings: [parseInt(lang) || 0, 8, 80, 3, 3, 0, 0, 0],
+          settings: [0, 8, 80, 3, 3, 0, 0, 0], // Force English (lang = 0)
           state: GAME_STATE.LOBBY,
           currentRound: 0,
           currentDrawer: -1,
@@ -488,7 +468,7 @@ io.on('connection', (socket) => {
       const room = {
         id: roomId,
         players: [],
-        settings: [parseInt(lang) || 0, 8, 80, 3, 3, 0, 0, 0],
+          settings: [0, 8, 80, 3, 3, 0, 0, 0], // Force English (lang = 0)
         state: GAME_STATE.LOBBY,
         currentRound: 0,
         currentDrawer: -1,
@@ -1365,6 +1345,6 @@ initializePublicRooms();
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Public rooms initialized for all languages`);
+  console.log(`Public rooms initialized for English only`);
 });
 
