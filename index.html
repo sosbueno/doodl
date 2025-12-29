@@ -934,8 +934,15 @@
               const originalEmit = socket.emit;
               socket.emit = function(event, data) {
                 if (event === 'login' && data) {
-                  // Priority: room code from URL > API room ID
-                  if (window._joinRoomCode) {
+                  // If Create Private Room button was clicked, set create flag and don't set join
+                  if (window._isCreateButton) {
+                    data.create = 1;
+                    data.join = undefined; // Don't join existing room, create new one
+                    data.code = undefined; // Don't use code from API
+                    console.log('🔧 Setting create=1 for private room');
+                    // Clear the flag after use
+                    window._isCreateButton = false;
+                  } else if (window._joinRoomCode) {
                     // User opened invite link - join that specific room
                     data.join = window._joinRoomCode;
                     data.code = window._joinRoomCode;
@@ -945,12 +952,6 @@
                     // Normal join - use API room ID
                     data.join = window._lastApiRoomId;
                     data.code = window._lastApiRoomId;
-                  }
-                  
-                  // If Create Private Room button was clicked, set create flag
-                  if (window._isCreateButton) {
-                    data.create = 1;
-                    console.log('🔧 Setting create=1 for private room');
                   }
                   console.log('📤 Emitting login:', { join: data.join, create: data.create, name: data.name, code: data.code });
       }

@@ -546,7 +546,8 @@ io.on('connection', (socket) => {
         data: room.state === GAME_STATE.DRAWING ? {
           id: room.currentDrawer,
           word: room.currentDrawer === socket.id ? room.currentWord : undefined,
-          hints: [],
+          wordLength: room.currentDrawer !== socket.id && room.currentWord ? room.currentWord.length : undefined, // Send word length for non-drawers
+          hints: (room.revealedIndices && room.currentWord) ? Array.from(room.revealedIndices).map(idx => [idx, room.currentWord.charAt(idx)]) : [], // Send already revealed hints
           drawCommands: room.drawCommands
         } : {}
       }
