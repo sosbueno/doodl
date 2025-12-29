@@ -630,20 +630,19 @@ io.on('connection', (socket) => {
           );
           if (words && words[wordIndex] !== undefined) {
             room.currentWord = words[wordIndex];
-            room.state = GAME_STATE.DRAWING;
-            room.timer = room.settings[SETTINGS.DRAWTIME];
-            room.startTime = Date.now();
-            room.drawCommands = [];
-            room.hintIndex = 0;
-            room.hintInterval = null;
+          room.state = GAME_STATE.DRAWING;
+          room.timer = room.settings[SETTINGS.DRAWTIME];
+          room.startTime = Date.now();
+          room.drawCommands = [];
+          room.hintIndex = 0;
+          room.hintInterval = null;
+          room.revealedIndices = new Set(); // Track which letter positions have been revealed
             
             // Start drawing timer
             startRoundTimer(room);
             
-            // Start hint system if hints are enabled
-            if (room.settings[SETTINGS.HINTCOUNT] > 0) {
-              startHintSystem(room);
-            }
+            // Start hint system (always enabled, reveals at 44s and 25s)
+            startHintSystem(room);
             
           // Send DRAWING state - drawer gets word, others don't
           // Send to drawer with word
@@ -735,15 +734,30 @@ io.on('connection', (socket) => {
                 drawer.score += guesserScore;
               }
               
-              // If first guess and timer > 30s and more than 2 players, drop timer to 30s
-              if (guessPosition === 1 && room.timer > 30 && room.players.length > 2) {
-                room.timer = 30;
+              // If first guess and timer > 32s and more than 2 players, drop timer to 32s
+              if (guessPosition === 1 && room.timer > 32 && room.players.length > 2) {
+                const oldTimer = room.timer;
+                room.timer = 32;
+                
+                // If timer was above 44, first hint should already be revealed
+                // Check if first hint should be shown (if we dropped from above 44)
+                if (oldTimer > 44 && (!room.revealedIndices || room.revealedIndices.size === 0)) {
+                  revealHint(room);
+                }
+                
                 // Restart the timer interval with the new value
                 if (room.timerInterval) {
                   clearInterval(room.timerInterval);
                   room.timerInterval = null;
                 }
                 startRoundTimer(room);
+                
+                // Restart hint system to continue monitoring for second hint at 25s
+                if (room.hintInterval) {
+                  clearInterval(room.hintInterval);
+                  room.hintInterval = null;
+                }
+                startHintSystem(room);
               }
               
               // Send GUESS packet with updated score to all players
@@ -1058,14 +1072,13 @@ io.on('connection', (socket) => {
           room.drawCommands = [];
           room.hintIndex = 0;
           room.hintInterval = null;
+          room.revealedIndices = new Set(); // Track which letter positions have been revealed
           
           // Start drawing timer
           startRoundTimer(room);
           
-          // Start hint system if hints are enabled
-          if (room.settings[SETTINGS.HINTCOUNT] > 0) {
-            startHintSystem(room);
-          }
+          // Start hint system (always enabled, reveals at 44s and 25s)
+          startHintSystem(room);
           
           // Send DRAWING state - drawer gets word, others don't
           // Send to drawer with word
@@ -1126,43 +1139,76 @@ io.on('connection', (socket) => {
     }, 1000);
   }
   
+  function revealHint(room) {
+    if (room.state !== GAME_STATE.DRAWING) return;
+    
+    const word = room.currentWord;
+    if (!word || !room.revealedIndices) return;
+    
+    // Find a random unrevealed letter
+    let index;
+    let attempts = 0;
+    do {
+      index = Math.floor(Math.random() * word.length);
+      attempts++;
+      if (attempts > 100) return; // Safety check
+    } while (room.revealedIndices.has(index) && room.revealedIndices.size < word.length);
+    
+    room.revealedIndices.add(index);
+    const character = word.charAt(index);
+    
+    // Send hint to all non-drawers
+    io.to(room.id).emit('data', {
+      id: PACKET.HINTS,
+      data: [[index, character]]
+    });
+  }
+  
   function startHintSystem(room) {
     if (room.hintInterval) {
       clearInterval(room.hintInterval);
     }
     
-    const hintCount = room.settings[SETTINGS.HINTCOUNT];
-    const word = room.currentWord;
-    const totalTime = room.settings[SETTINGS.DRAWTIME];
-    const hintInterval = Math.floor(totalTime / (hintCount + 1));
+    // Initialize revealed indices if not exists
+    if (!room.revealedIndices) {
+      room.revealedIndices = new Set();
+    }
     
-    room.hintIndex = 0;
-    const revealedIndices = new Set();
-    
+    // Check hints based on timer remaining (not intervals)
+    // Hints reveal at: 44 seconds and 25 seconds remaining
     room.hintInterval = setInterval(() => {
-      if (room.hintIndex >= hintCount || room.state !== GAME_STATE.DRAWING) {
+      if (room.state !== GAME_STATE.DRAWING) {
         clearInterval(room.hintInterval);
         room.hintInterval = null;
         return;
       }
       
-      // Find a random unrevealed letter
-      let index;
-      do {
-        index = Math.floor(Math.random() * word.length);
-      } while (revealedIndices.has(index) && revealedIndices.size < word.length);
+      const timeRemaining = room.timer;
+      const word = room.currentWord;
       
-      revealedIndices.add(index);
-      const character = word.charAt(index);
+      if (!word) return;
       
-      // Send hint to all non-drawers
-      io.to(room.id).emit('data', {
-        id: PACKET.HINTS,
-        data: [[index, character]]
-      });
+      // First hint at 44 seconds remaining (only if no hints revealed yet)
+      if (timeRemaining === 44 && room.revealedIndices.size === 0) {
+        revealHint(room);
+      }
       
-      room.hintIndex++;
-    }, hintInterval * 1000);
+      // Second hint at 25 seconds remaining (only if exactly 1 hint has been revealed)
+      if (timeRemaining === 25 && room.revealedIndices.size === 1) {
+        revealHint(room);
+      }
+      
+      // Also check if we're past 44 and no hint revealed yet (catch edge cases)
+      if (timeRemaining < 44 && timeRemaining >= 25 && room.revealedIndices.size === 0) {
+        revealHint(room);
+      }
+      
+      // Clean up if all hints are revealed or timer is past hint times
+      if (room.revealedIndices.size >= 2 || timeRemaining < 25) {
+        clearInterval(room.hintInterval);
+        room.hintInterval = null;
+      }
+    }, 1000); // Check every second
   }
   
   function endRound(room, reason) {
