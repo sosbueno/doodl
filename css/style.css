@@ -3339,9 +3339,8 @@ form.chat-form input {
 }
 
 #modal .modal-container-settings {
-    width: 350px;
-    flex-direction: column;
-    line-height: 0
+    width: 500px;
+    flex-direction: column
 }
 
 #modal .modal-container-settings button.reset {
@@ -3356,10 +3355,7 @@ form.chat-form input {
 }
 
 #modal .modal-container-settings .group {
-    margin-bottom: 0;
-    margin-top: 0;
-    line-height: 0;
-    padding: 0
+    margin-bottom: 1em
 }
 
 #modal .modal-container-settings .group:last-child {
@@ -3369,20 +3365,16 @@ form.chat-form input {
 #modal .modal-container-settings .group .title {
     position: relative;
     display: flex;
-    font-size: 1.15em;
+    font-size: 1.3em;
     font-weight: 700;
-    margin-bottom: 0;
-    margin-top: 0;
-    line-height: 1;
-    padding: 0;
-    height: auto
+    margin-bottom: .1em
 }
 
 #modal .modal-container-settings .group .title .icon {
     display: inline;
-    width: 1.2em;
-    height: 1.2em;
-    margin-right: .4ch;
+    width: 1.4em;
+    height: 1.4em;
+    margin-right: .5ch;
     background-size: contain;
     filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, .3))
 }
@@ -3404,15 +3396,7 @@ form.chat-form input {
 }
 
 #modal .modal-container-settings .group .item {
-    margin-bottom: 0;
-    line-height: 0;
-    margin-top: 0;
-    padding: 0
-}
-
-#modal .modal-container-settings .group .title + .item {
-    margin-top: 0;
-    padding-top: 0
+    margin-bottom: .5em
 }
 
 #modal .modal-container-settings .group .item:last-child {
@@ -3420,33 +3404,7 @@ form.chat-form input {
 }
 
 #modal .modal-container-settings .group .item .key {
-    margin-bottom: 0;
-    margin-top: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    line-height: 1;
     display: block
-}
-
-#modal .modal-container-settings .group .item .key + select,
-#modal .modal-container-settings .group .item .key + input {
-    margin-top: 0;
-    margin-bottom: 0
-}
-
-#modal .modal-container-settings .group .item input[type="range"],
-#modal .modal-container-settings .group .item select {
-    margin-top: 0;
-    margin-bottom: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    display: block
-}
-
-#modal .modal-container-settings .group .item input[type="range"] {
-    margin-top: 0;
-    margin-bottom: 0;
-    padding: 0
 }
 
 #modal .modal-container-settings .group #hotkey-list {
@@ -3458,7 +3416,7 @@ form.chat-form input {
 }
 
 #modal .modal-container-settings .group #hotkey-list .item {
-    margin-right: .4em
+    margin-right: .5em
 }
 
 #modal .modal-container-settings .group #hotkey-list .item:last-child {
@@ -3662,16 +3620,10 @@ form.chat-form input {
 
 #modal .modal-container .modal-content {
     flex: 1 1 auto;
-    padding: 0.3em;
-    padding-top: 0.15em;
+    padding: 1em;
+    padding-top: .5em;
     white-space: pre-line;
-    color: #fff;
-    line-height: 0
-}
-
-#modal .modal-container-settings .group .title .desc,
-#modal .modal-container-settings .group .title .volume-value {
-    line-height: 1.2
+    color: #fff
 }
 
 @media (min-aspect-ratio: 1) and (max-width:1166px) {
