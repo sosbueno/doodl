@@ -3307,18 +3307,18 @@ form.chat-form input {
 }
 
 #modal input,#modal select {
-    font-size: 0.9em;
-    height: 1.75em
+    font-size: 0.85em;
+    height: 1.65em
 }
 
 #modal button {
-    font-size: 0.9em;
-    padding: 0 .25em 0 .25em;
+    font-size: 0.85em;
+    padding: 0 .2em 0 .2em;
     width: 100%;
     background-color: var(--COLOR_PANEL_BUTTON);
     text-shadow: 2px 2px 0 #0000007a;
     transition: background-color .1s;
-    height: 2.2em;
+    height: 2em;
     border-radius: var(--BORDER_RADIUS)
 }
 
@@ -3331,7 +3331,7 @@ form.chat-form input {
 }
 
 #modal .modal-container-settings {
-    width: 360px;
+    width: 320px;
     flex-direction: column
 }
 
@@ -3347,7 +3347,7 @@ form.chat-form input {
 }
 
 #modal .modal-container-settings .group {
-    margin-bottom: 0.4em
+    margin-bottom: 0.3em
 }
 
 #modal .modal-container-settings .group:last-child {
@@ -3357,16 +3357,16 @@ form.chat-form input {
 #modal .modal-container-settings .group .title {
     position: relative;
     display: flex;
-    font-size: 1.1em;
+    font-size: 1em;
     font-weight: 700;
-    margin-bottom: 0.1em
+    margin-bottom: 0.08em
 }
 
 #modal .modal-container-settings .group .title .icon {
     display: inline;
-    width: 1.4em;
-    height: 1.4em;
-    margin-right: .5ch;
+    width: 1.2em;
+    height: 1.2em;
+    margin-right: .4ch;
     background-size: contain;
     filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, .3))
 }
@@ -3388,7 +3388,7 @@ form.chat-form input {
 }
 
 #modal .modal-container-settings .group .item {
-    margin-bottom: 0.25em
+    margin-bottom: 0.2em
 }
 
 #modal .modal-container-settings .group .item:last-child {
@@ -3404,7 +3404,7 @@ form.chat-form input {
 }
 
 #modal .modal-container-settings .group #hotkey-list .item {
-    margin-right: .5em
+    margin-right: .4em
 }
 
 #modal .modal-container-settings .group #hotkey-list .item:last-child {
@@ -3585,8 +3585,8 @@ form.chat-form input {
 #modal .modal-container .modal-title {
     flex: 0 0 auto;
     position: relative;
-    padding: 0.35em 0.35em 0.05em 0.35em;
-    font-size: 1.5em;
+    padding: 0.3em 0.3em 0.05em 0.3em;
+    font-size: 1.4em;
     font-weight: 700;
     color: #fff
 }
@@ -3608,8 +3608,8 @@ form.chat-form input {
 
 #modal .modal-container .modal-content {
     flex: 1 1 auto;
-    padding: 0.5em;
-    padding-top: 0.25em;
+    padding: 0.4em;
+    padding-top: 0.2em;
     white-space: pre-line;
     color: #fff
 }
