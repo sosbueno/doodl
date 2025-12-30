@@ -910,7 +910,8 @@ io.on('connection', (socket) => {
           const leavingPlayer = room.players[index];
           room.players.splice(index, 1);
           
-          // If drawer left, end round
+          // If drawer left, end round (only if actually in DRAWING state)
+          // Check BEFORE removing player to ensure they were actually the drawer
           if (room.currentDrawer === socket.id && room.state === GAME_STATE.DRAWING) {
             endRound(room, 1); // Drawer left
           }
@@ -949,21 +950,33 @@ io.on('connection', (socket) => {
                 });
                 
                 // Send LOBBY state to all players (returns to settings screen)
-                io.to(currentRoomId).emit('data', {
-                  id: PACKET.STATE,
-                  data: {
-                    id: GAME_STATE.LOBBY,
-                    time: 0,
-                    data: {}
-                  }
-                });
+                // Use a small delay to prevent spam detection from multiple rapid packets
+                setTimeout(() => {
+                  io.to(currentRoomId).emit('data', {
+                    id: PACKET.STATE,
+                    data: {
+                      id: GAME_STATE.LOBBY,
+                      time: 0,
+                      data: {}
+                    }
+                  });
+                }, 50);
               }
               
-              // Send owner change notification
-              io.to(currentRoomId).emit('data', {
-                id: PACKET.OWNER,
-                data: room.owner
-              });
+              // Send owner change notification (with small delay if returning to lobby)
+              const sendOwnerChange = () => {
+                io.to(currentRoomId).emit('data', {
+                  id: PACKET.OWNER,
+                  data: room.owner
+                });
+              };
+              
+              if (!room.isPublic && room.state === GAME_STATE.LOBBY) {
+                // If returning to lobby, delay owner change slightly to avoid spam detection
+                setTimeout(sendOwnerChange, 100);
+              } else {
+                sendOwnerChange();
+              }
             } else {
               // Room is now empty - if it was a private room, clean it up
               // Public rooms will be cleaned up below
@@ -1328,6 +1341,8 @@ io.on('connection', (socket) => {
     }
     
     room.state = GAME_STATE.ROUND_END;
+    // Clear current drawer when round ends to prevent false "drawer left" messages
+    room.currentDrawer = -1;
     
     // Calculate scores: [playerId, totalScore, roundScore]
     // roundScore is the delta for this round (shown with + prefix)

@@ -1741,8 +1741,13 @@
         }),
         S.on("disconnect", function(e) {
             console.log("socket disconnect: " + e);
-            // Redirect to home page on disconnect
-            h.location.href = "/"
+            // Only redirect to home if we're not in a private room that just changed owners
+            // Check if we're in LOBBY state (owner change scenario) - don't redirect in that case
+            if (L.id != J) {
+                // Not in lobby - this is a real disconnect, redirect to home
+                h.location.href = "/"
+            }
+            // If in lobby, stay on the page (owner change scenario)
         }),
         S.on("connect_error", function(e) {
             console.log("connect_error: " + e.message);
@@ -1990,21 +1995,23 @@
         var n, a, wordLengths = [], lengthText = "", wordParts, w, o;
         // Handle both array (for combination mode) and number/string (for normal mode)
         if (typeof e === "number") {
-            // Simple number - word length
+            // Simple number - word length (no word structure available)
             n = e;
         } else if (typeof e === "string") {
-            // String - use its length
-            n = e.length;
-            // Calculate word lengths for display (if string with spaces, show individual word lengths)
+            // String - this is wordStructure like "_____ _____" (with underscores and spaces)
+            // Calculate word lengths by splitting on spaces
             if (e.length > 0) {
-                // Split by spaces to get individual word lengths
+                // Split by spaces to get individual word parts
                 wordParts = e.split(" ");
                 for (w = 0; w < wordParts.length; w++) {
                     if (wordParts[w].length > 0) {
+                        // Each part represents a word, its length is the word length
                         wordLengths.push(wordParts[w].length);
                     }
                 }
             }
+            // Total length includes spaces, but we want individual word lengths
+            n = wordLengths.length > 0 ? wordLengths.reduce(function(sum, len) { return sum + len; }, 0) : e.length;
         } else if (Array.isArray(e)) {
             // Array - calculate total length (for combination mode)
             for (n = e.length - 1, a = 0; a < e.length; a++)
@@ -2015,9 +2022,15 @@
         o = !t && 1 == An[te.WORDMODE];
         o && (n = 3);
         // Display "GUESS THIS" with word length numbers (e.g., "GUESS THIS 6 5" for two words)
-        if (!o && wordLengths.length > 0) {
+        // For 2+ words, always show individual word lengths, not total
+        if (!o && wordLengths.length > 1) {
+            // Multiple words - show individual lengths like "GUESS THIS 5 7"
             lengthText = " " + wordLengths.join(" ");
+        } else if (!o && wordLengths.length === 1) {
+            // Single word - show just the length
+            lengthText = " " + wordLengths[0];
         } else if (!o) {
+            // Fallback to total length if wordLengths not available
             lengthText = " " + n;
         }
         N[0].textContent = E(o ? "WORD HIDDEN" : "GUESS THIS") + lengthText,
