@@ -1987,7 +1987,7 @@
         })
     }
     function pa(e, t) {
-        var n, a;
+        var n, a, wordLengths = [], lengthText = "", wordParts, w, o;
         // Handle both array (for combination mode) and number/string (for normal mode)
         if (typeof e === "number") {
             // Simple number - word length
@@ -1995,6 +1995,16 @@
         } else if (typeof e === "string") {
             // String - use its length
             n = e.length;
+            // Calculate word lengths for display (if string with spaces, show individual word lengths)
+            if (e.length > 0) {
+                // Split by spaces to get individual word lengths
+                wordParts = e.split(" ");
+                for (w = 0; w < wordParts.length; w++) {
+                    if (wordParts[w].length > 0) {
+                        wordLengths.push(wordParts[w].length);
+                    }
+                }
+            }
         } else if (Array.isArray(e)) {
             // Array - calculate total length (for combination mode)
             for (n = e.length - 1, a = 0; a < e.length; a++)
@@ -2002,10 +2012,15 @@
         } else {
             n = 0;
         }
-        var o = !t && 1 == An[te.WORDMODE];
-        o && (n = 3),
-        // Display "GUESS THIS" with the number next to it
-        N[0].textContent = E(o ? "WORD HIDDEN" : "GUESS THIS") + (o ? "" : " " + n),
+        o = !t && 1 == An[te.WORDMODE];
+        o && (n = 3);
+        // Display "GUESS THIS" with word length numbers (e.g., "GUESS THIS 6 5" for two words)
+        if (!o && wordLengths.length > 0) {
+            lengthText = " " + wordLengths.join(" ");
+        } else if (!o) {
+            lengthText = " " + n;
+        }
+        N[0].textContent = E(o ? "WORD HIDDEN" : "GUESS THIS") + lengthText,
         N[1].style.display = "none",
         N[2].style.display = "",
         ce(N[2]),
@@ -2014,13 +2029,12 @@
         if (typeof e === "string" && e.length > 0) {
             for (a = 0; a < e.length; a++) {
                 if (e[a] === " ") {
-                    // For spaces, create a small gap between word parts (matching official skribbl.io exactly)
-                    // Official uses gap: .08em, so we use a small margin to match
+                    // For spaces, create a visible gap between word parts (slightly bigger than before)
                     var spaceEl = $("hint", "");
                     spaceEl.style.width = "0";
                     spaceEl.style.minWidth = "0";
-                    spaceEl.style.marginLeft = "0.3ch";
-                    spaceEl.style.marginRight = "0.3ch";
+                    spaceEl.style.marginLeft = "0.5ch";
+                    spaceEl.style.marginRight = "0.5ch";
                     spaceEl.style.display = "inline-block";
                     spaceEl.style.flexShrink = "0";
                     N[2].appendChild(spaceEl);

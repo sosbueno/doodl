@@ -920,6 +920,46 @@ io.on('connection', (socket) => {
             if (room.players.length > 0) {
               // Transfer to first remaining player
               room.owner = room.players[0].id;
+              
+              // If it's a private room, return to lobby (settings screen)
+              if (!room.isPublic) {
+                // Reset room state to lobby
+                room.state = GAME_STATE.LOBBY;
+                room.currentRound = 0;
+                room.currentDrawer = -1;
+                room.currentWord = '';
+                room.timer = 0;
+                // Clear any active timers
+                if (room.timerInterval) {
+                  clearInterval(room.timerInterval);
+                  room.timerInterval = null;
+                }
+                if (room.hintInterval) {
+                  clearInterval(room.hintInterval);
+                  room.hintInterval = null;
+                }
+                if (room.wordChoiceTimer) {
+                  clearInterval(room.wordChoiceTimer);
+                  room.wordChoiceTimer = null;
+                }
+                // Reset player scores and guessed status
+                room.players.forEach(p => {
+                  p.score = 0;
+                  p.guessed = false;
+                });
+                
+                // Send LOBBY state to all players (returns to settings screen)
+                io.to(currentRoomId).emit('data', {
+                  id: PACKET.STATE,
+                  data: {
+                    id: GAME_STATE.LOBBY,
+                    time: 0,
+                    data: {}
+                  }
+                });
+              }
+              
+              // Send owner change notification
               io.to(currentRoomId).emit('data', {
                 id: PACKET.OWNER,
                 data: room.owner
