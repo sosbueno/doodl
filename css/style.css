@@ -3648,10 +3648,11 @@ form.chat-form input {
 #modal .modal-container .modal-title {
     flex: 0 0 auto;
     position: relative;
-    padding: 0.3em 0.3em 0.05em 0.3em;
+    padding: 0.3em 0.3em 0 0.3em;
     font-size: 1.6em;
     font-weight: 700;
-    color: #fff
+    color: #fff;
+    margin-bottom: 0
 }
 
 #modal .modal-container .modal-title .close {
@@ -3672,7 +3673,7 @@ form.chat-form input {
 #modal .modal-container .modal-content {
     flex: 1 1 auto;
     padding: 4px;
-    padding-top: 2px;
+    padding-top: 0;
     white-space: pre-line;
     color: #fff;
     line-height: 1
