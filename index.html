@@ -519,31 +519,48 @@
                             </div>
                         </div>
                         <div class="modal-container-settings">
-                            <div class="group" id="volume">
-                                <div class="title">
+                            <div class="settings-group" id="volume">
+                                <div class="settings-title">
                                     <div class="icon volume"></div>
                                     <div class="desc" data-translate="text">Volume</div>
                                     <div class="volume-value">0%</div>
                                 </div>
-                                <div class="item"><input type="range" min="0" max="100"></div>
+                                <div class="settings-item"><input type="range" min="0" max="100"></div>
                             </div>
-                            <div class="group">
-                                <div class="title">
+                            <div class="settings-spacer"></div>
+                            <div class="settings-group">
+                                <div class="settings-title">
                                     <div class="icon hotkeys"></div>
                                     <div class="desc" data-translate="text">Hotkeys</div><button class="reset" data-translate="text" data-tooltip="Reset hotkeys to default" data-tooltipdir="N">Reset</button></div>
                                 <div id="hotkey-list"></div>
                             </div>
-                            <div class="group">
-                                <div class="title">
+                            <div class="settings-spacer"></div>
+                            <div class="settings-group">
+                                <div class="settings-title">
                                     <div class="icon misc"></div>
                                     <div class="desc" data-translate="text">Miscellaneous</div>
                                 </div>
-                                <div class="item">
-                                    <div class="key" data-translate="text">Mobile Keyboard (Experimental)</div><select id="select-mobile-keyboard-enabled"><option value="0">Disabled</option><option value="1">Enabled</option></select>
-                                    <div class="key" data-translate="text">Mobile Keyboard Language Layout</div><select id="select-mobile-keyboard-layout"></select>
-                                    <div class="key" data-translate="text">Mobile Chat Input Layout</div><select data-translate="children" id="select-mobile-chat-input"><option value="bottom">Bottom</option><option value="top">Top</option></select>
-                                    <div class="key" data-translate="text">Brush Pressure Sensitivity</div><select data-translate="children" id="select-pressure-sensitivity"><option value="0">Off</option><option value="1">On</option></select>
-                                    <div class="key" data-translate="text">Mobile Chat Bubbles (chat messages on drawing board)</div><select id="select-chat-bubbles"><option value="0">Enabled</option><option value="1">Disabled while drawing</option><option value="2">Disabled</option></select>
+                                <div class="settings-item">
+                                    <div class="settings-row">
+                                        <div class="settings-label" data-translate="text">Mobile Keyboard (Experimental)</div>
+                                        <select id="select-mobile-keyboard-enabled"><option value="0">Disabled</option><option value="1">Enabled</option></select>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-label" data-translate="text">Mobile Keyboard Language Layout</div>
+                                        <select id="select-mobile-keyboard-layout"></select>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-label" data-translate="text">Mobile Chat Input Layout</div>
+                                        <select data-translate="children" id="select-mobile-chat-input"><option value="bottom">Bottom</option><option value="top">Top</option></select>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-label" data-translate="text">Brush Pressure Sensitivity</div>
+                                        <select data-translate="children" id="select-pressure-sensitivity"><option value="0">Off</option><option value="1">On</option></select>
+                                    </div>
+                                    <div class="settings-row">
+                                        <div class="settings-label" data-translate="text">Mobile Chat Bubbles (chat messages on drawing board)</div>
+                                        <select id="select-chat-bubbles"><option value="0">Enabled</option><option value="1">Disabled while drawing</option><option value="2">Disabled</option></select>
+                                    </div>
                                 </div>
                             </div>
                         </div>

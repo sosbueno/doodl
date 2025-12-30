@@ -3341,8 +3341,7 @@ form.chat-form input {
 #modal .modal-container-settings {
     width: 500px;
     flex-direction: column;
-    font-size: 15px;
-    line-height: 1
+    font-size: 15px
 }
 
 #modal .modal-container-settings button.reset {
@@ -3356,14 +3355,130 @@ form.chat-form input {
     margin-left: 5px
 }
 
-#modal .modal-container-settings .group {
+#modal .modal-container-settings .settings-group {
     margin: 0;
-    margin-bottom: 3px;
     padding: 0
 }
 
-#modal .modal-container-settings .group:last-child {
+#modal .modal-container-settings .settings-spacer {
+    height: 4px;
+    margin: 0;
+    padding: 0
+}
+
+#modal .modal-container-settings .settings-title {
+    position: relative;
+    display: flex;
+    align-items: center;
+    font-size: 19.5px;
+    font-weight: 700;
+    margin: 0;
+    padding: 0;
+    line-height: 1.2
+}
+
+#modal .modal-container-settings .settings-title .icon {
+    display: inline-block;
+    width: 21px;
+    height: 21px;
+    margin: 0;
+    margin-right: 5px;
+    padding: 0;
+    background-size: contain;
+    filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, .3));
+    flex-shrink: 0
+}
+
+#modal .modal-container-settings .settings-title .icon.hotkeys {
+    background-image: url(/img/key.gif)
+}
+
+#modal .modal-container-settings .settings-title .icon.misc {
+    background-image: url(/img/questionmark.gif)
+}
+
+#modal .modal-container-settings .settings-title .icon.volume {
+    background-image: url(/img/audio.gif)
+}
+
+#modal .modal-container-settings .settings-title .icon.volume.muted {
+    background-image: url(/img/audio_off.gif)
+}
+
+#modal .modal-container-settings .settings-title .desc {
+    margin: 0;
+    padding: 0
+}
+
+#modal .modal-container-settings .settings-title .volume-value {
+    margin: 0;
+    margin-left: 5px;
+    padding: 0
+}
+
+#modal .modal-container-settings .settings-item {
+    margin: 0;
+    padding: 0
+}
+
+#modal .modal-container-settings .settings-item input[type="range"] {
+    display: block;
+    margin: 0;
+    padding: 0;
+    width: 100%
+}
+
+#modal .modal-container-settings .settings-row {
+    margin: 0;
+    margin-bottom: 2px;
+    padding: 0;
+    display: flex;
+    flex-direction: column
+}
+
+#modal .modal-container-settings .settings-row:last-child {
     margin-bottom: 0
+}
+
+#modal .modal-container-settings .settings-label {
+    margin: 0;
+    margin-bottom: 1px;
+    padding: 0;
+    font-size: 15px;
+    line-height: 1.2
+}
+
+#modal .modal-container-settings .settings-row select {
+    display: block;
+    margin: 0;
+    padding: 0;
+    width: 100%
+}
+
+#modal .modal-container-settings #hotkey-list {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    gap: 5px
+}
+
+#modal .modal-container-settings #hotkey-list input {
+    text-transform: uppercase
+}
+
+#modal .modal-container-settings #hotkey-list .item {
+    margin: 0;
+    margin-right: 5px;
+    padding: 0
+}
+
+#modal .modal-container-settings #hotkey-list .item:last-child {
+    margin-right: 0
+}
+
+#modal .modal-container-settings .group {
+    margin: 0;
+    padding: 0
 }
 
 #modal .modal-container-settings .group .title {
@@ -3373,9 +3488,8 @@ form.chat-form input {
     font-size: 19.5px;
     font-weight: 700;
     margin: 0;
-    margin-bottom: 0;
     padding: 0;
-    line-height: 1
+    line-height: 1.2
 }
 
 #modal .modal-container-settings .group .title .icon {
@@ -3406,44 +3520,18 @@ form.chat-form input {
     background-image: url(/img/audio_off.gif)
 }
 
-#modal .modal-container-settings .group .title .desc {
-    margin: 0;
-    padding: 0;
-    line-height: 1
-}
-
-#modal .modal-container-settings .group .title .volume-value {
-    margin: 0;
-    margin-left: 5px;
-    padding: 0;
-    line-height: 1
-}
-
 #modal .modal-container-settings .group .item {
     margin: 0;
-    margin-bottom: 1px;
-    padding: 0;
-    line-height: 1
-}
-
-#modal .modal-container-settings .group .item:last-child {
-    margin-bottom: 0
+    padding: 0
 }
 
 #modal .modal-container-settings .group .item .key {
     display: block;
     margin: 0;
-    margin-bottom: 0;
+    margin-bottom: 1px;
     padding: 0;
-    line-height: 1;
-    font-size: 15px
-}
-
-#modal .modal-container-settings .group .item input[type="range"] {
-    display: block;
-    margin: 0;
-    padding: 0;
-    width: 100%
+    font-size: 15px;
+    line-height: 1.2
 }
 
 #modal .modal-container-settings .group .item select {
@@ -3451,27 +3539,6 @@ form.chat-form input {
     margin: 0;
     padding: 0;
     width: 100%
-}
-
-#modal .modal-container-settings .group #hotkey-list {
-    display: flex;
-    margin: 0;
-    padding: 0;
-    gap: 5px
-}
-
-#modal .modal-container-settings .group #hotkey-list input {
-    text-transform: uppercase
-}
-
-#modal .modal-container-settings .group #hotkey-list .item {
-    margin: 0;
-    margin-right: 5px;
-    padding: 0
-}
-
-#modal .modal-container-settings .group #hotkey-list .item:last-child {
-    margin-right: 0
 }
 
 #modal .modal-container-info {
