@@ -3358,7 +3358,7 @@ form.chat-form input {
 
 #modal .modal-container-settings .group {
     margin: 0;
-    margin-bottom: 3px;
+    margin-bottom: 8px;
     padding: 0
 }
 
@@ -3373,7 +3373,7 @@ form.chat-form input {
     font-size: 19.5px;
     font-weight: 700;
     margin: 0;
-    margin-bottom: 0;
+    margin-bottom: 2px;
     padding: 0;
     line-height: 1
 }
@@ -3421,7 +3421,7 @@ form.chat-form input {
 
 #modal .modal-container-settings .group .item {
     margin: 0;
-    margin-bottom: 1px;
+    margin-bottom: 4px;
     padding: 0;
     line-height: 1
 }
@@ -3433,7 +3433,7 @@ form.chat-form input {
 #modal .modal-container-settings .group .item .key {
     display: block;
     margin: 0;
-    margin-bottom: 0;
+    margin-bottom: 2px;
     padding: 0;
     line-height: 1;
     font-size: 15px
@@ -3671,8 +3671,8 @@ form.chat-form input {
 
 #modal .modal-container .modal-content {
     flex: 1 1 auto;
-    padding: 4px;
-    padding-top: 2px;
+    padding: 6px;
+    padding-top: 3px;
     white-space: pre-line;
     color: #fff;
     line-height: 1
