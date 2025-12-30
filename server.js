@@ -836,9 +836,9 @@ io.on('connection', (socket) => {
         
       case PACKET.CHAT:
         // Handle chat messages (packet id 30)
-        if (room.state === GAME_STATE.DRAWING) {
+        if (room.state === GAME_STATE.DRAWING || room.state === GAME_STATE.WORD_CHOICE) {
           if (socket.id === room.currentDrawer) {
-            // Drawer's chat - only send to drawer (they see it in green, others don't see it)
+            // Drawer's chat during drawing or word choice - only send to drawer (they see it in green, others don't see it)
             socket.emit('data', {
               id: PACKET.CHAT,
               data: {
@@ -847,7 +847,7 @@ io.on('connection', (socket) => {
               }
             });
           } else {
-            // Regular chat during drawing - guessing players can chat normally
+            // Regular chat during drawing/word choice - guessing players can chat normally
             io.to(currentRoomId).emit('data', {
               id: PACKET.CHAT,
               data: {
@@ -857,7 +857,7 @@ io.on('connection', (socket) => {
             });
           }
         } else {
-          // Allow chat in all other states (LOBBY, ROUND_START, WORD_CHOICE, ROUND_END, GAME_END)
+          // Allow chat in all other states (LOBBY, ROUND_START, ROUND_END, GAME_END)
           io.to(currentRoomId).emit('data', {
             id: PACKET.CHAT,
             data: {

@@ -1476,6 +1476,14 @@
                 I.querySelector(".winner-text").textContent = E("Nobody won!");
             break;
         case V:
+            // Set current drawer during word choice (for green chat messages)
+            // If we're the drawer (e.data.words exists), M is us (x)
+            // If we're not the drawer (e.data.id exists), M is the drawer's ID
+            if (e.data.words) {
+                M = x; // We're the drawer
+            } else if (e.data.id !== undefined) {
+                M = e.data.id; // Someone else is the drawer
+            }
             if (e.data.words)
                 if (vn(A),
                 vn(un),
@@ -2021,19 +2029,8 @@
         }
         o = !t && 1 == An[te.WORDMODE];
         o && (n = 3);
-        // Display "GUESS THIS" with word length numbers (e.g., "GUESS THIS 6 5" for two words)
-        // For 2+ words, always show individual word lengths, not total
-        if (!o && wordLengths.length > 1) {
-            // Multiple words - show individual lengths like "GUESS THIS 5 7"
-            lengthText = " " + wordLengths.join(" ");
-        } else if (!o && wordLengths.length === 1) {
-            // Single word - show just the length
-            lengthText = " " + wordLengths[0];
-        } else if (!o) {
-            // Fallback to total length if wordLengths not available
-            lengthText = " " + n;
-        }
-        N[0].textContent = E(o ? "WORD HIDDEN" : "GUESS THIS") + lengthText,
+        // Display "GUESS THIS" without numbers (numbers go next to underscores)
+        N[0].textContent = E(o ? "WORD HIDDEN" : "GUESS THIS"),
         N[1].style.display = "none",
         N[2].style.display = "",
         ce(N[2]),
@@ -2063,8 +2060,15 @@
                 N[2].hints[a] = $("hint", o ? "?" : "_"),
                 N[2].appendChild(N[2].hints[a]);
         }
-        // Only add word-length element for array mode (combination), otherwise number is in description
-        o || (Array.isArray(e) && N[2].appendChild($("word-length", e.join(" "))))
+        // Add word-length element next to underscores for 2+ words (like official skribbl.io)
+        // Show individual word lengths for multi-word phrases
+        if (!o && wordLengths.length > 1) {
+            // Multiple words - show individual lengths like "5 7" next to underscores
+            N[2].appendChild($("word-length", wordLengths.join(" ")));
+        } else if (!o && Array.isArray(e)) {
+            // Array mode (combination) - show array values
+            N[2].appendChild($("word-length", e.join(" ")));
+        }
     }
     function ma(e) {
         for (var t = N[2].hints, n = 0; n < e.length; n++) {
