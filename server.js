@@ -1002,24 +1002,56 @@ io.on('connection', (socket) => {
             rooms.delete(currentRoomId);
             console.log('🗑️ Room deleted (empty):', currentRoomId);
           } else if (room.players.length === 1 && !room.isPublic) {
-            // Private room with only 1 player left - send error and redirect to public
+            // Private room with only 1 player left - return to lobby (settings screen)
             const remainingPlayer = room.players[0];
-            io.to(remainingPlayer.id).emit('data', {
-              id: PACKET.ERROR,
-              data: {
-                id: 100,
-                message: 'The room owner left! Redirecting to public server...'
-              }
+            
+            // Make the remaining player the new owner
+            room.owner = remainingPlayer.id;
+            
+            // Reset room state to lobby
+            room.state = GAME_STATE.LOBBY;
+            room.currentRound = 0;
+            room.currentDrawer = -1;
+            room.currentWord = '';
+            room.timer = 0;
+            // Clear any active timers
+            if (room.timerInterval) {
+              clearInterval(room.timerInterval);
+              room.timerInterval = null;
+            }
+            if (room.hintInterval) {
+              clearInterval(room.hintInterval);
+              room.hintInterval = null;
+            }
+            if (room.wordChoiceTimer) {
+              clearInterval(room.wordChoiceTimer);
+              room.wordChoiceTimer = null;
+            }
+            // Reset player scores and guessed status
+            room.players.forEach(p => {
+              p.score = 0;
+              p.guessed = false;
             });
-            // Give a moment for the message, then disconnect them so they reconnect to public
+            
+            // Send LOBBY state to return to settings screen
             setTimeout(() => {
-              const playerSocket = io.sockets.sockets.get(remainingPlayer.id);
-              if (playerSocket) {
-                playerSocket.disconnect(true);
-              }
-            }, 3000);
-            rooms.delete(currentRoomId);
-            console.log('🔄 Private room closed, redirecting last player to public:', currentRoomId);
+              io.to(remainingPlayer.id).emit('data', {
+                id: PACKET.STATE,
+                data: {
+                  id: GAME_STATE.LOBBY,
+                  time: 0,
+                  data: {}
+                }
+              });
+              
+              // Send owner change notification
+              io.to(remainingPlayer.id).emit('data', {
+                id: PACKET.OWNER,
+                data: room.owner
+              });
+            }, 100);
+            
+            console.log('🔄 Private room: owner left, remaining player is new owner, returning to lobby:', currentRoomId);
           }
         }
       }

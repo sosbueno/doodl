@@ -1481,8 +1481,22 @@
             // If we're not the drawer (e.data.id exists), M is the drawer's ID
             if (e.data.words) {
                 M = x; // We're the drawer
+                // Enable chat input for drawer during word choice (they can type, messages appear in green)
+                _n[0].disabled = false,
+                _n[1].disabled = false,
+                _n[0].readOnly = false,
+                _n[1].readOnly = false,
+                _n[0].removeAttribute("readonly"),
+                _n[1].removeAttribute("readonly"),
+                _n[0].removeAttribute("disabled"),
+                _n[1].removeAttribute("disabled");
             } else if (e.data.id !== undefined) {
                 M = e.data.id; // Someone else is the drawer
+                // Enable chat input for guessing players
+                _n[0].disabled = !1,
+                _n[1].disabled = !1,
+                _n[0].removeAttribute("readonly"),
+                _n[1].removeAttribute("readonly");
             }
             if (e.data.words)
                 if (vn(A),
@@ -1515,12 +1529,12 @@
                 } else {
                     A.textContent = E("Choose a word");
                     for (o = 0; o < e.data.words.length; o++) {
-                        var M = $("word", e.data.words[o]);
-                        M.index = o,
-                        D(M, "click", function() {
+                        var wordEl = $("word", e.data.words[o]);
+                        wordEl.index = o,
+                        D(wordEl, "click", function() {
                             ha(this.index)
                         }),
-                        un.appendChild(M)
+                        un.appendChild(wordEl)
                     }
                 }
             else {
@@ -2060,14 +2074,22 @@
                 N[2].hints[a] = $("hint", o ? "?" : "_"),
                 N[2].appendChild(N[2].hints[a]);
         }
-        // Add word-length element next to underscores for 2+ words (like official skribbl.io)
-        // Show individual word lengths for multi-word phrases
-        if (!o && wordLengths.length > 1) {
-            // Multiple words - show individual lengths like "5 7" next to underscores
-            N[2].appendChild($("word-length", wordLengths.join(" ")));
-        } else if (!o && Array.isArray(e)) {
-            // Array mode (combination) - show array values
-            N[2].appendChild($("word-length", e.join(" ")));
+        // Add word-length element next to underscores (like official skribbl.io)
+        // Show individual word lengths for multi-word phrases, or total for single words
+        if (!o) {
+            if (wordLengths.length > 1) {
+                // Multiple words - show individual lengths like "5 7" next to underscores
+                N[2].appendChild($("word-length", wordLengths.join(" ")));
+            } else if (wordLengths.length === 1) {
+                // Single word - show just the length
+                N[2].appendChild($("word-length", wordLengths[0].toString()));
+            } else if (Array.isArray(e)) {
+                // Array mode (combination) - show array values
+                N[2].appendChild($("word-length", e.join(" ")));
+            } else if (typeof e === "number") {
+                // Number mode - show the number
+                N[2].appendChild($("word-length", n.toString()));
+            }
         }
     }
     function ma(e) {
