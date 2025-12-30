@@ -3342,7 +3342,20 @@ form.chat-form input {
     width: 500px;
     flex-direction: column;
     font-size: 15px;
-    line-height: 1
+    line-height: 1;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    box-sizing: border-box
+}
+
+#modal .modal-container-settings * {
+    box-sizing: border-box
+}
+
+#modal .modal-container-settings > * {
+    margin: 0;
+    padding: 0
 }
 
 #modal .modal-container-settings button.reset {
@@ -3675,7 +3688,18 @@ form.chat-form input {
     padding-top: 0;
     white-space: pre-line;
     color: #fff;
-    line-height: 1
+    line-height: 1;
+    margin: 0
+}
+
+#modal .modal-container .modal-content .modal-container-settings {
+    margin: 0;
+    padding: 0
+}
+
+#modal .modal-container .modal-content > * {
+    margin: 0;
+    padding: 0
 }
 
 @media (min-aspect-ratio: 1) and (max-width:1166px) {
