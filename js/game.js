@@ -298,7 +298,7 @@
             break;
         case p:
             ke.textContent = E("Settings"),
-            a.querySelector("#select-pressure-sensitivity").value = l.pressureSensitivity
+            a.querySelector("#select-pressure-sensitivity").value = (l && l.pressureSensitivity !== undefined) ? l.pressureSensitivity : 1
         }
     }
     function xe() {
@@ -2389,9 +2389,8 @@
         x == M || a.guessed || !n || o) && (a = (e.flags & k) == k,
         o = Me,
         // Drawer's messages use GUESSED color (green, index 1) during DRAWING or WORD_CHOICE
-        // If this is the drawer (e.id == M) and M is set, use green (regardless of state check for now)
-        // The server only sends drawer's chat to drawer during WORD_CHOICE, so if we receive it, we're in that state
-        e.id == M && M != -1 ? (o = 1) : n && (o = Ie),
+        // Check if this message is from the drawer: either e.id == M (M is set) or e.id == x (we're the drawer) during WORD_CHOICE/DRAWING
+        ((e.id == M && M != -1) || (e.id == x && (L.id == j || L.id == V))) && (L.id == j || L.id == V) ? (o = 1) : (n ? (o = Ie) : (o = Me)),
         a && (o = Ee),
         Ua(e, $("text", t)),
         y(e.name, t, f(o), !1))
