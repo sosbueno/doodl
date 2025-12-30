@@ -3308,7 +3308,15 @@ form.chat-form input {
 
 #modal input,#modal select {
     font-size: 0.95em;
-    height: 1.8em
+    height: 1.8em;
+    margin-top: 0;
+    margin-bottom: 0
+}
+
+#modal .modal-container-settings input,
+#modal .modal-container-settings select {
+    margin-top: 0;
+    margin-bottom: 0
 }
 
 #modal button {
@@ -3397,6 +3405,11 @@ form.chat-form input {
 #modal .modal-container-settings .group .item {
     margin-bottom: 0;
     line-height: 1;
+    margin-top: 0;
+    padding: 0
+}
+
+#modal .modal-container-settings .group .title + .item {
     margin-top: 0
 }
 
@@ -3407,7 +3420,29 @@ form.chat-form input {
 #modal .modal-container-settings .group .item .key {
     margin-bottom: 0;
     margin-top: 0;
-    line-height: 1
+    padding-top: 0;
+    padding-bottom: 0;
+    line-height: 1;
+    display: block
+}
+
+#modal .modal-container-settings .group .item .key + select,
+#modal .modal-container-settings .group .item .key + input {
+    margin-top: 0
+}
+
+#modal .modal-container-settings .group .item input[type="range"],
+#modal .modal-container-settings .group .item select {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    display: block
+}
+
+#modal .modal-container-settings .group .item input[type="range"] {
+    margin-top: 0;
+    margin-bottom: 0
 }
 
 #modal .modal-container-settings .group #hotkey-list {
