@@ -2385,7 +2385,8 @@
         x == M || a.guessed || !n || o) && (a = (e.flags & k) == k,
         o = Me,
         // Drawer's messages use GUESSED color (green, index 1), others who guessed use GUESSCHAT
-        e.id == M ? (o = 1) : n && (o = Ie),
+        // Check if this is the drawer (during DRAWING or WORD_CHOICE state)
+        e.id == M && (L.id == j || L.id == V) ? (o = 1) : n && (o = Ie),
         a && (o = Ee),
         Ua(e, $("text", t)),
         y(e.name, t, f(o), !1))

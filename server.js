@@ -922,60 +922,63 @@ io.on('connection', (socket) => {
               // Transfer to first remaining player
               room.owner = room.players[0].id;
               
-              // If it's a private room, return to lobby (settings screen)
-              if (!room.isPublic) {
-                // Reset room state to lobby
-                room.state = GAME_STATE.LOBBY;
-                room.currentRound = 0;
-                room.currentDrawer = -1;
-                room.currentWord = '';
-                room.timer = 0;
-                // Clear any active timers
-                if (room.timerInterval) {
-                  clearInterval(room.timerInterval);
-                  room.timerInterval = null;
-                }
-                if (room.hintInterval) {
-                  clearInterval(room.hintInterval);
-                  room.hintInterval = null;
-                }
-                if (room.wordChoiceTimer) {
-                  clearInterval(room.wordChoiceTimer);
-                  room.wordChoiceTimer = null;
-                }
-                // Reset player scores and guessed status
-                room.players.forEach(p => {
-                  p.score = 0;
-                  p.guessed = false;
-                });
-                
-                // Send LOBBY state to all players (returns to settings screen)
-                // Use a small delay to prevent spam detection from multiple rapid packets
-                setTimeout(() => {
-                  io.to(currentRoomId).emit('data', {
-                    id: PACKET.STATE,
-                    data: {
-                      id: GAME_STATE.LOBBY,
-                      time: 0,
-                      data: {}
-                    }
-                  });
-                }, 50);
-              }
-              
-              // Send owner change notification (with small delay if returning to lobby)
-              const sendOwnerChange = () => {
-                io.to(currentRoomId).emit('data', {
-                  id: PACKET.OWNER,
-                  data: room.owner
-                });
-              };
-              
-              if (!room.isPublic && room.state === GAME_STATE.LOBBY) {
-                // If returning to lobby, delay owner change slightly to avoid spam detection
-                setTimeout(sendOwnerChange, 100);
+              // If it's a private room with only 1 player, handle separately (below)
+              // Otherwise, handle normal ownership transfer
+              if (room.players.length === 1 && !room.isPublic) {
+                // Single player case - handled below to avoid duplicate messages
               } else {
-                sendOwnerChange();
+                // Multiple players - send owner change notification
+                const sendOwnerChange = () => {
+                  io.to(currentRoomId).emit('data', {
+                    id: PACKET.OWNER,
+                    data: room.owner
+                  });
+                };
+                
+                // If it's a private room, return to lobby (settings screen)
+                if (!room.isPublic) {
+                  // Reset room state to lobby
+                  room.state = GAME_STATE.LOBBY;
+                  room.currentRound = 0;
+                  room.currentDrawer = -1;
+                  room.currentWord = '';
+                  room.timer = 0;
+                  // Clear any active timers
+                  if (room.timerInterval) {
+                    clearInterval(room.timerInterval);
+                    room.timerInterval = null;
+                  }
+                  if (room.hintInterval) {
+                    clearInterval(room.hintInterval);
+                    room.hintInterval = null;
+                  }
+                  if (room.wordChoiceTimer) {
+                    clearInterval(room.wordChoiceTimer);
+                    room.wordChoiceTimer = null;
+                  }
+                  // Reset player scores and guessed status
+                  room.players.forEach(p => {
+                    p.score = 0;
+                    p.guessed = false;
+                  });
+                  
+                  // Send LOBBY state to all players (returns to settings screen)
+                  setTimeout(() => {
+                    io.to(currentRoomId).emit('data', {
+                      id: PACKET.STATE,
+                      data: {
+                        id: GAME_STATE.LOBBY,
+                        time: 0,
+                        data: {}
+                      }
+                    });
+                  }, 50);
+                  
+                  // Delay owner change slightly to avoid spam detection
+                  setTimeout(sendOwnerChange, 100);
+                } else {
+                  sendOwnerChange();
+                }
               }
             } else {
               // Room is now empty - if it was a private room, clean it up
@@ -1033,7 +1036,14 @@ io.on('connection', (socket) => {
               p.guessed = false;
             });
             
-            // Send LOBBY state to return to settings screen
+            // Send LOBBY state to return to settings screen (so they can start the game manually)
+            // Send owner change first, then lobby state
+            io.to(remainingPlayer.id).emit('data', {
+              id: PACKET.OWNER,
+              data: room.owner
+            });
+            
+            // Small delay before sending LOBBY state to ensure owner message shows first
             setTimeout(() => {
               io.to(remainingPlayer.id).emit('data', {
                 id: PACKET.STATE,
@@ -1043,13 +1053,7 @@ io.on('connection', (socket) => {
                   data: {}
                 }
               });
-              
-              // Send owner change notification
-              io.to(remainingPlayer.id).emit('data', {
-                id: PACKET.OWNER,
-                data: room.owner
-              });
-            }, 100);
+            }, 150);
             
             console.log('🔄 Private room: owner left, remaining player is new owner, returning to lobby:', currentRoomId);
           }
