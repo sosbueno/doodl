@@ -541,7 +541,7 @@ io.on('connection', (socket) => {
           id: room.currentDrawer,
           word: room.currentDrawer === socket.id ? room.currentWord : undefined,
           wordLength: room.currentDrawer !== socket.id && room.currentWord ? room.currentWord.length : undefined, // Send word length for non-drawers
-          wordStructure: room.currentDrawer !== socket.id && room.currentWord ? room.currentWord.replace(/[^\s]/g, '_') : undefined, // Send word structure with underscores, preserving spaces
+          wordStructure: room.currentDrawer !== socket.id && room.currentWord ? room.currentWord.replace(/[^\s\-]/g, '_') : undefined, // Send word structure with underscores, preserving spaces and dashes
           hints: (room.revealedIndices && room.currentWord) ? Array.from(room.revealedIndices).map(idx => [idx, room.currentWord.charAt(idx)]) : [], // Send already revealed hints
           drawCommands: room.drawCommands
         } : {}
@@ -669,7 +669,7 @@ io.on('connection', (socket) => {
                     id: room.currentDrawer,
                     word: undefined, // Others don't see the word
                     wordLength: room.currentWord ? room.currentWord.length : 0, // Send word length for underscore display
-                    wordStructure: room.currentWord ? room.currentWord.replace(/[^\s]/g, '_') : undefined, // Send word structure with underscores, preserving spaces
+                    wordStructure: room.currentWord ? room.currentWord.replace(/[^\s\-]/g, '_') : undefined, // Send word structure with underscores, preserving spaces and dashes
                     hints: [],
                     drawCommands: []
                   }
@@ -1245,7 +1245,7 @@ io.on('connection', (socket) => {
                     id: room.currentDrawer,
                     word: undefined, // Others don't see the word
                     wordLength: room.currentWord ? room.currentWord.length : 0, // Send word length for underscore display
-                    wordStructure: room.currentWord ? room.currentWord.replace(/[^\s]/g, '_') : undefined, // Send word structure with underscores, preserving spaces
+                    wordStructure: room.currentWord ? room.currentWord.replace(/[^\s\-]/g, '_') : undefined, // Send word structure with underscores, preserving spaces and dashes
                     hints: [],
                     drawCommands: []
                   }

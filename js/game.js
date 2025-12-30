@@ -2049,7 +2049,7 @@
         N[2].style.display = "",
         ce(N[2]),
         N[2].hints = [];
-        // If we have the actual word structure (string), handle spaces properly
+        // If we have the actual word structure (string), handle spaces and dashes properly
         if (typeof e === "string" && e.length > 0) {
             for (a = 0; a < e.length; a++) {
                 if (e[a] === " ") {
@@ -2063,6 +2063,10 @@
                     spaceEl.style.flexShrink = "0";
                     N[2].appendChild(spaceEl);
                     N[2].hints[a] = null; // No hint element for spaces (can't reveal letters on spaces)
+                } else if (e[a] === "-") {
+                    // For dashes, display the dash character itself (not an underscore)
+                    N[2].hints[a] = $("hint", "-");
+                    N[2].appendChild(N[2].hints[a]);
                 } else {
                     N[2].hints[a] = $("hint", o ? "?" : "_"),
                     N[2].appendChild(N[2].hints[a]);
@@ -2384,9 +2388,10 @@
         n = e.id == M || e.guessed,
         x == M || a.guessed || !n || o) && (a = (e.flags & k) == k,
         o = Me,
-        // Drawer's messages use GUESSED color (green, index 1), others who guessed use GUESSCHAT
-        // Check if this is the drawer (during DRAWING or WORD_CHOICE state)
-        e.id == M && (L.id == j || L.id == V) ? (o = 1) : n && (o = Ie),
+        // Drawer's messages use GUESSED color (green, index 1) during DRAWING or WORD_CHOICE
+        // If this is the drawer (e.id == M) and M is set, use green (regardless of state check for now)
+        // The server only sends drawer's chat to drawer during WORD_CHOICE, so if we receive it, we're in that state
+        e.id == M && M != -1 ? (o = 1) : n && (o = Ie),
         a && (o = Ee),
         Ua(e, $("text", t)),
         y(e.name, t, f(o), !1))
