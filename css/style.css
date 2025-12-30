@@ -3341,8 +3341,8 @@ form.chat-form input {
 #modal .modal-container-settings {
     width: 500px;
     flex-direction: column;
-    font-size: 1em;
-    line-height: 1.2
+    font-size: 15px;
+    line-height: 1
 }
 
 #modal .modal-container-settings button.reset {
@@ -3353,13 +3353,12 @@ form.chat-form input {
 }
 
 #modal .modal-container-settings .volume-value {
-    margin-left: .5ch
+    margin-left: 5px
 }
 
-/* Group spacing - space between Volume, Hotkeys, Miscellaneous sections */
 #modal .modal-container-settings .group {
     margin: 0;
-    margin-bottom: 0.2em;
+    margin-bottom: 8px;
     padding: 0
 }
 
@@ -3367,25 +3366,24 @@ form.chat-form input {
     margin-bottom: 0
 }
 
-/* Title styling - Volume, Hotkeys, Miscellaneous headers */
 #modal .modal-container-settings .group .title {
     position: relative;
     display: flex;
     align-items: center;
-    font-size: 1.3em;
+    font-size: 19.5px;
     font-weight: 700;
     margin: 0;
-    margin-bottom: 0.08em;
+    margin-bottom: 2px;
     padding: 0;
-    line-height: 1.2
+    line-height: 1
 }
 
 #modal .modal-container-settings .group .title .icon {
     display: inline-block;
-    width: 1.4em;
-    height: 1.4em;
+    width: 21px;
+    height: 21px;
     margin: 0;
-    margin-right: .5ch;
+    margin-right: 5px;
     padding: 0;
     background-size: contain;
     filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, .3));
@@ -3410,38 +3408,37 @@ form.chat-form input {
 
 #modal .modal-container-settings .group .title .desc {
     margin: 0;
-    padding: 0
+    padding: 0;
+    line-height: 1
 }
 
 #modal .modal-container-settings .group .title .volume-value {
     margin: 0;
-    margin-left: .5ch;
-    padding: 0
+    margin-left: 5px;
+    padding: 0;
+    line-height: 1
 }
 
-/* Item container - wraps inputs, selects, etc */
 #modal .modal-container-settings .group .item {
     margin: 0;
-    margin-bottom: 0.12em;
+    margin-bottom: 4px;
     padding: 0;
-    line-height: 1.2
+    line-height: 1
 }
 
 #modal .modal-container-settings .group .item:last-child {
     margin-bottom: 0
 }
 
-/* Key labels - "Mobile Keyboard (Experimental)", etc */
 #modal .modal-container-settings .group .item .key {
     display: block;
     margin: 0;
-    margin-bottom: 0.05em;
+    margin-bottom: 2px;
     padding: 0;
-    line-height: 1.2;
-    font-size: 1em
+    line-height: 1;
+    font-size: 15px
 }
 
-/* Range input (volume slider) */
 #modal .modal-container-settings .group .item input[type="range"] {
     display: block;
     margin: 0;
@@ -3449,7 +3446,6 @@ form.chat-form input {
     width: 100%
 }
 
-/* Select dropdowns */
 #modal .modal-container-settings .group .item select {
     display: block;
     margin: 0;
@@ -3457,12 +3453,11 @@ form.chat-form input {
     width: 100%
 }
 
-/* Hotkey list container */
 #modal .modal-container-settings .group #hotkey-list {
     display: flex;
     margin: 0;
     padding: 0;
-    gap: 0.5em
+    gap: 5px
 }
 
 #modal .modal-container-settings .group #hotkey-list input {
@@ -3471,7 +3466,7 @@ form.chat-form input {
 
 #modal .modal-container-settings .group #hotkey-list .item {
     margin: 0;
-    margin-right: 0.5em;
+    margin-right: 5px;
     padding: 0
 }
 
@@ -3676,10 +3671,11 @@ form.chat-form input {
 
 #modal .modal-container .modal-content {
     flex: 1 1 auto;
-    padding: 0.4em;
-    padding-top: 0.2em;
+    padding: 6px;
+    padding-top: 3px;
     white-space: pre-line;
-    color: #fff
+    color: #fff;
+    line-height: 1
 }
 
 @media (min-aspect-ratio: 1) and (max-width:1166px) {
