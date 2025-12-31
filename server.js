@@ -411,8 +411,9 @@ const SPAM_CONFIG = {
   MIN_MESSAGE_INTERVAL_MS: 150,    // Minimum 150ms between messages
   MAX_MESSAGE_LENGTH: 200,         // Max 200 characters per message
   DUPLICATE_THRESHOLD: 3,           // Max 3 duplicate messages in a row
-  MAX_WARNINGS: 3,                  // Kick after 3 warnings
-  WARNING_COOLDOWN_MS: 1000        // 1 second cooldown between warnings
+  MAX_WARNINGS: 5,                  // Kick after 5 warnings (give more chances)
+  WARNING_COOLDOWN_MS: 500,        // 500ms cooldown - show warnings frequently
+  INITIAL_WARNING_COOLDOWN_MS: 0   // No cooldown for first few warnings
 };
 
 function checkSpam(socketId, message, room) {
@@ -463,8 +464,10 @@ function checkSpam(socketId, message, room) {
   }
   
   if (isSpam) {
-    // Check if we should warn (respect cooldown)
-    const shouldWarn = (now - tracker.lastWarningTime) >= SPAM_CONFIG.WARNING_COOLDOWN_MS;
+    // For first 3 warnings, no cooldown - show warnings frequently
+    // After that, use cooldown to prevent spam of warnings
+    const warningCooldown = tracker.warnings < 3 ? SPAM_CONFIG.INITIAL_WARNING_COOLDOWN_MS : SPAM_CONFIG.WARNING_COOLDOWN_MS;
+    const shouldWarn = (now - tracker.lastWarningTime) >= warningCooldown;
     
     if (shouldWarn) {
       tracker.warnings++;
@@ -474,10 +477,9 @@ function checkSpam(socketId, message, room) {
     if (tracker.warnings >= SPAM_CONFIG.MAX_WARNINGS) {
       // Kick the player after MAX_WARNINGS warnings
       if (room) {
-        // Kick with a small delay to prevent overwhelming the server
         const player = room.players.find(p => p.id === socketId);
         if (player) {
-          // Use setImmediate instead of setTimeout for better performance
+          // Kick immediately but with error handling
           setImmediate(() => {
             try {
               kickPlayer(room, socketId, 1); // Kick reason 1
@@ -486,10 +488,10 @@ function checkSpam(socketId, message, room) {
             }
           });
         }
-        return { isSpam: true, shouldKick: true, shouldWarn: shouldWarn, warnings: tracker.warnings };
+        return { isSpam: true, shouldKick: true, shouldWarn: true, warnings: tracker.warnings };
       }
     }
-    // Send warning if cooldown has passed
+    // Always show warning if spam detected (respect cooldown) - but still process the message
     return { isSpam: true, shouldWarn: shouldWarn, warnings: tracker.warnings };
   }
   
