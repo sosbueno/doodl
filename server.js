@@ -426,18 +426,23 @@ function checkSpam(socketId, message, room) {
     spamTracker.set(socketId, tracker);
   }
   
+  // Save previous last message time BEFORE updating
+  const previousLastMessageTime = tracker.lastMessageTime;
+  
   // Check if this is an "instant spam" message (sent within INSTANT_SPAM_THRESHOLD_MS of previous message)
   let isInstantSpam = false;
-  if (tracker.lastMessageTime > 0) {
-    const timeSinceLastMessage = now - tracker.lastMessageTime;
+  if (previousLastMessageTime > 0) {
+    const timeSinceLastMessage = now - previousLastMessageTime;
     if (timeSinceLastMessage <= SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS) {
       isInstantSpam = true;
     }
   }
   
+  // Update last message time AFTER checking
+  tracker.lastMessageTime = now;
+  
   // Add current message to recent messages
   tracker.recentMessages.push(now);
-  tracker.lastMessageTime = now;
   
   // Clean up messages older than 1 second
   tracker.recentMessages = tracker.recentMessages.filter(msgTime => now - msgTime < 1000);
@@ -466,7 +471,7 @@ function checkSpam(socketId, message, room) {
       shouldWarn = true;
       tracker.warnings = 1;
       tracker.lastWarningTime = now;
-      // Keep tracking but reset the count
+      // Reset tracking but keep last message time
       tracker.recentMessages = [now];
     }
   } else if (tracker.warnings < SPAM_CONFIG.MAX_WARNINGS) {
@@ -475,7 +480,7 @@ function checkSpam(socketId, message, room) {
       shouldWarn = true;
       tracker.warnings++;
       tracker.lastWarningTime = now;
-      // Keep tracking for next check
+      // Reset tracking but keep last message time for next check
       tracker.recentMessages = [now];
       
       // Check if we should kick after this warning
