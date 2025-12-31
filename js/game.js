@@ -112,8 +112,8 @@
         d.setItem("pressure", 1 == l.pressureSensitivity ? 1 : 0),
         d.setItem("ava", JSON.stringify(l.avatar)),
         d.setItem("mobileChatLayout", l.mobileChatLayout),
-        d.setItem("keyboard", Ye.value),
-        d.setItem("keyboardlayout", ze.value),
+        Ye && d.setItem("keyboard", Ye.value),
+        ze && d.setItem("keyboardlayout", ze.value),
         d.setItem("chatBubbles", l.chatBubbles),
         console.log("Settings saved.")) : console.log("Settings not saved. LocalStorage unavailable.")
     }
@@ -511,6 +511,7 @@
             _n[1].removeAttribute("readonly");
             return;
         }
+        if (!Ye) return;
         1 == Ye.value ? (_n[1].setAttribute("readonly", ""),
         c.documentElement.dataset.mobileKeyboard = "") : (_n[1].removeAttribute("readonly"),
         delete c.documentElement.dataset.mobileKeyboard)
@@ -1604,17 +1605,19 @@
     }
     ,
     Dn.prototype.playSound = function(e) {
-        var t, n;
+        var t, n, r = this;
         null == this.context ? this.load() : "running" != this.context.state ? this.context.resume().then(function() {
-            this.playSound(e)
+            r.playSound(e)
         }) : null != this.context && 0 < l.volume && this.sounds.has(e) && (t = this.sounds.get(e)).loaded && ((n = this.context.createBufferSource()).buffer = t.buffer,
         n.connect(this.gain),
         n.start(0))
     }
     ,
     Dn.prototype.setVolume = function(e) {
-        g[p].querySelector("#volume .title .icon").classList.toggle("muted", e <= 0),
-        g[p].querySelector("#volume .volume-value").textContent = e <= 0 ? "Muted" : e + "%",
+        var settingsEl = c.querySelector("#game-settings");
+        if (settingsEl) {
+            settingsEl.classList.toggle("muted", e <= 0)
+        }
         this.gain && (this.gain.gain.value = e / 100)
     }
     ,
@@ -2529,9 +2532,23 @@
     }
     c.querySelector("#audio"),
     c.querySelector("#lightbulb"),
-    D(n, "click", function() {
-        qe(p)
-    }),
+    (function() {
+        var settingsEl = c.querySelector("#game-settings");
+        if (settingsEl) {
+            D(settingsEl, "click", function(e) {
+                var wasMuted = l.volume <= 0;
+                if (wasMuted) {
+                    l.volume = 100;
+                } else {
+                    l.volume = 0;
+                }
+                R.setVolume(l.volume);
+                settingsEl.classList.toggle("muted", l.volume <= 0);
+                le();
+                e.stopPropagation()
+            })
+        }
+    })(),
     "virtualKeyboard"in navigator && (navigator.virtualKeyboard.overlaysContent = !0,
     navigator.virtualKeyboard.addEventListener("geometrychange", e => {
         uo()
@@ -2548,7 +2565,7 @@
             return xe(),
             e.preventDefault(),
             !1;
-        Be.elements.main.contains(e.target) ? e.preventDefault() : ("1" == Ye.value && _n[1].blur(),
+        Be.elements.main.contains(e.target) ? e.preventDefault() : (Ye && "1" == Ye.value && _n[1].blur(),
         c.querySelector("#game-toolbar .sizes").contains(e.target) || Pt(),
         e.target != c.querySelector("#game-toolbar .color-preview-mobile") && rt.classList.remove("open"))
     }),
@@ -2680,12 +2697,6 @@
         y(E("Your report for '$' has been sent!", T.name), "", f(Le), !0)),
         xe())
     }),
-    D(g[p].querySelector("#volume input"), "change", function(e) {
-        l.volume = e.target.value,
-        R.setVolume(l.volume),
-        R.playSound(xn),
-        le()
-    }),
     (function() {
         var pressureEl = g[p].querySelector("#select-pressure-sensitivity");
         if (pressureEl) {
@@ -2786,7 +2797,12 @@
         var mobileChatInputEl = g[p].querySelector("#select-mobile-chat-input");
         if (mobileChatInputEl) mobileChatInputEl.value = l.mobileChatLayout;
     })(),
-    g[p].querySelector("#volume input").value = l.volume,
+    (function() {
+        var settingsEl = c.querySelector("#game-settings");
+        if (settingsEl) {
+            settingsEl.classList.toggle("muted", l.volume <= 0)
+        }
+    })(),
     R.setVolume(l.volume),
     po(),
     console.log("Settings loaded.")) : console.log("Settings not loaded. LocalStorage unavailable.");
