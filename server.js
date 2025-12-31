@@ -34,7 +34,13 @@ app.use(express.static(__dirname, {
   maxAge: '1d',
   etag: true,
   lastModified: true,
-  index: false // Don't serve index.html as directory index
+  index: false, // Don't serve index.html as directory index
+  setHeaders: (res, path) => {
+    // Set correct MIME type for OGG audio files
+    if (path.endsWith('.ogg')) {
+      res.setHeader('Content-Type', 'audio/ogg');
+    }
+  }
 }));
 
 // Serve favicon

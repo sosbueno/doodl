@@ -161,6 +161,9 @@
         n
     }
     function ue(e, t) {
+        if (!e || !t || !Array.isArray(t) || t.length < 4) {
+            return;
+        }
         function n(e, t, n) {
             var a = -t % n * 100
               , t = 100 * -Math.floor(t / n);
