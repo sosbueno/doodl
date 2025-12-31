@@ -581,37 +581,12 @@ function checkSpam(socketId, message, room) {
     }
   } else if (tracker.warnings === 2) {
     // Third warning: show on the next instant spam after second warning
-    // BUT also kick immediately (don't wait for next message)
     if (isInstantSpam) {
-      // Set warnings to 3 (for tracking)
+      shouldWarn = true;
       tracker.warnings = 3;
       tracker.lastWarningTime = now;
-      console.log(`[SPAM] Third warning triggered, warnings now = ${tracker.warnings}, kicking immediately`);
-      
-      // KICK IMMEDIATELY - don't show warning, just kick
-      // This ensures instant kick without delay
-      shouldKick = true;
-      console.log(`[SPAM] Kicking ${socketId} IMMEDIATELY after 3rd warning - continued instant spam`);
-      // Kick the player immediately - owner can be kicked for spam
-      if (room) {
-        const player = room.players.find(p => p.id === socketId);
-        if (player) {
-          // Transfer ownership if owner is being kicked
-          if (room.owner === socketId && room.players.length > 1) {
-            const remainingPlayers = room.players.filter(p => p.id !== socketId);
-            if (remainingPlayers.length > 0) {
-              room.owner = remainingPlayers[0].id;
-              // Notify room of owner change
-              io.to(room.id).emit('data', {
-                id: PACKET.OWNER,
-                data: room.owner
-              });
-            }
-          }
-          // Kick immediately - call synchronously
-          kickPlayer(room, socketId, 1); // Kick reason 1
-        }
-      }
+      console.log(`[SPAM] Third warning shown, warnings now = ${tracker.warnings}`);
+      // After showing 3rd warning, the NEXT instant spam message should kick (no warning)
     }
   } else if (tracker.warnings >= 3) {
     // After 3 warnings, only kick if they CONTINUE spamming (instant spam)

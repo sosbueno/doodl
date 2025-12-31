@@ -12,6 +12,46 @@
             window._joinRoomCode = roomCode;
             // NO auto-join - user should click Play button to join
           }
+          
+          // Check if user was kicked/banned and show message
+          const kicked = urlParams.get('kicked');
+          const kickReason = localStorage.getItem('kickReason');
+          if (kicked || kickReason) {
+            // Wait for DOM to be ready
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', showKickMessage);
+            } else {
+              showKickMessage();
+            }
+            // Clean up
+            if (kickReason) localStorage.removeItem('kickReason');
+            // Clean URL
+            if (kicked) {
+              const newUrl = window.location.pathname + (roomCode ? '?' + roomCode : '');
+              window.history.replaceState({}, '', newUrl);
+            }
+          }
+          
+          function showKickMessage() {
+            const reason = kicked || kickReason;
+            let message = '';
+            if (reason == '1') {
+              message = 'You have been kicked!';
+            } else if (reason == '2') {
+              message = 'You have been banned!';
+            }
+            
+            if (message) {
+              // Create and show modal
+              setTimeout(function() {
+                // The game.js will handle showing the modal when it loads
+                // Store it for game.js to pick up
+                window._kickMessage = message;
+                // Trigger a custom event
+                window.dispatchEvent(new CustomEvent('showKickMessage', { detail: message }));
+              }, 100);
+            }
+          }
         })();
         
         // Ad-related code removed

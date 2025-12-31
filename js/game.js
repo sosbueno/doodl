@@ -1791,18 +1791,14 @@
                     _n[1].setAttribute("readonly", "");
                     _n[1].setAttribute("disabled", "");
                 }
-                // Show kick/ban modal
-                if (e == 1) {
-                    // Kicked
-                    qe(ve, E("You have been kicked!"));
-                } else if (e == 2) {
-                    // Banned
-                    qe(ve, E("You have been banned!"));
+                // Store reason in localStorage to show message on home page
+                try {
+                    h.localStorage.setItem("kickReason", e.toString());
+                } catch (err) {
+                    console.log("Could not store kick reason:", err);
                 }
-                // Redirect to home after showing modal
-                setTimeout(function() {
-                    h.location.href = "/"
-                }, 1500);
+                // Redirect to home IMMEDIATELY (no delay, no modal)
+                h.location.href = "/?kicked=" + e;
             }
         }),
         S.on("disconnect", function(e) {
@@ -2053,7 +2049,20 @@
             data: 0
         },
         c.querySelector("#home").style.display = "",
-        c.querySelector("#game").style.display = "none"
+        c.querySelector("#game").style.display = "none";
+        // Check if user was kicked and show message
+        if (h._kickMessage) {
+            setTimeout(function() {
+                qe(ve, h._kickMessage);
+                h._kickMessage = null;
+            }, 100);
+        }
+        // Also listen for custom event from index.html
+        h.addEventListener("showKickMessage", function(e) {
+            setTimeout(function() {
+                qe(ve, e.detail);
+            }, 100);
+        })
     }
     function ha(e) {
         S && S.connected && L.id == V && S.emit("data", {
