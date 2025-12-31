@@ -1794,18 +1794,19 @@
                     _n[1].setAttribute("disabled", "");
                 }
                 // Store reason in localStorage to show message on home page
+                // Use a synchronous method to ensure it's stored before redirect
                 try {
                     h.localStorage.setItem("kickReason", e.toString());
                     console.log("[REASON EVENT] Stored kickReason in localStorage:", e.toString());
+                    // Force sync - wait a tiny bit to ensure storage is complete
+                    var stored = h.localStorage.getItem("kickReason");
+                    console.log("[REASON EVENT] Verified storage, got back:", stored);
                 } catch (err) {
                     console.log("[REASON EVENT] Could not store kick reason:", err);
                 }
-                // Also store in window for immediate access
-                h._kickMessage = e.toString();
-                console.log("[REASON EVENT] Stored _kickMessage:", h._kickMessage);
-                // Redirect to home IMMEDIATELY (no delay, no modal)
-                console.log("[REASON EVENT] Redirecting to /?kicked=" + e);
-                h.location.href = "/?kicked=" + e;
+                // Redirect to home page WITHOUT query parameter (clean URL)
+                console.log("[REASON EVENT] Redirecting to /");
+                h.location.href = "/";
             }
         }),
         S.on("disconnect", function(e) {
@@ -2070,12 +2071,10 @@
                 qe(ve, e.detail);
             }, 300);
         });
-        // Check for kick message on page load (in case event was already dispatched)
-        // Use multiple checks to ensure we catch it
+        // Check for kick message on page load
+        // This MUST run after the page is fully loaded and game.js is initialized
         function checkAndShowKickMessage() {
             console.log("[KICK CHECK] Checking for kick message...");
-            var urlParams = new URLSearchParams(h.location.search);
-            var kicked = urlParams.get('kicked');
             var kickReason = null;
             try {
                 kickReason = h.localStorage.getItem('kickReason');
@@ -2083,68 +2082,42 @@
             } catch (e) {
                 console.log("[KICK CHECK] Could not access localStorage:", e);
             }
-            console.log("[KICK CHECK] URL kicked param:", kicked);
-            console.log("[KICK CHECK] window._kickMessage:", h._kickMessage);
             
-            if (h._kickMessage) {
-                console.log("[KICK CHECK] Found _kickMessage, showing modal");
-                var message = h._kickMessage == '1' ? E("You have been kicked!") : (h._kickMessage == '2' ? E("You have been banned!") : '');
-                if (message) {
-                    qe(ve, message);
-                    h._kickMessage = null;
-                }
-                return;
-            }
-            
-            if (kicked || kickReason) {
-                console.log("[KICK CHECK] Found kick reason, showing modal");
+            if (kickReason) {
+                console.log("[KICK CHECK] Found kick reason:", kickReason);
                 var message = '';
-                if (kicked == '1' || kickReason == '1') {
+                if (kickReason == '1') {
                     message = E("You have been kicked!");
-                } else if (kicked == '2' || kickReason == '2') {
+                } else if (kickReason == '2') {
                     message = E("You have been banned!");
                 }
                 if (message) {
                     console.log("[KICK CHECK] Showing modal with message:", message);
+                    // Show modal with "Disconnected!" title and the message
+                    // ve = 2 is the "Disconnected!" modal type
                     qe(ve, message);
-                    // Clean up
-                    if (kickReason) {
-                        try {
-                            h.localStorage.removeItem('kickReason');
-                            console.log("[KICK CHECK] Removed kickReason from localStorage");
-                        } catch (e) {
-                            console.log("[KICK CHECK] Could not remove from localStorage:", e);
-                        }
-                    }
-                    // Clean URL
-                    if (kicked) {
-                        var newUrl = h.location.pathname;
-                        urlParams.delete('kicked');
-                        var newSearch = urlParams.toString();
-                        if (newSearch) newUrl += '?' + newSearch;
-                        h.history.replaceState({}, '', newUrl);
-                        console.log("[KICK CHECK] Cleaned URL");
+                    // Clean up localStorage after showing
+                    try {
+                        h.localStorage.removeItem('kickReason');
+                        console.log("[KICK CHECK] Removed kickReason from localStorage");
+                    } catch (e) {
+                        console.log("[KICK CHECK] Could not remove from localStorage:", e);
                     }
                 } else {
-                    console.log("[KICK CHECK] No message to show");
+                    console.log("[KICK CHECK] No message to show for reason:", kickReason);
                 }
             } else {
-                console.log("[KICK CHECK] No kick reason found");
+                console.log("[KICK CHECK] No kick reason found in localStorage");
             }
         }
         
-        // Check immediately
-        setTimeout(checkAndShowKickMessage, 100);
-        // Check again after a delay (in case page wasn't ready)
-        setTimeout(checkAndShowKickMessage, 500);
-        // Check one more time after page is fully loaded
-        if (h.document.readyState === 'loading') {
-            h.document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(checkAndShowKickMessage, 200);
-            });
-        } else {
-            setTimeout(checkAndShowKickMessage, 1000);
-        }
+        // Check multiple times to ensure we catch it
+        // First check after a short delay
+        setTimeout(checkAndShowKickMessage, 200);
+        // Second check after page should be ready
+        setTimeout(checkAndShowKickMessage, 800);
+        // Third check after everything should be loaded
+        setTimeout(checkAndShowKickMessage, 1500);
     }
     function ha(e) {
         S && S.connected && L.id == V && S.emit("data", {

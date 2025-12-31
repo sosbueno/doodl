@@ -13,18 +13,9 @@
             // NO auto-join - user should click Play button to join
           }
           
-          // Check if user was kicked/banned - store for game.js to handle
-          const kicked = urlParams.get('kicked');
-          try {
-            const kickReason = localStorage.getItem('kickReason');
-            if (kicked || kickReason) {
-              // Store for game.js to pick up (it will show the modal after page loads)
-              window._kickMessage = (kicked || kickReason);
-              // Don't clean up here - let game.js handle it after showing the modal
-            }
-          } catch (e) {
-            console.log('Could not access localStorage:', e);
-          }
+          // Check if user was kicked/banned - game.js will handle showing the modal
+          // We don't need to do anything here since we're using localStorage
+          // and redirecting without query parameters
         })();
         
         // Ad-related code removed
