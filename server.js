@@ -406,14 +406,14 @@ const spamTracker = new Map(); // socket.id -> { messages: [], lastMessage: time
 
 // Anti-spam configuration (exactly like skribbl.io)
 const SPAM_CONFIG = {
-  MAX_MESSAGES_PER_WINDOW: 4,      // Max 4 messages in time window (more strict)
-  TIME_WINDOW_MS: 2000,            // In 2 seconds (more strict)
-  MIN_MESSAGE_INTERVAL_MS: 100,    // Minimum 100ms between messages (more strict)
+  MAX_MESSAGES_PER_WINDOW: 5,      // Max 5 messages in time window
+  TIME_WINDOW_MS: 3000,            // In 3 seconds
+  MIN_MESSAGE_INTERVAL_MS: 200,    // Minimum 200ms between messages (less strict to allow typing)
   MAX_MESSAGE_LENGTH: 200,         // Max 200 characters per message
-  DUPLICATE_THRESHOLD: 2,           // Max 2 duplicate messages in a row (more strict)
-  MAX_WARNINGS: 4,                  // Kick after 4 warnings
-  WARNING_COOLDOWN_MS: 300,        // 300ms cooldown - show warnings frequently
-  INITIAL_WARNING_COOLDOWN_MS: 0   // No cooldown for first few warnings
+  DUPLICATE_THRESHOLD: 3,           // Max 3 duplicate messages in a row
+  MAX_WARNINGS: 5,                  // Kick after 5 warnings (give more chances)
+  WARNING_COOLDOWN_MS: 200,        // 200ms cooldown - show warnings very frequently
+  INITIAL_WARNING_COOLDOWN_MS: 0   // No cooldown for first 3 warnings
 };
 
 function checkSpam(socketId, message, room) {
@@ -439,10 +439,12 @@ function checkSpam(socketId, message, room) {
     isSpam = true;
   }
   
-  // Check minimum interval between messages
-  const timeSinceLastMessage = now - tracker.lastMessage;
-  if (timeSinceLastMessage < SPAM_CONFIG.MIN_MESSAGE_INTERVAL_MS) {
-    isSpam = true;
+  // Check minimum interval between messages (only if there was a previous message)
+  if (tracker.lastMessage > 0) {
+    const timeSinceLastMessage = now - tracker.lastMessage;
+    if (timeSinceLastMessage < SPAM_CONFIG.MIN_MESSAGE_INTERVAL_MS) {
+      isSpam = true;
+    }
   }
   
   // Check for duplicate messages
@@ -464,8 +466,8 @@ function checkSpam(socketId, message, room) {
   }
   
   if (isSpam) {
-    // For first 3 warnings, no cooldown - show warnings frequently
-    // After that, use cooldown to prevent spam of warnings
+    // For first 3 warnings, no cooldown - show warnings immediately
+    // After that, use short cooldown to show warnings frequently
     const warningCooldown = tracker.warnings < 3 ? SPAM_CONFIG.INITIAL_WARNING_COOLDOWN_MS : SPAM_CONFIG.WARNING_COOLDOWN_MS;
     const shouldWarn = (now - tracker.lastWarningTime) >= warningCooldown;
     
@@ -479,6 +481,7 @@ function checkSpam(socketId, message, room) {
       tracker.lastWarningTime = now;
     }
     
+    // Check if we should kick (after enough warnings)
     if (tracker.warnings >= SPAM_CONFIG.MAX_WARNINGS) {
       // Kick the player after MAX_WARNINGS warnings
       if (room) {
@@ -496,7 +499,7 @@ function checkSpam(socketId, message, room) {
         return { isSpam: true, shouldKick: true, shouldWarn: true, warnings: tracker.warnings };
       }
     }
-    // Always show warning if spam detected (respect cooldown) - but still process the message
+    // Always show warning if spam detected (respect cooldown) - MESSAGE STILL GOES THROUGH
     return { isSpam: true, shouldWarn: shouldWarn, warnings: tracker.warnings };
   }
   
