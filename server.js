@@ -719,8 +719,9 @@ io.on('connection', (socket) => {
       case PACKET.GUESS:
         if (room.state === GAME_STATE.DRAWING && socket.id !== room.currentDrawer) {
           if (!player.guessed) {
-            const guess = data.data.toLowerCase().trim();
-            const word = room.currentWord.toLowerCase().trim();
+            // Normalize both guess and word by removing hyphens and converting to lowercase
+            const guess = data.data.toLowerCase().trim().replace(/-/g, '');
+            const word = room.currentWord.toLowerCase().trim().replace(/-/g, '');
             
             if (guess === word) {
               const timeRemaining = room.timer;

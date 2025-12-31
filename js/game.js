@@ -1461,7 +1461,7 @@
                         0 == h && l.appendChild($("trophy"));
                         for (o = 0; o < p.length; o++)
                             pe(b = de((s = p[o]).player.avatar, 0 == h), Ya(s.player)),
-                            b.style.left = 15 * -(p.length - 1) + 30 * o + "%",
+                            b.style.left = 20 * -(p.length - 1) + 40 * o + "%",
                             0 == h && (b.classList.add("winner"),
                             b.style.animationDelay = -2.35 * o + "s"),
                             l.appendChild(b)
