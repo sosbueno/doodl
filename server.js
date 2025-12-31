@@ -522,6 +522,16 @@ function checkSpam(socketId, message, room) {
     }
   }
   
+  // For warnings after first, also check for slower but consistent spam (within 800ms)
+  // This catches slower spamming patterns
+  let isSlowSpam = false;
+  if (tracker.warnings > 0 && previousLastMessageTime > 0) {
+    const timeSinceLastMessage = now - previousLastMessageTime;
+    if (timeSinceLastMessage <= 800 && timeSinceLastMessage > currentThreshold) {
+      isSlowSpam = true;
+    }
+  }
+  
   // Reset warnings if user stopped spamming (no spam for WARNING_RESET_TIME_MS)
   // Check this AFTER determining if current message is spam, but BEFORE processing warnings
   if (tracker.warnings > 0 && tracker.lastSpamTime > 0) {
@@ -573,13 +583,13 @@ function checkSpam(socketId, message, room) {
   const isRateSpam = messagesInWindow >= SPAM_CONFIG.RATE_SPAM_COUNT;
   
   // Update last spam time if spam is detected (for reset logic)
-  if (isInstantSpam || isRateSpam) {
+  if (isInstantSpam || isRateSpam || isSlowSpam) {
     tracker.lastSpamTime = now;
   }
   
   // Debug logging
-  if (tracker.warnings > 0 || isInstantSpam || isRateSpam) {
-    console.log(`[SPAM DEBUG] socketId: ${socketId}, warnings: ${tracker.warnings}, isInstantSpam: ${isInstantSpam}, isRateSpam: ${isRateSpam}, consecutiveInstantSpam: ${consecutiveInstantSpam}, messagesInWindow: ${messagesInWindow}, timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms`);
+  if (tracker.warnings > 0 || isInstantSpam || isRateSpam || isSlowSpam) {
+    console.log(`[SPAM DEBUG] socketId: ${socketId}, warnings: ${tracker.warnings}, isInstantSpam: ${isInstantSpam}, isSlowSpam: ${isSlowSpam}, isRateSpam: ${isRateSpam}, consecutiveInstantSpam: ${consecutiveInstantSpam}, messagesInWindow: ${messagesInWindow}, timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms`);
   }
   
   if (tracker.warnings === 0) {
@@ -593,27 +603,27 @@ function checkSpam(socketId, message, room) {
       // DON'T clear - keep tracking for next check
     }
   } else if (tracker.warnings === 1) {
-    // Second warning: ONLY on instant spam (500ms threshold - same as first)
-    if (isInstantSpam) {
+    // Second warning: on instant spam OR slow spam (catches slower spamming after first warning)
+    if (isInstantSpam || isSlowSpam) {
       shouldWarn = true;
       tracker.warnings = 2;
       tracker.lastWarningTime = now;
-      console.log(`[SPAM] Second warning - instant spam detected (threshold: ${currentThreshold}ms)`);
+      console.log(`[SPAM] Second warning - instantSpam: ${isInstantSpam}, slowSpam: ${isSlowSpam}, timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms`);
     }
   } else if (tracker.warnings === 2) {
-    // Third warning: ONLY on instant spam (500ms threshold - same as first)
-    if (isInstantSpam) {
+    // Third warning: on instant spam OR slow spam (catches slower spamming after second warning)
+    if (isInstantSpam || isSlowSpam) {
       shouldWarn = true;
       tracker.warnings = 3;
       tracker.lastWarningTime = now;
-      console.log(`[SPAM] Third warning shown, warnings now = ${tracker.warnings} (threshold: ${currentThreshold}ms)`);
-      // After showing 3rd warning, the NEXT instant spam message should kick (no warning)
+      console.log(`[SPAM] Third warning shown, warnings now = ${tracker.warnings} - instantSpam: ${isInstantSpam}, slowSpam: ${isSlowSpam}, timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms`);
+      // After showing 3rd warning, the NEXT spam message should kick (no warning)
     }
   } else if (tracker.warnings >= 3) {
-    // After 3 warnings, only kick if they CONTINUE instant spamming
+    // After 3 warnings, only kick if they CONTINUE spamming (instant or slow)
     // NO WARNING MESSAGE - just kick immediately
     // If they stopped spamming, warnings should have been reset above
-    if (isInstantSpam) {
+    if (isInstantSpam || isSlowSpam) {
       shouldKick = true;
       console.log(`[SPAM] Kicking ${socketId} - continued instant spam after 3 warnings (no warning shown)`);
       // Kick the player immediately - owner can be kicked for spam
