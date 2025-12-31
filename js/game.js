@@ -2283,11 +2283,12 @@
             // Handle system messages (id is null) vs player messages
             Ba(n.id === null || n.id === void 0 ? null : W(n.id), n.msg);
             break;
-        case Oa:
+        case Wa:
+            // SPAM packet (id: 31) - data is null, just show spam message
             y(E("Spam detected! You're sending messages too quickly."), "", f(Ee), !0);
             break;
-        case Wa:
-            switch (n.id) {
+        case Oa:
+            switch (n && n.id ? n.id : (n ? n : 0)) {
             case 0:
                 y(E("You need at least 2 players to start the game!"), "", f(Ee), !0);
                 break;
@@ -2415,10 +2416,13 @@
         // Drawer's messages use GUESSED color (green, index 1) during DRAWING or WORD_CHOICE
         // Check if this message is from the drawer: either e.id == M (M is set) or e.id == x (we're the drawer) during WORD_CHOICE/DRAWING
         (function() {
+            // Get the current player object to ensure we have the latest guessed state
+            var currentPlayer = W(e.id);
+            var playerHasGuessed = currentPlayer ? currentPlayer.guessed : false;
             var isDrawer = (e.id == M && M != -1) || (e.id == x && (L.id == j || L.id == V));
             if (isDrawer && (L.id == j || L.id == V)) {
                 o = 1;  // Drawer's messages are green (color 1)
-            } else if (e.guessed && !isDrawer) {
+            } else if (playerHasGuessed && !isDrawer) {
                 o = Ie;  // Guesser who has guessed gets GUESSCHAT color (green)
             } else {
                 o = Me;  // Normal chat color
