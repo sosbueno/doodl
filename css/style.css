@@ -3389,7 +3389,7 @@ form.chat-form input {
     height: 1.4em;
     margin-right: .5ch;
     background-size: contain;
-    filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, .3))
+    filter: brightness(0) invert(1) drop-shadow(3px 3px 0 rgba(0, 0, 0, .3))
 }
 
 #modal .modal-container-settings .group .title .icon.hotkeys {
