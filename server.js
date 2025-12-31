@@ -402,7 +402,7 @@ app.post('/api/play', (req, res) => {
 });
 
 // Anti-spam tracking per socket
-const spamTracker = new Map(); // socket.id -> { messages: [], lastMessage: timestamp }
+const spamTracker = new Map(); // socket.id -> { messages: [], lastMessage: timestamp, warnings: 0, lastWarningTime: 0 }
 
 // Anti-spam configuration (similar to skribbl.io)
 const SPAM_CONFIG = {
@@ -410,10 +410,12 @@ const SPAM_CONFIG = {
   TIME_WINDOW_MS: 3000,            // In 3 seconds
   MIN_MESSAGE_INTERVAL_MS: 200,    // Minimum 200ms between messages
   MAX_MESSAGE_LENGTH: 200,         // Max 200 characters per message
-  DUPLICATE_THRESHOLD: 3           // Max 3 duplicate messages in a row
+  DUPLICATE_THRESHOLD: 3,           // Max 3 duplicate messages in a row
+  MAX_WARNINGS: 3,                  // Kick after 3 warnings
+  WARNING_COOLDOWN_MS: 10000       // 10 seconds between warnings
 };
 
-function checkSpam(socketId, message) {
+function checkSpam(socketId, message, room) {
   const now = Date.now();
   let tracker = spamTracker.get(socketId);
   
@@ -422,27 +424,31 @@ function checkSpam(socketId, message) {
       messages: [],
       lastMessage: 0,
       duplicateCount: 0,
-      lastMessageText: ''
+      lastMessageText: '',
+      warnings: 0,
+      lastWarningTime: 0
     };
     spamTracker.set(socketId, tracker);
   }
   
+  let isSpam = false;
+  
   // Check message length
   if (message.length > SPAM_CONFIG.MAX_MESSAGE_LENGTH) {
-    return true;
+    isSpam = true;
   }
   
   // Check minimum interval between messages
   const timeSinceLastMessage = now - tracker.lastMessage;
   if (timeSinceLastMessage < SPAM_CONFIG.MIN_MESSAGE_INTERVAL_MS) {
-    return true;
+    isSpam = true;
   }
   
   // Check for duplicate messages
   if (message === tracker.lastMessageText) {
     tracker.duplicateCount++;
     if (tracker.duplicateCount >= SPAM_CONFIG.DUPLICATE_THRESHOLD) {
-      return true;
+      isSpam = true;
     }
   } else {
     tracker.duplicateCount = 0;
@@ -453,15 +459,39 @@ function checkSpam(socketId, message) {
   
   // Check if too many messages in the time window
   if (tracker.messages.length >= SPAM_CONFIG.MAX_MESSAGES_PER_WINDOW) {
-    return true;
+    isSpam = true;
   }
   
-  // Add current message to tracker
+  if (isSpam) {
+    // Check if we should warn or kick
+    const timeSinceLastWarning = now - tracker.lastWarningTime;
+    if (timeSinceLastWarning >= SPAM_CONFIG.WARNING_COOLDOWN_MS) {
+      tracker.warnings++;
+      tracker.lastWarningTime = now;
+      
+      if (tracker.warnings >= SPAM_CONFIG.MAX_WARNINGS) {
+        // Kick the player
+        if (room) {
+          const player = room.players.find(p => p.id === socketId);
+          if (player) {
+            kickPlayer(room, socketId, 1); // Kick reason 1
+            return { isSpam: true, shouldKick: true };
+          }
+        }
+      } else {
+        // Send warning
+        return { isSpam: true, shouldWarn: true, warnings: tracker.warnings };
+      }
+    }
+    return { isSpam: true, shouldWarn: false }; // Spam detected but in cooldown
+  }
+  
+  // Add current message to tracker (only if not spam)
   tracker.messages.push(now);
   tracker.lastMessage = now;
   tracker.lastMessageText = message;
   
-  return false;
+  return { isSpam: false };
 }
 
 io.on('connection', (socket) => {
@@ -782,12 +812,20 @@ io.on('connection', (socket) => {
       case PACKET.GUESS:
         if (room.state === GAME_STATE.DRAWING && socket.id !== room.currentDrawer) {
           // Anti-spam check for guesses (treat guesses as messages for spam detection)
-          if (checkSpam(socket.id, data.data)) {
-            socket.emit('data', {
-              id: PACKET.SPAM,
-              data: null
-            });
-            return; // Don't process the guess
+          const spamResult = checkSpam(socket.id, data.data, room);
+          if (spamResult.isSpam) {
+            if (spamResult.shouldKick) {
+              return; // Player was kicked, don't process
+            }
+            if (spamResult.shouldWarn) {
+              socket.emit('data', {
+                id: PACKET.SPAM,
+                data: null
+              });
+              // Still process the guess (show text) but with warning
+            } else {
+              // Spam detected but in cooldown - still process but don't warn again
+            }
           }
           
           if (!player.guessed) {
@@ -916,12 +954,20 @@ io.on('connection', (socket) => {
       case PACKET.CHAT:
         // Handle chat messages (packet id 30)
         // Anti-spam check
-        if (checkSpam(socket.id, data.data)) {
-          socket.emit('data', {
-            id: PACKET.SPAM,
-            data: null
-          });
-          return; // Don't process the message
+        const spamResult = checkSpam(socket.id, data.data, room);
+        if (spamResult.isSpam) {
+          if (spamResult.shouldKick) {
+            return; // Player was kicked, don't process
+          }
+          if (spamResult.shouldWarn) {
+            socket.emit('data', {
+              id: PACKET.SPAM,
+              data: null
+            });
+            // Still process the message (show text) but with warning
+          } else {
+            // Spam detected but in cooldown - still process but don't warn again
+          }
         }
         
         if (room.state === GAME_STATE.DRAWING || room.state === GAME_STATE.WORD_CHOICE) {

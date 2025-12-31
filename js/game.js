@@ -2410,7 +2410,13 @@
             return;
         }
         !e.muted && (o = ((a = W(x)).flags & k) == k,
-        n = e.id == M || e.guessed,
+        // Get current player to check guessed state (don't use e.guessed directly as it might be stale)
+        (function() {
+            var currentPlayer = W(e.id);
+            var currentPlayerGuessed = currentPlayer ? currentPlayer.guessed : false;
+            n = e.id == M || currentPlayerGuessed;
+            return n;
+        })(),
         x == M || a.guessed || !n || o) && (a = (e.flags & k) == k,
         o = Me,
         // Drawer's messages use GUESSED color (green, index 1) during DRAWING or WORD_CHOICE
@@ -2418,11 +2424,15 @@
         (function() {
             // Get the current player object to ensure we have the latest guessed state
             var currentPlayer = W(e.id);
-            var playerHasGuessed = currentPlayer ? currentPlayer.guessed : false;
+            // Only check guessed if we're in DRAWING or WORD_CHOICE state, and player exists
+            var playerHasGuessed = false;
+            if (currentPlayer && (L.id == j || L.id == V)) {
+                playerHasGuessed = currentPlayer.guessed === true;
+            }
             var isDrawer = (e.id == M && M != -1) || (e.id == x && (L.id == j || L.id == V));
             if (isDrawer && (L.id == j || L.id == V)) {
                 o = 1;  // Drawer's messages are green (color 1)
-            } else if (playerHasGuessed && !isDrawer) {
+            } else if (playerHasGuessed && !isDrawer && (L.id == j || L.id == V)) {
                 o = Ie;  // Guesser who has guessed gets GUESSCHAT color (green)
             } else {
                 o = Me;  // Normal chat color
