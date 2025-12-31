@@ -408,7 +408,7 @@ const spamTracker = new Map(); // socket.id -> { messages: [], lastMessage: time
 const SPAM_CONFIG = {
   MAX_MESSAGES_PER_WINDOW: 5,      // Max 5 messages in time window
   TIME_WINDOW_MS: 3000,            // In 3 seconds
-  MIN_MESSAGE_INTERVAL_MS: 200,    // Minimum 200ms between messages (less strict to allow typing)
+  MIN_MESSAGE_INTERVAL_MS: 0,      // NO minimum interval - don't slow down typing
   MAX_MESSAGE_LENGTH: 200,         // Max 200 characters per message
   DUPLICATE_THRESHOLD: 3,           // Max 3 duplicate messages in a row
   MAX_WARNINGS: 2,                  // Kick after 2 warnings (show a few errors, then kick)
@@ -441,13 +441,7 @@ function checkSpam(socketId, message, room) {
     isSpam = true;
   }
   
-  // Check minimum interval between messages (only if there was a previous message)
-  if (tracker.lastMessage > 0) {
-    const timeSinceLastMessage = now - tracker.lastMessage;
-    if (timeSinceLastMessage < SPAM_CONFIG.MIN_MESSAGE_INTERVAL_MS) {
-      isSpam = true;
-    }
-  }
+  // REMOVED: Minimum interval check - don't slow down typing at all
   
   // Check for duplicate messages
   if (message === tracker.lastMessageText) {
@@ -471,16 +465,12 @@ function checkSpam(socketId, message, room) {
   tracker.lastMessageText = message;
   
   if (isSpam) {
-    // Show warnings immediately (no cooldown)
-    const shouldWarn = (now - tracker.lastWarningTime) >= SPAM_CONFIG.WARNING_COOLDOWN_MS;
+    // ALWAYS increment warning count when spam is detected (no cooldown check)
+    tracker.warnings++;
+    tracker.lastWarningTime = now;
     
-    // Increment warning count immediately when spam is detected
-    if (shouldWarn) {
-      tracker.warnings++;
-      tracker.lastWarningTime = now;
-      // Reset duplicate count when warning is shown so user can continue typing
-      tracker.duplicateCount = 0;
-    }
+    // Reset duplicate count when warning is shown so user can continue typing
+    tracker.duplicateCount = 0;
     
     // Check if we should kick (after enough warnings)
     if (tracker.warnings >= SPAM_CONFIG.MAX_WARNINGS) {
@@ -502,8 +492,8 @@ function checkSpam(socketId, message, room) {
       }
     }
     
-    // Spam detected but not kicked yet - message already tracked, just show warning
-    return { isSpam: true, shouldWarn: shouldWarn, warnings: tracker.warnings };
+    // Spam detected but not kicked yet - message already tracked, always show warning
+    return { isSpam: true, shouldWarn: true, warnings: tracker.warnings };
   }
   
   // Not spam - duplicate count already reset above if message changed
