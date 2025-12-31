@@ -406,15 +406,13 @@ const spamTracker = new Map(); // socket.id -> { messages: [], lastMessage: time
 
 // Anti-spam configuration
 const SPAM_CONFIG = {
-  INSTANT_SPAM_THRESHOLD_MS_FIRST: 500,   // Threshold for first warning (500ms)
-  INSTANT_SPAM_THRESHOLD_MS_SECOND: 400,  // Threshold for second warning (400ms - shorter)
-  INSTANT_SPAM_THRESHOLD_MS_THIRD: 300,   // Threshold for third warning (300ms - even shorter)
-  INSTANT_SPAM_COUNT: 3,                  // Need 3 instant spam messages for first warning
-  RATE_SPAM_WINDOW_MS: 4000,              // Time window to check for rate-based spam (4 seconds)
-  RATE_SPAM_COUNT: 4,                     // Max messages allowed in RATE_SPAM_WINDOW_MS before warning
-  MAX_WARNINGS: 3,                        // Kick after 3 warnings
-  WARNING_COOLDOWN_MS: 0,                 // No cooldown - show warnings immediately
-  WARNING_RESET_TIME_MS: 5000             // Reset warnings if no spam for 5 seconds
+  INSTANT_SPAM_THRESHOLD_MS: 500,   // Threshold for all warnings (500ms - same for all)
+  INSTANT_SPAM_COUNT: 3,             // Need 3 instant spam messages for first warning
+  RATE_SPAM_WINDOW_MS: 4000,         // Time window to check for rate-based spam (4 seconds)
+  RATE_SPAM_COUNT: 4,                // Max messages allowed in RATE_SPAM_WINDOW_MS before warning
+  MAX_WARNINGS: 3,                   // Kick after 3 warnings
+  WARNING_COOLDOWN_MS: 0,            // No cooldown - show warnings immediately
+  WARNING_RESET_TIME_MS: 5000        // Reset warnings if no spam for 5 seconds
 };
 
 function kickPlayer(room, playerId, reason) {
@@ -512,13 +510,8 @@ function checkSpam(socketId, message, room) {
   // Save previous last message time BEFORE updating
   const previousLastMessageTime = tracker.lastMessageTime;
   
-  // Determine threshold based on current warning level
-  let currentThreshold = SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS_FIRST;
-  if (tracker.warnings === 1) {
-    currentThreshold = SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS_SECOND;
-  } else if (tracker.warnings >= 2) {
-    currentThreshold = SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS_THIRD;
-  }
+  // Use same threshold for all warnings
+  const currentThreshold = SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS;
   
   // Check if this is an "instant spam" message (sent within threshold of previous message)
   let isInstantSpam = false;
@@ -556,13 +549,13 @@ function checkSpam(socketId, message, room) {
   let shouldWarn = false;
   let shouldKick = false;
   
-  // Count consecutive instant spam messages using FIRST warning threshold (for first warning only)
+  // Count consecutive instant spam messages - need to check if we have exactly 3 messages
+  // For 3 messages, we need 2 consecutive gaps (message1->message2 and message2->message3)
   let consecutiveInstantSpam = 0;
   if (tracker.recentMessages.length >= 2) {
     for (let i = tracker.recentMessages.length - 1; i > 0; i--) {
       const timeDiff = tracker.recentMessages[i] - tracker.recentMessages[i - 1];
-      // Use first warning threshold for counting consecutive spam
-      if (timeDiff <= SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS_FIRST) {
+      if (timeDiff <= SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS) {
         consecutiveInstantSpam++;
       } else {
         break; // Stop counting if there's a gap
@@ -570,10 +563,10 @@ function checkSpam(socketId, message, room) {
     }
   }
   
-  // For first warning, we need exactly 3 messages (which means consecutiveInstantSpam should be >= 2)
-  // But we need to ensure we actually have 3 messages, not just 2
-  // So check: if we have 3+ messages AND consecutiveInstantSpam >= 2
-  const hasThreeInstantSpamMessages = tracker.recentMessages.length >= 3 && consecutiveInstantSpam >= 2;
+  // For first warning, we need EXACTLY 3 messages within threshold
+  // This means: recentMessages.length === 3 AND consecutiveInstantSpam === 2
+  // (2 gaps means 3 messages: msg1->msg2->msg3)
+  const hasExactlyThreeInstantSpamMessages = tracker.recentMessages.length === 3 && consecutiveInstantSpam === 2;
   
   // Check rate-based spam (messages per time window) - for first warning only
   const messagesInWindow = tracker.recentMessages.length;
@@ -590,17 +583,17 @@ function checkSpam(socketId, message, room) {
   }
   
   if (tracker.warnings === 0) {
-    // First warning: on instant spam (3 messages within 500ms) OR rate spam (4+ messages in 4 seconds)
-    // MUST have 3 messages, not 2 - check hasThreeInstantSpamMessages
-    if (hasThreeInstantSpamMessages || isRateSpam) {
+    // First warning: on instant spam (EXACTLY 3 messages within 500ms) OR rate spam (4+ messages in 4 seconds)
+    // MUST have exactly 3 messages - check hasExactlyThreeInstantSpamMessages
+    if (hasExactlyThreeInstantSpamMessages || isRateSpam) {
       shouldWarn = true;
       tracker.warnings = 1;
       tracker.lastWarningTime = now;
-      console.log(`[SPAM] First warning - hasThreeInstantSpamMessages: ${hasThreeInstantSpamMessages}, rateSpam: ${isRateSpam}, consecutiveInstantSpam: ${consecutiveInstantSpam}, messagesInWindow: ${messagesInWindow}, recentMessages.length: ${tracker.recentMessages.length}`);
+      console.log(`[SPAM] First warning - hasExactlyThreeInstantSpamMessages: ${hasExactlyThreeInstantSpamMessages}, rateSpam: ${isRateSpam}, consecutiveInstantSpam: ${consecutiveInstantSpam}, messagesInWindow: ${messagesInWindow}, recentMessages.length: ${tracker.recentMessages.length}`);
       // DON'T clear - keep tracking for next check
     }
   } else if (tracker.warnings === 1) {
-    // Second warning: ONLY on instant spam (400ms threshold - shorter)
+    // Second warning: ONLY on instant spam (500ms threshold - same as first)
     if (isInstantSpam) {
       shouldWarn = true;
       tracker.warnings = 2;
@@ -608,7 +601,7 @@ function checkSpam(socketId, message, room) {
       console.log(`[SPAM] Second warning - instant spam detected (threshold: ${currentThreshold}ms)`);
     }
   } else if (tracker.warnings === 2) {
-    // Third warning: ONLY on instant spam (300ms threshold - even shorter)
+    // Third warning: ONLY on instant spam (500ms threshold - same as first)
     if (isInstantSpam) {
       shouldWarn = true;
       tracker.warnings = 3;
