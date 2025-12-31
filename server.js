@@ -586,14 +586,15 @@ function checkSpam(socketId, message, room) {
       tracker.warnings = 3;
       tracker.lastWarningTime = now;
       console.log(`[SPAM] Third warning shown, warnings now = ${tracker.warnings}`);
-      // After showing 3rd warning, the NEXT message should kick
+      // After showing 3rd warning, the NEXT instant spam message should kick (no warning)
     }
   } else if (tracker.warnings >= 3) {
     // After 3 warnings, only kick if they CONTINUE spamming (instant spam)
+    // NO WARNING MESSAGE - just kick immediately
     // If they stopped spamming, warnings should have been reset above
     if (isInstantSpam) {
       shouldKick = true;
-      console.log(`[SPAM] Kicking ${socketId} - continued instant spam after 3 warnings`);
+      console.log(`[SPAM] Kicking ${socketId} - continued instant spam after 3 warnings (no warning shown)`);
       // Kick the player immediately - owner can be kicked for spam
       if (room) {
         const player = room.players.find(p => p.id === socketId);
@@ -622,8 +623,11 @@ function checkSpam(socketId, message, room) {
   }
   
   // Return result - kick takes priority over warning
+  // IMPORTANT: If we're kicking, NEVER show a warning message
   if (shouldKick) {
-    console.log(`[SPAM] Returning shouldKick=true for ${socketId}`);
+    console.log(`[SPAM] Returning shouldKick=true for ${socketId} - NO WARNING will be shown`);
+    // Explicitly set shouldWarn to false to prevent any warning message
+    shouldWarn = false;
     return { isSpam: true, shouldKick: true, shouldWarn: false, warnings: tracker.warnings };
   }
   
@@ -1099,9 +1103,11 @@ io.on('connection', (socket) => {
         if (spamResult.isSpam) {
           if (spamResult.shouldKick) {
             // Kick should have already been called in checkSpam, just return
+            // DO NOT show any warning message when kicking
             return; // Player was kicked, don't process the chat message
           }
-          if (spamResult.shouldWarn) {
+          // Only show warning if we're NOT kicking
+          if (spamResult.shouldWarn && !spamResult.shouldKick) {
             socket.emit('data', {
               id: PACKET.SPAM,
               data: null
