@@ -844,8 +844,7 @@ io.on('connection', (socket) => {
                 data: null
               });
             }
-            // Block spam messages - don't process the guess
-            return;
+            // Let the message through - don't block it, just show warnings
           }
           
           if (!player.guessed) {
@@ -985,8 +984,7 @@ io.on('connection', (socket) => {
               data: null
             });
           }
-          // Block spam messages - don't process the chat message
-          return;
+          // Let the message through - don't block it, just show warnings
         }
         
         if (room.state === GAME_STATE.DRAWING || room.state === GAME_STATE.WORD_CHOICE) {
