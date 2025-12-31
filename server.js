@@ -1434,8 +1434,24 @@ io.on('connection', (socket) => {
         return (playerB?.score || 0) - (playerA?.score || 0);
       });
     
+    // Assign ranks, handling ties (players with same score get same rank)
+    let currentRank = 0;
+    let previousScore = null;
     rankings.forEach((rank, index) => {
-      rank[1] = index;
+      const player = room.players.find(p => p.id === rank[0]);
+      const currentScore = player?.score || 0;
+      
+      // If this player has a different score than the previous one, update the rank
+      if (previousScore !== null && currentScore !== previousScore) {
+        currentRank = index;
+      }
+      // If this is the first player, rank is 0
+      if (previousScore === null) {
+        currentRank = 0;
+      }
+      
+      rank[1] = currentRank;
+      previousScore = currentScore;
     });
     
     // Set timer to 7 seconds for countdown in top-left clock

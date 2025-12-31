@@ -2244,7 +2244,15 @@
                 })(),
                 Fa(a, !0),
                 R.playSound(xn),
-                n.id == x && ga(n.word)
+                n.id == x && (
+                    // Current user guessed correctly - show them the word like the drawer sees it
+                    ga(n.word),
+                    // Display the word in the word display area (same as drawer sees)
+                    N[0].textContent = E("DRAW THIS"),
+                    N[1].style.display = "",
+                    N[2].style.display = "none",
+                    N[1].textContent = n.word
+                )
             ),
             Ka()  // Update score display (always update leaderboard)
             );
