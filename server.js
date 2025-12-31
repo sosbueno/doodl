@@ -404,14 +404,11 @@ app.post('/api/play', (req, res) => {
 // Anti-spam tracking per socket
 const spamTracker = new Map(); // socket.id -> { messages: [], lastMessage: timestamp, warnings: 0, lastWarningTime: 0 }
 
-// Anti-spam configuration (exactly like skribbl.io)
+// Anti-spam configuration
 const SPAM_CONFIG = {
-  MAX_MESSAGES_PER_WINDOW: 5,      // Max 5 messages in time window
-  TIME_WINDOW_MS: 3000,            // In 3 seconds
-  MIN_MESSAGE_INTERVAL_MS: 0,      // NO minimum interval - don't slow down typing
-  MAX_MESSAGE_LENGTH: 200,         // Max 200 characters per message
-  DUPLICATE_THRESHOLD: 3,           // Max 3 duplicate messages in a row
-  MAX_WARNINGS: 2,                  // Kick after 2 warnings (show a few errors, then kick)
+  INSTANT_SPAM_THRESHOLD_MS: 100,   // Messages sent within 100ms are considered "instant spam"
+  INSTANT_SPAM_COUNT: 3,             // Need 3 instant spam messages for first warning
+  MAX_WARNINGS: 3,                   // Kick after 3 warnings
   WARNING_COOLDOWN_MS: 0            // No cooldown - show warnings immediately
 };
 
@@ -421,66 +418,87 @@ function checkSpam(socketId, message, room) {
   
   if (!tracker) {
     tracker = {
-      messages: [],
+      instantSpamMessages: [],      // Track recent messages for instant spam detection
       lastMessage: 0,
-      duplicateCount: 0,
-      lastMessageText: '',
       warnings: 0,
       lastWarningTime: 0
     };
     spamTracker.set(socketId, tracker);
   }
   
-  // Remove messages older than the time window FIRST
-  tracker.messages = tracker.messages.filter(msgTime => now - msgTime < SPAM_CONFIG.TIME_WINDOW_MS);
-  
-  let isSpam = false;
-  
-  // Check message length
-  if (message.length > SPAM_CONFIG.MAX_MESSAGE_LENGTH) {
-    isSpam = true;
-  }
-  
-  // REMOVED: Minimum interval check - don't slow down typing at all
-  
-  // Check for duplicate messages
-  if (message === tracker.lastMessageText) {
-    tracker.duplicateCount++;
-    // After first warning, ANY duplicate is spam (very aggressive)
-    const duplicateThreshold = tracker.warnings > 0 ? 1 : SPAM_CONFIG.DUPLICATE_THRESHOLD;
-    if (tracker.duplicateCount >= duplicateThreshold) {
-      isSpam = true;
+  // Check if this is an "instant spam" message (sent within INSTANT_SPAM_THRESHOLD_MS of last message)
+  let isInstantSpam = false;
+  if (tracker.lastMessage > 0) {
+    const timeSinceLastMessage = now - tracker.lastMessage;
+    if (timeSinceLastMessage <= SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS) {
+      isInstantSpam = true;
+      // Add to instant spam list
+      tracker.instantSpamMessages.push(now);
+    } else {
+      // Reset instant spam count if there's a gap
+      tracker.instantSpamMessages = [];
     }
   } else {
-    tracker.duplicateCount = 0;
+    // First message, add to list
+    tracker.instantSpamMessages.push(now);
   }
   
-  // Check if too many messages in the time window (before adding current one)
-  // After first warning, be more aggressive - only need 3 messages instead of 5
-  const maxMessagesThreshold = tracker.warnings > 0 ? 3 : SPAM_CONFIG.MAX_MESSAGES_PER_WINDOW;
-  if (tracker.messages.length >= maxMessagesThreshold) {
-    isSpam = true;
-  }
-  
-  // ALWAYS track the message (so it goes through regardless of spam detection)
-  tracker.messages.push(now);
+  // Update last message time
   tracker.lastMessage = now;
-  tracker.lastMessageText = message;
   
-  if (isSpam) {
-    // ALWAYS increment warning count when spam is detected (no cooldown check)
-    tracker.warnings++;
-    tracker.lastWarningTime = now;
-    
-    // DON'T reset duplicate count after warning - let it continue so spam is detected faster
-    
-    // Check if we should kick (after enough warnings)
-    if (tracker.warnings >= SPAM_CONFIG.MAX_WARNINGS) {
-      // Kick the player immediately after MAX_WARNINGS warnings
+  // Clean up old instant spam messages (older than 1 second)
+  tracker.instantSpamMessages = tracker.instantSpamMessages.filter(msgTime => now - msgTime < 1000);
+  
+  // Check if we have enough instant spam messages for a warning
+  // Before first warning: need 3 instant spam messages
+  // After first warning: each instant spam message triggers next warning
+  let shouldWarn = false;
+  let shouldKick = false;
+  
+  if (tracker.warnings === 0) {
+    // First warning: need 3 instant spam messages
+    if (tracker.instantSpamMessages.length >= SPAM_CONFIG.INSTANT_SPAM_COUNT) {
+      shouldWarn = true;
+      tracker.warnings = 1;
+      tracker.lastWarningTime = now;
+      // Reset count after first warning
+      tracker.instantSpamMessages = [];
+    }
+  } else if (tracker.warnings < SPAM_CONFIG.MAX_WARNINGS) {
+    // After first warning: each instant spam message triggers next warning
+    if (isInstantSpam) {
+      shouldWarn = true;
+      tracker.warnings++;
+      tracker.lastWarningTime = now;
+      // Reset count after each warning
+      tracker.instantSpamMessages = [];
+      
+      // Check if we should kick after this warning
+      if (tracker.warnings >= SPAM_CONFIG.MAX_WARNINGS) {
+        shouldKick = true;
+        // Kick the player immediately
+        if (room) {
+          const player = room.players.find(p => p.id === socketId);
+          if (player) {
+            setImmediate(() => {
+              try {
+                kickPlayer(room, socketId, 1); // Kick reason 1
+              } catch (error) {
+                console.error('Error kicking player:', error);
+              }
+            });
+          }
+        }
+      }
+    }
+  } else {
+    // Already at max warnings, any instant spam = kick
+    if (isInstantSpam) {
+      shouldKick = true;
+      // Kick the player immediately
       if (room) {
         const player = room.players.find(p => p.id === socketId);
         if (player) {
-          // Kick immediately
           setImmediate(() => {
             try {
               kickPlayer(room, socketId, 1); // Kick reason 1
@@ -489,16 +507,19 @@ function checkSpam(socketId, message, room) {
             }
           });
         }
-        // Return kick status - message will still go through but player gets kicked
-        return { isSpam: true, shouldKick: true, shouldWarn: false, warnings: tracker.warnings };
       }
     }
-    
-    // Spam detected but not kicked yet - message already tracked, always show warning
+  }
+  
+  if (shouldKick) {
+    return { isSpam: true, shouldKick: true, shouldWarn: false, warnings: tracker.warnings };
+  }
+  
+  if (shouldWarn) {
     return { isSpam: true, shouldWarn: true, warnings: tracker.warnings };
   }
   
-  // Not spam - duplicate count already reset above if message changed
+  // Not spam
   return { isSpam: false };
 }
 
