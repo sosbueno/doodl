@@ -3378,14 +3378,14 @@ form.chat-form input {
     font-weight: 700;
     margin: 0;
     padding: 0;
-    line-height: 0.8;
+    line-height: 1;
     margin-bottom: 0
 }
 
 #modal .modal-container-settings .group .title .icon {
     display: inline;
-    width: 1.8em;
-    height: 1.8em;
+    width: 1.5em;
+    height: 1.5em;
     margin-right: .5ch;
     background-size: contain;
     filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, .3))
@@ -3422,7 +3422,7 @@ form.chat-form input {
 #modal .modal-container-settings .group .item {
     margin: 0;
     padding: 0;
-    line-height: 0;
+    line-height: 1;
     margin-top: 0;
     margin-bottom: 0
 }
