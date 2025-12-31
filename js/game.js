@@ -2995,22 +2995,20 @@
     
     // Check for kick message on initial page load
     (function() {
-        console.log("[INIT] Checking for kick message on page load...");
         function checkKickMessage() {
             // Verify modal elements exist
             if (!m || !g || !g[ve]) {
-                console.log("[INIT] Modal elements not ready, retrying...");
                 return false;
             }
             
             var kickReason = null;
             try {
                 kickReason = h.localStorage.getItem('kickReason');
-                console.log("[INIT] Found kickReason in localStorage:", kickReason);
             } catch (e) {
-                console.log("[INIT] Could not access localStorage:", e);
+                return false;
             }
             
+            // Only proceed if we actually have a kick reason
             if (kickReason) {
                 var message = '';
                 if (kickReason == '1') {
@@ -3019,42 +3017,42 @@
                     message = E("You have been banned!");
                 }
                 if (message) {
-                    console.log("[INIT] Showing kick modal with message:", message);
                     try {
                         qe(ve, message);
-                        console.log("[INIT] Modal shown successfully!");
                         // Clean up
                         try {
                             h.localStorage.removeItem('kickReason');
-                            console.log("[INIT] Cleaned up localStorage");
                         } catch (e) {}
                         return true;
                     } catch (err) {
-                        console.error("[INIT] Error showing modal:", err);
+                        console.error("[INIT] Error showing kick modal:", err);
                     }
                 }
             }
             return false;
         }
         
-        // Try immediately
-        var attempts = 0;
-        function tryShow() {
-            attempts++;
-            console.log("[INIT] Attempt", attempts, "to show kick message");
-            if (checkKickMessage()) {
-                console.log("[INIT] Successfully showed kick message!");
-                return;
-            }
-            if (attempts < 15) {
-                setTimeout(tryShow, 200);
-            } else {
-                console.log("[INIT] Max attempts reached, giving up");
-            }
-        }
+        // First check if there's even a kick reason before starting retries
+        var kickReason = null;
+        try {
+            kickReason = h.localStorage.getItem('kickReason');
+        } catch (e) {}
         
-        // Start checking after a short delay to ensure everything is initialized
-        setTimeout(tryShow, 500);
+        // Only start checking if we actually have a kick reason
+        if (kickReason) {
+            var attempts = 0;
+            function tryShow() {
+                attempts++;
+                if (checkKickMessage()) {
+                    return; // Successfully shown
+                }
+                if (attempts < 15) {
+                    setTimeout(tryShow, 200);
+                }
+            }
+            // Start checking after a short delay to ensure everything is initialized
+            setTimeout(tryShow, 500);
+        }
     })();
     
     for (var go = c.querySelectorAll("[data-translate]"), fo = 0; fo < go.length; fo++) {
