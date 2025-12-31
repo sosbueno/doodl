@@ -486,11 +486,14 @@ function checkSpam(socketId, message, room) {
       shouldWarn = true; // Always show warning
       
       console.log(`[SPAM] Warning ${tracker.warnings} for ${socketId}, timeSinceLast: ${now - previousLastMessageTime}ms`);
+      
+      // If we just hit max warnings (3), don't kick yet - wait for next instant spam
+      // The next message will trigger the kick in the else block below
     } else {
       console.log(`[SPAM] No warning for ${socketId}, warnings: ${tracker.warnings}, isInstantSpam: ${isInstantSpam}, timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms`);
     }
   } else {
-    // Already at max warnings (3), any instant spam = kick
+    // Already at max warnings (3), any instant spam = kick immediately
     if (isInstantSpam) {
       shouldKick = true;
       console.log(`[SPAM] Kicking ${socketId} - already at max warnings (${tracker.warnings}), instant spam detected`);
@@ -498,13 +501,12 @@ function checkSpam(socketId, message, room) {
       if (room) {
         const player = room.players.find(p => p.id === socketId);
         if (player) {
-          setImmediate(() => {
-            try {
-              kickPlayer(room, socketId, 1); // Kick reason 1
-            } catch (error) {
-              console.error('Error kicking player:', error);
-            }
-          });
+          // Kick immediately (don't use setImmediate, do it synchronously)
+          try {
+            kickPlayer(room, socketId, 1); // Kick reason 1
+          } catch (error) {
+            console.error('Error kicking player:', error);
+          }
         }
       }
     } else {
@@ -1729,18 +1731,7 @@ io.on('connection', (socket) => {
         const kickedPlayer = room.players[index];
         room.players.splice(index, 1);
         
-        // Clean up spam tracker
-        spamTracker.delete(playerId);
-        
-        // Disconnect socket first (with error handling)
-        try {
-          playerSocket.emit('reason', reason);
-          playerSocket.disconnect(true);
-        } catch (error) {
-          console.error('Error disconnecting socket:', error);
-        }
-        
-        // Send leave event (with error handling)
+        // Send leave event to room first (before disconnecting)
         try {
           io.to(room.id).emit('data', {
             id: PACKET.LEAVE,
@@ -1753,7 +1744,7 @@ io.on('connection', (socket) => {
           console.error('Error sending leave event:', error);
         }
         
-        // Send message to chat (system message - no player ID) (with error handling)
+        // Send message to chat (system message - no player ID)
         try {
           io.to(room.id).emit('data', {
             id: PACKET.CHAT,
@@ -1765,6 +1756,21 @@ io.on('connection', (socket) => {
         } catch (error) {
           console.error('Error sending kick message:', error);
         }
+        
+        // Disconnect socket - emit 'reason' event first, then disconnect
+        // The client listens for 'reason' event to show "You have been kicked!" message
+        try {
+          playerSocket.emit('reason', reason);
+          // Small delay to ensure reason event is sent before disconnect
+          setTimeout(() => {
+            playerSocket.disconnect(true);
+          }, 50);
+        } catch (error) {
+          console.error('Error disconnecting socket:', error);
+        }
+        
+        // Clean up spam tracker AFTER disconnecting
+        spamTracker.delete(playerId);
       } else {
         // Player not found in room, just clean up
         spamTracker.delete(playerId);
