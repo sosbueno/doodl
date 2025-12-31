@@ -380,9 +380,10 @@ app.post('/api/play', (req, res) => {
     // IMPORTANT: Always return HTTPS URL on Render (even if request was HTTP)
     let responseUrl = req.protocol + '://' + req.get('host');
     
-    // Force HTTPS on Render (check if host contains onrender.com)
-    if (req.get('host') && req.get('host').includes('onrender.com')) {
-      responseUrl = 'https://' + req.get('host');
+    // Force HTTPS on Render or custom domain
+    const host = req.get('host');
+    if (host && (host.includes('onrender.com') || host.includes('doodls.fun'))) {
+      responseUrl = 'https://' + host;
     }
     
     console.log('✅ /api/play response:', { success: true, data: responseUrl, roomId: roomId, isPrivate });

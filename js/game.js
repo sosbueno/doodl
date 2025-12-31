@@ -1847,7 +1847,7 @@
         x = e.me,
         In = e.isPublic !== void 0 ? e.isPublic : (e.type !== void 0 ? e.type : !0),  // Store isPublic flag (backwards compat with type)
         Tn = e.id,
-        c.querySelector("#input-invite").value = "https://skribbl.io/?" + e.id,
+        c.querySelector("#input-invite").value = h.location.origin + "/?" + e.id,
         An = e.settings,
         oa(),
         ce(zn),
@@ -2804,7 +2804,7 @@
     }),
     D([c.querySelector("#button-invite"), c.querySelector("#modal-player-button-invite")], "click", function() {
         y(E("Copied room link to clipboard!"), "", f(Le), !0);
-        var e = "https://skribbl.io/?" + Tn;
+        var e = h.location.origin + "/?" + Tn;
         if (navigator.clipboard)
             navigator.clipboard.writeText(e).then(function() {
                 console.log("Async: Copying to clipboard was successful!")

@@ -665,7 +665,7 @@
               }
               
               // Always use current page's origin on Render (simplest approach)
-              if (location.hostname && location.hostname.includes('onrender.com')) {
+              if (location.hostname && (location.hostname.includes('onrender.com') || location.hostname.includes('doodls.fun'))) {
                 actualUrl = location.origin; // Use current page's origin (already HTTPS)
               } else {
                 // For localhost, use the URL as-is but fix malformed ones
