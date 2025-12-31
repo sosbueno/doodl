@@ -406,13 +406,13 @@ const spamTracker = new Map(); // socket.id -> { messages: [], lastMessage: time
 
 // Anti-spam configuration (exactly like skribbl.io)
 const SPAM_CONFIG = {
-  MAX_MESSAGES_PER_WINDOW: 5,      // Max 5 messages in time window (like skribbl.io)
-  TIME_WINDOW_MS: 3000,            // In 3 seconds (like skribbl.io)
-  MIN_MESSAGE_INTERVAL_MS: 150,    // Minimum 150ms between messages
+  MAX_MESSAGES_PER_WINDOW: 4,      // Max 4 messages in time window (more strict)
+  TIME_WINDOW_MS: 2000,            // In 2 seconds (more strict)
+  MIN_MESSAGE_INTERVAL_MS: 100,    // Minimum 100ms between messages (more strict)
   MAX_MESSAGE_LENGTH: 200,         // Max 200 characters per message
-  DUPLICATE_THRESHOLD: 3,           // Max 3 duplicate messages in a row
-  MAX_WARNINGS: 5,                  // Kick after 5 warnings (give more chances)
-  WARNING_COOLDOWN_MS: 500,        // 500ms cooldown - show warnings frequently
+  DUPLICATE_THRESHOLD: 2,           // Max 2 duplicate messages in a row (more strict)
+  MAX_WARNINGS: 4,                  // Kick after 4 warnings
+  WARNING_COOLDOWN_MS: 300,        // 300ms cooldown - show warnings frequently
   INITIAL_WARNING_COOLDOWN_MS: 0   // No cooldown for first few warnings
 };
 
@@ -468,6 +468,11 @@ function checkSpam(socketId, message, room) {
     // After that, use cooldown to prevent spam of warnings
     const warningCooldown = tracker.warnings < 3 ? SPAM_CONFIG.INITIAL_WARNING_COOLDOWN_MS : SPAM_CONFIG.WARNING_COOLDOWN_MS;
     const shouldWarn = (now - tracker.lastWarningTime) >= warningCooldown;
+    
+    // Always track spam messages to accumulate warnings
+    tracker.messages.push(now);
+    tracker.lastMessage = now;
+    tracker.lastMessageText = message;
     
     if (shouldWarn) {
       tracker.warnings++;
