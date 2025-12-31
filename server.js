@@ -491,11 +491,17 @@ function checkSpam(socketId, message, room) {
       shouldWarn = true;
       tracker.warnings = 3;
       tracker.lastWarningTime = now;
+      console.log(`[SPAM] Third warning shown, warnings now = ${tracker.warnings}`);
     }
   } else if (tracker.warnings >= SPAM_CONFIG.MAX_WARNINGS) {
     // Already at max warnings (3), ANY message = kick immediately (don't wait for instant spam)
     shouldKick = true;
-    console.log(`[SPAM] *** KICKING ${socketId} *** - warnings: ${tracker.warnings}, isInstantSpam: ${isInstantSpam}, timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms`);
+    console.log(`[SPAM] ========================================`);
+    console.log(`[SPAM] *** KICKING ${socketId} ***`);
+    console.log(`[SPAM] warnings: ${tracker.warnings}, MAX_WARNINGS: ${SPAM_CONFIG.MAX_WARNINGS}`);
+    console.log(`[SPAM] isInstantSpam: ${isInstantSpam}`);
+    console.log(`[SPAM] timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms`);
+    console.log(`[SPAM] ========================================`);
     // Kick the player immediately - owner can be kicked for spam
     if (room) {
       const player = room.players.find(p => p.id === socketId);
@@ -865,14 +871,17 @@ io.on('connection', (socket) => {
           // Anti-spam check for guesses (treat guesses as messages for spam detection)
           const spamResult = checkSpam(socket.id, data.data, room);
           if (spamResult.isSpam) {
+            if (spamResult.shouldKick) {
+              console.log(`[GUESS HANDLER] Player ${socket.id} should be kicked, returning early`);
+              return; // Player was kicked, don't process the guess
+            }
             if (spamResult.shouldWarn) {
               socket.emit('data', {
                 id: PACKET.SPAM,
                 data: null
               });
             }
-            // ALWAYS let the message through - even if kicking, process the message first
-            // The kick happens asynchronously, so message should still go through
+            // Let the message through if not being kicked
           }
           
           if (!player.guessed) {
@@ -1003,14 +1012,17 @@ io.on('connection', (socket) => {
         // Anti-spam check
         const spamResult = checkSpam(socket.id, data.data, room);
         if (spamResult.isSpam) {
+          if (spamResult.shouldKick) {
+            console.log(`[CHAT HANDLER] Player ${socket.id} should be kicked, returning early`);
+            return; // Player was kicked, don't process the chat message
+          }
           if (spamResult.shouldWarn) {
             socket.emit('data', {
               id: PACKET.SPAM,
               data: null
             });
           }
-          // ALWAYS let the message through - even if kicking, process the message first
-          // The kick happens asynchronously, so message should still go through
+          // Let the message through if not being kicked
         }
         
         if (room.state === GAME_STATE.DRAWING || room.state === GAME_STATE.WORD_CHOICE) {
