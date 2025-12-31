@@ -493,54 +493,51 @@ function checkSpam(socketId, message, room) {
       tracker.lastWarningTime = now;
     }
   } else if (tracker.warnings >= SPAM_CONFIG.MAX_WARNINGS) {
-    // Already at max warnings (3), any instant spam = kick immediately
-    console.log(`[SPAM DEBUG] warnings: ${tracker.warnings}, isInstantSpam: ${isInstantSpam}, timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms, threshold: ${SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS}ms`);
-    
-    if (isInstantSpam) {
-      shouldKick = true;
-      console.log(`[SPAM] KICKING ${socketId} - already at max warnings (${tracker.warnings}), instant spam detected!`);
-      // Kick the player immediately - owner can be kicked for spam
-      if (room) {
-        const player = room.players.find(p => p.id === socketId);
-        if (player) {
-          console.log(`[SPAM] Found player ${socketId} in room, transferring ownership if needed...`);
-          // Transfer ownership if owner is being kicked
-          if (room.owner === socketId && room.players.length > 1) {
-            const remainingPlayers = room.players.filter(p => p.id !== socketId);
-            if (remainingPlayers.length > 0) {
-              room.owner = remainingPlayers[0].id;
-              console.log(`[SPAM] Transferred ownership to ${room.owner}`);
-              // Notify room of owner change
-              io.to(room.id).emit('data', {
-                id: PACKET.OWNER,
-                data: room.owner
-              });
-            }
+    // Already at max warnings (3), ANY message = kick immediately (don't wait for instant spam)
+    shouldKick = true;
+    console.log(`[SPAM] *** KICKING ${socketId} *** - warnings: ${tracker.warnings}, isInstantSpam: ${isInstantSpam}, timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms`);
+    // Kick the player immediately - owner can be kicked for spam
+    if (room) {
+      const player = room.players.find(p => p.id === socketId);
+      if (player) {
+        console.log(`[SPAM] Found player ${socketId} in room, transferring ownership if needed...`);
+        // Transfer ownership if owner is being kicked
+        if (room.owner === socketId && room.players.length > 1) {
+          const remainingPlayers = room.players.filter(p => p.id !== socketId);
+          if (remainingPlayers.length > 0) {
+            room.owner = remainingPlayers[0].id;
+            console.log(`[SPAM] Transferred ownership to ${room.owner}`);
+            // Notify room of owner change
+            io.to(room.id).emit('data', {
+              id: PACKET.OWNER,
+              data: room.owner
+            });
           }
-          // Kick immediately
-          console.log(`[SPAM] Calling kickPlayer for ${socketId}...`);
-          try {
-            kickPlayer(room, socketId, 1); // Kick reason 1
-            console.log(`[SPAM] kickPlayer called successfully for ${socketId}`);
-          } catch (error) {
-            console.error(`[SPAM] Error kicking player ${socketId}:`, error);
-          }
-        } else {
-          console.log(`[SPAM] Player ${socketId} not found in room!`);
+        }
+        // Kick immediately
+        console.log(`[SPAM] Calling kickPlayer for ${socketId}...`);
+        try {
+          kickPlayer(room, socketId, 1); // Kick reason 1
+          console.log(`[SPAM] kickPlayer called successfully for ${socketId}`);
+        } catch (error) {
+          console.error(`[SPAM] Error kicking player ${socketId}:`, error);
         }
       } else {
-        console.log(`[SPAM] Room not found for ${socketId}!`);
+        console.log(`[SPAM] ERROR: Player ${socketId} not found in room!`);
       }
     } else {
-      console.log(`[SPAM] No kick - warnings: ${tracker.warnings}, isInstantSpam: ${isInstantSpam}, timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms, threshold: ${SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS}ms`);
+      console.log(`[SPAM] ERROR: Room not found for ${socketId}!`);
     }
   }
   
+  // Return result - kick takes priority over warning
   if (shouldKick) {
+    console.log(`[SPAM] Returning shouldKick=true for ${socketId}`);
     return { isSpam: true, shouldKick: true, shouldWarn: false, warnings: tracker.warnings };
   }
   
   if (shouldWarn) {
+    console.log(`[SPAM] Returning shouldWarn=true for ${socketId}, warnings: ${tracker.warnings}`);
     return { isSpam: true, shouldWarn: true, warnings: tracker.warnings };
   }
   
@@ -1736,9 +1733,11 @@ io.on('connection', (socket) => {
   }
   
   function kickPlayer(room, playerId, reason) {
+    console.log(`[KICK] ===== kickPlayer called for ${playerId}, reason: ${reason} =====`);
     try {
       const playerSocket = io.sockets.sockets.get(playerId);
       if (!playerSocket) {
+        console.log(`[KICK] Socket ${playerId} not found, already disconnected`);
         // Socket already disconnected, just remove from room and clean up
         const index = room.players.findIndex(p => p.id === playerId);
         if (index !== -1) {
@@ -1747,6 +1746,7 @@ io.on('connection', (socket) => {
         spamTracker.delete(playerId);
         return;
       }
+      console.log(`[KICK] Socket found for ${playerId}`);
       
       const index = room.players.findIndex(p => p.id === playerId);
       if (index !== -1) {
