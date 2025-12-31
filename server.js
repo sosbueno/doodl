@@ -446,8 +446,8 @@ function checkSpam(socketId, message, room) {
   // Check for duplicate messages
   if (message === tracker.lastMessageText) {
     tracker.duplicateCount++;
-    // After first warning, be more aggressive - only need 2 duplicates instead of 3
-    const duplicateThreshold = tracker.warnings > 0 ? 2 : SPAM_CONFIG.DUPLICATE_THRESHOLD;
+    // After first warning, ANY duplicate is spam (very aggressive)
+    const duplicateThreshold = tracker.warnings > 0 ? 1 : SPAM_CONFIG.DUPLICATE_THRESHOLD;
     if (tracker.duplicateCount >= duplicateThreshold) {
       isSpam = true;
     }
@@ -456,8 +456,8 @@ function checkSpam(socketId, message, room) {
   }
   
   // Check if too many messages in the time window (before adding current one)
-  // After first warning, be more aggressive - only need 4 messages instead of 5
-  const maxMessagesThreshold = tracker.warnings > 0 ? 4 : SPAM_CONFIG.MAX_MESSAGES_PER_WINDOW;
+  // After first warning, be more aggressive - only need 3 messages instead of 5
+  const maxMessagesThreshold = tracker.warnings > 0 ? 3 : SPAM_CONFIG.MAX_MESSAGES_PER_WINDOW;
   if (tracker.messages.length >= maxMessagesThreshold) {
     isSpam = true;
   }
@@ -822,16 +822,14 @@ io.on('connection', (socket) => {
           // Anti-spam check for guesses (treat guesses as messages for spam detection)
           const spamResult = checkSpam(socket.id, data.data, room);
           if (spamResult.isSpam) {
-            if (spamResult.shouldKick) {
-              return; // Player was kicked, don't process
-            }
             if (spamResult.shouldWarn) {
               socket.emit('data', {
                 id: PACKET.SPAM,
                 data: null
               });
             }
-            // Let the message through - don't block it, just show warnings
+            // ALWAYS let the message through - even if kicking, process the message first
+            // The kick happens asynchronously, so message should still go through
           }
           
           if (!player.guessed) {
@@ -962,16 +960,14 @@ io.on('connection', (socket) => {
         // Anti-spam check
         const spamResult = checkSpam(socket.id, data.data, room);
         if (spamResult.isSpam) {
-          if (spamResult.shouldKick) {
-            return; // Player was kicked, don't process
-          }
           if (spamResult.shouldWarn) {
             socket.emit('data', {
               id: PACKET.SPAM,
               data: null
             });
           }
-          // Let the message through - don't block it, just show warnings
+          // ALWAYS let the message through - even if kicking, process the message first
+          // The kick happens asynchronously, so message should still go through
         }
         
         if (room.state === GAME_STATE.DRAWING || room.state === GAME_STATE.WORD_CHOICE) {
