@@ -409,7 +409,8 @@ const SPAM_CONFIG = {
   INSTANT_SPAM_THRESHOLD_MS: 500,   // Messages sent within 500ms are considered "instant spam"
   INSTANT_SPAM_COUNT: 3,             // Need 3 instant spam messages for first warning
   MAX_WARNINGS: 3,                   // Kick after 3 warnings
-  WARNING_COOLDOWN_MS: 0            // No cooldown - show warnings immediately
+  WARNING_COOLDOWN_MS: 0,            // No cooldown - show warnings immediately
+  WARNING_RESET_TIME_MS: 5000       // Reset warnings if no spam for 5 seconds
 };
 
 function checkSpam(socketId, message, room) {
@@ -421,9 +422,21 @@ function checkSpam(socketId, message, room) {
       recentMessages: [],             // Track recent messages with timestamps
       lastMessageTime: 0,             // Track last message time separately
       warnings: 0,
-      lastWarningTime: 0
+      lastWarningTime: 0,
+      lastSpamTime: 0                 // Track last spam detection time
     };
     spamTracker.set(socketId, tracker);
+  }
+  
+  // Reset warnings if user stopped spamming (no spam for WARNING_RESET_TIME_MS)
+  if (tracker.warnings > 0 && tracker.lastSpamTime > 0) {
+    const timeSinceLastSpam = now - tracker.lastSpamTime;
+    if (timeSinceLastSpam > SPAM_CONFIG.WARNING_RESET_TIME_MS) {
+      // User stopped spamming - reset warnings
+      tracker.warnings = 0;
+      tracker.lastWarningTime = 0;
+      tracker.recentMessages = [];
+    }
   }
   
   // Save previous last message time BEFORE updating
@@ -435,6 +448,7 @@ function checkSpam(socketId, message, room) {
     const timeSinceLastMessage = now - previousLastMessageTime;
     if (timeSinceLastMessage <= SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS) {
       isInstantSpam = true;
+      tracker.lastSpamTime = now; // Update last spam time
     }
   }
   
@@ -494,26 +508,18 @@ function checkSpam(socketId, message, room) {
       console.log(`[SPAM] Third warning shown, warnings now = ${tracker.warnings}`);
       // After showing 3rd warning, the NEXT message should kick
     }
-  } else if (tracker.warnings === 3) {
-    // After 3 warnings, ANY message (even if not instant spam) = kick immediately
+  } else if (tracker.warnings >= 3) {
+    // After 3 warnings, ANY message = kick immediately (no conditions)
     shouldKick = true;
-    console.log(`[SPAM] ========================================`);
-    console.log(`[SPAM] *** KICKING ${socketId} - 3 warnings reached ***`);
-    console.log(`[SPAM] warnings: ${tracker.warnings}, MAX_WARNINGS: ${SPAM_CONFIG.MAX_WARNINGS}`);
-    console.log(`[SPAM] isInstantSpam: ${isInstantSpam}`);
-    console.log(`[SPAM] timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms`);
-    console.log(`[SPAM] ========================================`);
     // Kick the player immediately - owner can be kicked for spam
     if (room) {
       const player = room.players.find(p => p.id === socketId);
       if (player) {
-        console.log(`[SPAM] Found player ${socketId} in room, transferring ownership if needed...`);
         // Transfer ownership if owner is being kicked
         if (room.owner === socketId && room.players.length > 1) {
           const remainingPlayers = room.players.filter(p => p.id !== socketId);
           if (remainingPlayers.length > 0) {
             room.owner = remainingPlayers[0].id;
-            console.log(`[SPAM] Transferred ownership to ${room.owner}`);
             // Notify room of owner change
             io.to(room.id).emit('data', {
               id: PACKET.OWNER,
@@ -521,19 +527,9 @@ function checkSpam(socketId, message, room) {
             });
           }
         }
-        // Kick immediately
-        console.log(`[SPAM] Calling kickPlayer for ${socketId}...`);
-        try {
-          kickPlayer(room, socketId, 1); // Kick reason 1
-          console.log(`[SPAM] kickPlayer called successfully for ${socketId}`);
-        } catch (error) {
-          console.error(`[SPAM] Error kicking player ${socketId}:`, error);
-        }
-      } else {
-        console.log(`[SPAM] ERROR: Player ${socketId} not found in room!`);
+        // Kick immediately - call synchronously
+        kickPlayer(room, socketId, 1); // Kick reason 1
       }
-    } else {
-      console.log(`[SPAM] ERROR: Room not found for ${socketId}!`);
     }
   }
   
@@ -1012,10 +1008,8 @@ io.on('connection', (socket) => {
         // Handle chat messages (packet id 30)
         // Anti-spam check
         const spamResult = checkSpam(socket.id, data.data, room);
-        console.log(`[CHAT HANDLER] spamResult for ${socket.id}:`, JSON.stringify(spamResult));
         if (spamResult.isSpam) {
           if (spamResult.shouldKick) {
-            console.log(`[CHAT HANDLER] *** Player ${socket.id} should be kicked, returning early ***`);
             // Kick should have already been called in checkSpam, just return
             return; // Player was kicked, don't process the chat message
           }
