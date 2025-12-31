@@ -418,51 +418,55 @@ function checkSpam(socketId, message, room) {
   
   if (!tracker) {
     tracker = {
-      instantSpamMessages: [],      // Track recent messages for instant spam detection
-      lastMessage: 0,
+      recentMessages: [],             // Track recent messages with timestamps
       warnings: 0,
       lastWarningTime: 0
     };
     spamTracker.set(socketId, tracker);
   }
   
-  // Check if this is an "instant spam" message (sent within INSTANT_SPAM_THRESHOLD_MS of last message)
+  // Add current message to recent messages
+  tracker.recentMessages.push(now);
+  
+  // Clean up messages older than 1 second
+  tracker.recentMessages = tracker.recentMessages.filter(msgTime => now - msgTime < 1000);
+  
+  // Check if this is an "instant spam" message (sent within INSTANT_SPAM_THRESHOLD_MS of previous message)
   let isInstantSpam = false;
-  if (tracker.lastMessage > 0) {
-    const timeSinceLastMessage = now - tracker.lastMessage;
+  if (tracker.recentMessages.length >= 2) {
+    const lastMessageTime = tracker.recentMessages[tracker.recentMessages.length - 2];
+    const timeSinceLastMessage = now - lastMessageTime;
     if (timeSinceLastMessage <= SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS) {
       isInstantSpam = true;
-      // Add to instant spam list
-      tracker.instantSpamMessages.push(now);
-    } else {
-      // Reset instant spam count if there's a gap
-      tracker.instantSpamMessages = [];
     }
-  } else {
-    // First message, add to list
-    tracker.instantSpamMessages.push(now);
   }
   
-  // Update last message time
-  tracker.lastMessage = now;
-  
-  // Clean up old instant spam messages (older than 1 second)
-  tracker.instantSpamMessages = tracker.instantSpamMessages.filter(msgTime => now - msgTime < 1000);
-  
-  // Check if we have enough instant spam messages for a warning
-  // Before first warning: need 3 instant spam messages
-  // After first warning: each instant spam message triggers next warning
+  // Check if we have enough consecutive instant spam messages for a warning
   let shouldWarn = false;
   let shouldKick = false;
   
+  // Count consecutive instant spam messages
+  let consecutiveInstantSpam = 0;
+  if (tracker.recentMessages.length >= 2) {
+    for (let i = tracker.recentMessages.length - 1; i > 0; i--) {
+      const timeDiff = tracker.recentMessages[i] - tracker.recentMessages[i - 1];
+      if (timeDiff <= SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS) {
+        consecutiveInstantSpam++;
+      } else {
+        break; // Stop counting if there's a gap
+      }
+    }
+  }
+  
   if (tracker.warnings === 0) {
-    // First warning: need 3 instant spam messages
-    if (tracker.instantSpamMessages.length >= SPAM_CONFIG.INSTANT_SPAM_COUNT) {
+    // First warning: need 3 consecutive instant spam messages
+    // consecutiveInstantSpam counts the gaps, so 3 messages = 2 gaps, we need 2+ consecutive
+    if (consecutiveInstantSpam >= SPAM_CONFIG.INSTANT_SPAM_COUNT - 1) {
       shouldWarn = true;
       tracker.warnings = 1;
       tracker.lastWarningTime = now;
-      // Reset count after first warning
-      tracker.instantSpamMessages = [];
+      // Clear recent messages after first warning
+      tracker.recentMessages = [now];
     }
   } else if (tracker.warnings < SPAM_CONFIG.MAX_WARNINGS) {
     // After first warning: each instant spam message triggers next warning
@@ -470,8 +474,8 @@ function checkSpam(socketId, message, room) {
       shouldWarn = true;
       tracker.warnings++;
       tracker.lastWarningTime = now;
-      // Reset count after each warning
-      tracker.instantSpamMessages = [];
+      // Clear recent messages after each warning
+      tracker.recentMessages = [now];
       
       // Check if we should kick after this warning
       if (tracker.warnings >= SPAM_CONFIG.MAX_WARNINGS) {
