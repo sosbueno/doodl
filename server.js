@@ -494,18 +494,22 @@ function checkSpam(socketId, message, room) {
     }
   } else if (tracker.warnings >= SPAM_CONFIG.MAX_WARNINGS) {
     // Already at max warnings (3), any instant spam = kick immediately
+    console.log(`[SPAM DEBUG] warnings: ${tracker.warnings}, isInstantSpam: ${isInstantSpam}, timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms, threshold: ${SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS}ms`);
+    
     if (isInstantSpam) {
       shouldKick = true;
-      console.log(`[SPAM] Kicking ${socketId} - already at max warnings (${tracker.warnings}), instant spam detected`);
+      console.log(`[SPAM] KICKING ${socketId} - already at max warnings (${tracker.warnings}), instant spam detected!`);
       // Kick the player immediately - owner can be kicked for spam
       if (room) {
         const player = room.players.find(p => p.id === socketId);
         if (player) {
+          console.log(`[SPAM] Found player ${socketId} in room, transferring ownership if needed...`);
           // Transfer ownership if owner is being kicked
           if (room.owner === socketId && room.players.length > 1) {
             const remainingPlayers = room.players.filter(p => p.id !== socketId);
             if (remainingPlayers.length > 0) {
               room.owner = remainingPlayers[0].id;
+              console.log(`[SPAM] Transferred ownership to ${room.owner}`);
               // Notify room of owner change
               io.to(room.id).emit('data', {
                 id: PACKET.OWNER,
@@ -514,15 +518,21 @@ function checkSpam(socketId, message, room) {
             }
           }
           // Kick immediately
+          console.log(`[SPAM] Calling kickPlayer for ${socketId}...`);
           try {
             kickPlayer(room, socketId, 1); // Kick reason 1
+            console.log(`[SPAM] kickPlayer called successfully for ${socketId}`);
           } catch (error) {
-            console.error('Error kicking player:', error);
+            console.error(`[SPAM] Error kicking player ${socketId}:`, error);
           }
+        } else {
+          console.log(`[SPAM] Player ${socketId} not found in room!`);
         }
+      } else {
+        console.log(`[SPAM] Room not found for ${socketId}!`);
       }
     } else {
-      console.log(`[SPAM] No kick for ${socketId}, warnings: ${tracker.warnings}, isInstantSpam: ${isInstantSpam}, timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms`);
+      console.log(`[SPAM] No kick - warnings: ${tracker.warnings}, isInstantSpam: ${isInstantSpam}, timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms, threshold: ${SPAM_CONFIG.INSTANT_SPAM_THRESHOLD_MS}ms`);
     }
   }
   
@@ -1772,13 +1782,14 @@ io.on('connection', (socket) => {
         // Disconnect socket - emit 'reason' event first, then disconnect
         // The client listens for 'reason' event to show "You have been kicked!" message
         try {
+          console.log(`[KICK] Emitting 'reason' event to ${playerId} with reason ${reason}`);
           playerSocket.emit('reason', reason);
-          // Small delay to ensure reason event is sent before disconnect
-          setTimeout(() => {
-            playerSocket.disconnect(true);
-          }, 50);
+          console.log(`[KICK] Disconnecting socket ${playerId} immediately...`);
+          // Disconnect immediately (don't use setTimeout)
+          playerSocket.disconnect(true);
+          console.log(`[KICK] Socket ${playerId} disconnected successfully`);
         } catch (error) {
-          console.error('Error disconnecting socket:', error);
+          console.error('[KICK] Error disconnecting socket:', error);
         }
         
         // Clean up spam tracker AFTER disconnecting
