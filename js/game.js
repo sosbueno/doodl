@@ -2409,49 +2409,35 @@
             y("", t, f(o), !1);
             return;
         }
-        // Get current player object FRESH - don't use e.guessed at all
+        // Get FRESH player object - use this instead of e to ensure we have latest guessed state
         var currentPlayer = W(e.id);
         if (!currentPlayer) return; // Player doesn't exist, skip
         
         !currentPlayer.muted && (o = ((a = W(x)).flags & k) == k,
-        // Use current player's guessed state, not e.guessed
-        n = e.id == M || (currentPlayer.guessed === true),
+        // Check if drawer OR if player has guessed - use FRESH player's guessed state
+        // IMPORTANT: Only check guessed if we're in drawing/word choice state
+        n = e.id == M || ((L.id == j || L.id == V) && currentPlayer.guessed === true),
         x == M || a.guessed || !n || o) && (a = (currentPlayer.flags & k) == k,
-        // ALWAYS start with normal color (black) - DEFAULT
+        // Start with normal color (black) - DEFAULT
         o = Me,
-        // Only apply special colors during DRAWING or WORD_CHOICE
+        // Apply color logic - match original skribbl.io logic but with fix for guessers
         (function() {
+            // Only apply special colors during DRAWING or WORD_CHOICE
             if ((L.id == j || L.id == V)) {
                 var isDrawer = (e.id == M && M != -1) || (e.id == x && (L.id == j || L.id == V));
-                
                 if (isDrawer) {
-                    // Drawer's messages are green
+                    // Drawer's messages are green (color 1)
                     o = 1;
                 } else {
-                    // For guessers: ALWAYS DEFAULT to black/normal color
-                    o = Me;
-                    // Get FRESH player object and check if they've ACTUALLY guessed
-                    var freshPlayerCheck = W(e.id);
-                    if (freshPlayerCheck) {
-                        // ULTRA STRICT CHECK: guessed must be EXACTLY the boolean true
-                        // Reject anything that's not exactly true (including 1, "true", etc.)
-                        var guessedVal = freshPlayerCheck.guessed;
-                        // Only accept if it's exactly boolean true, nothing else
-                        if (guessedVal === true && 
-                            guessedVal === Boolean(true) &&
-                            guessedVal !== 1 &&
-                            guessedVal !== "true" &&
-                            guessedVal !== "1" &&
-                            typeof guessedVal === 'boolean') {
-                            o = Ie;  // Green - they guessed correctly
-                        }
-                        // If ANY check fails, o stays Me (black/normal) - this is the DEFAULT
+                    // For guessers: ONLY green if they've ACTUALLY guessed (use fresh player check)
+                    var freshCheck = W(e.id);
+                    if (freshCheck && freshCheck.guessed === true) {
+                        o = Ie;  // Green - they guessed correctly
                     }
+                    // Otherwise o stays Me (black/normal) - DEFAULT
                 }
-            } else {
-                // Not in drawing/word choice - always normal color
-                o = Me;
             }
+            // If not in drawing/word choice, o stays Me (normal color)
         })(),
         a && (o = Ee),
         Ua(currentPlayer, $("text", t)),
@@ -2524,7 +2510,9 @@
         }
     }
     function Fa(e, t) {
-        (e.guessed = t) ? e.element.classList.add("guessed") : e.element.classList.remove("guessed")
+        // Ensure guessed is always a boolean
+        e.guessed = t === true ? true : false;
+        e.guessed ? e.element.classList.add("guessed") : e.element.classList.remove("guessed")
     }
     function Va(e, t) {
         e.element.drawing.style.display = t ? "block" : "none"
