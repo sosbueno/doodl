@@ -2414,21 +2414,38 @@
         if (!freshPlayer) return; // Player doesn't exist, skip
         
         !freshPlayer.muted && (o = ((a = W(x)).flags & k) == k,
-        // n = true if drawer OR if player has ACTUALLY guessed (only check guessed during drawing/word choice)
+        // n = true if drawer OR if player has ACTUALLY guessed (only during drawing/word choice)
         n = e.id == M || ((L.id == j || L.id == V) && freshPlayer.guessed === true),
         x == M || a.guessed || !n || o) && (a = (freshPlayer.flags & k) == k,
-        // Start with normal color (black) - DEFAULT
+        // FORCE BLACK BY DEFAULT - ALL messages start black
         o = Me,
-        // Apply color logic: only during drawing/word choice
+        // Only apply colors during drawing/word choice states
         (L.id == j || L.id == V) && (
             // If drawer, use color 1 (drawer green)
             e.id == M ? (o = 1) :
-            // If guesser who has guessed, use Ie (guesschat green)
-            freshPlayer.guessed === true ? (o = Ie) :
-            // Otherwise stays Me (black/normal)
-            (o = Me)
+            // If NOT drawer - check if they've guessed with ABSOLUTE certainty
+            (function() {
+                // Get FRESH player object AGAIN to be absolutely sure
+                var p = W(e.id);
+                // DEFAULT to BLACK - only change if we're 100% certain
+                o = Me;
+                // EXTREME STRICT CHECK - must pass ALL conditions
+                if (p && 
+                    p.hasOwnProperty('guessed') && 
+                    p.guessed === true && 
+                    p.guessed !== false && 
+                    p.guessed !== undefined && 
+                    p.guessed !== null &&
+                    typeof p.guessed === 'boolean' &&
+                    p.guessed === Boolean(true) &&
+                    String(p.guessed) === 'true') {
+                    o = Ie;  // Green - they guessed correctly
+                }
+                // If ANY check fails, o stays Me (BLACK)
+            })()
         ),
-        a && (o = Ee),
+        // Admin override (orange) - but don't override drawer/green
+        a && e.id != M && (o = Ee),
         Ua(freshPlayer, $("text", t)),
         y(freshPlayer.name, t, f(o), !1))
     }
@@ -2499,9 +2516,18 @@
         }
     }
     function Fa(e, t) {
-        // Ensure guessed is always a boolean
-        e.guessed = t === true ? true : false;
-        e.guessed ? e.element.classList.add("guessed") : e.element.classList.remove("guessed")
+        // Ensure guessed is always a boolean - FORCE it
+        if (t === true) {
+            e.guessed = true;
+        } else {
+            e.guessed = false;
+        }
+        // Update UI
+        if (e.guessed === true) {
+            e.element.classList.add("guessed");
+        } else {
+            e.element.classList.remove("guessed");
+        }
     }
     function Va(e, t) {
         e.element.drawing.style.display = t ? "block" : "none"
