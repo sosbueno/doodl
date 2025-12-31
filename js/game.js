@@ -2343,7 +2343,7 @@
             name: e.name,
             avatar: e.avatar,
             score: e.score,
-            guessed: e.guessed,
+            guessed: e.guessed === true ? true : false,
             rank: 0,
             muted: !1,
             votekick: !1,
@@ -2428,13 +2428,24 @@
                     // Drawer's messages are green
                     o = 1;
                 } else {
-                    // For guessers: Get FRESH player object and check if they've ACTUALLY guessed
+                    // For guessers: ALWAYS DEFAULT to black/normal color
+                    o = Me;
+                    // Get FRESH player object and check if they've ACTUALLY guessed
                     var freshPlayerCheck = W(e.id);
-                    // ONLY green if guessed is EXPLICITLY true
-                    if (freshPlayerCheck && freshPlayerCheck.guessed === true && freshPlayerCheck.guessed !== false) {
-                        o = Ie;  // Green - they guessed correctly
-                    } else {
-                        o = Me;  // Black/normal - they haven't guessed yet
+                    if (freshPlayerCheck) {
+                        // ULTRA STRICT CHECK: guessed must be EXACTLY the boolean true
+                        // Reject anything that's not exactly true (including 1, "true", etc.)
+                        var guessedVal = freshPlayerCheck.guessed;
+                        // Only accept if it's exactly boolean true, nothing else
+                        if (guessedVal === true && 
+                            guessedVal === Boolean(true) &&
+                            guessedVal !== 1 &&
+                            guessedVal !== "true" &&
+                            guessedVal !== "1" &&
+                            typeof guessedVal === 'boolean') {
+                            o = Ie;  // Green - they guessed correctly
+                        }
+                        // If ANY check fails, o stays Me (black/normal) - this is the DEFAULT
                     }
                 }
             } else {
