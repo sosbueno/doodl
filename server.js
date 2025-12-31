@@ -406,10 +406,10 @@ const spamTracker = new Map(); // socket.id -> { messages: [], lastMessage: time
 
 // Anti-spam configuration
 const SPAM_CONFIG = {
-  INSTANT_SPAM_THRESHOLD_MS: 500,   // Threshold for all warnings (500ms - same for all)
+  INSTANT_SPAM_THRESHOLD_MS: 300,   // Threshold for all warnings (300ms - only very fast messages)
   INSTANT_SPAM_COUNT: 3,             // Need 3 instant spam messages for first warning
   RATE_SPAM_WINDOW_MS: 4000,         // Time window to check for rate-based spam (4 seconds)
-  RATE_SPAM_COUNT: 4,                // Max messages allowed in RATE_SPAM_WINDOW_MS before warning
+  RATE_SPAM_COUNT: 6,                // Max messages allowed in RATE_SPAM_WINDOW_MS before warning (higher = less strict)
   MAX_WARNINGS: 3,                   // Kick after 3 warnings
   WARNING_COOLDOWN_MS: 0,            // No cooldown - show warnings immediately
   WARNING_RESET_TIME_MS: 5000        // Reset warnings if no spam for 5 seconds
@@ -522,12 +522,13 @@ function checkSpam(socketId, message, room) {
     }
   }
   
-  // For warnings after first, also check for slower but consistent spam (within 800ms)
-  // This catches slower spamming patterns
+  // For warnings after first, also check for slower but consistent spam (within 500ms)
+  // This catches slower spamming patterns, but not too slow to avoid false positives
   let isSlowSpam = false;
   if (tracker.warnings > 0 && previousLastMessageTime > 0) {
     const timeSinceLastMessage = now - previousLastMessageTime;
-    if (timeSinceLastMessage <= 800 && timeSinceLastMessage > currentThreshold) {
+    // Only catch messages between 300-500ms (slower than instant but still fast)
+    if (timeSinceLastMessage <= 500 && timeSinceLastMessage > currentThreshold) {
       isSlowSpam = true;
     }
   }
