@@ -406,7 +406,7 @@ const spamTracker = new Map(); // socket.id -> { messages: [], lastMessage: time
 
 // Anti-spam configuration
 const SPAM_CONFIG = {
-  INSTANT_SPAM_THRESHOLD_MS: 100,   // Messages sent within 100ms are considered "instant spam"
+  INSTANT_SPAM_THRESHOLD_MS: 500,   // Messages sent within 500ms are considered "instant spam"
   INSTANT_SPAM_COUNT: 3,             // Need 3 instant spam messages for first warning
   MAX_WARNINGS: 3,                   // Kick after 3 warnings
   WARNING_COOLDOWN_MS: 0            // No cooldown - show warnings immediately
