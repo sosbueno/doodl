@@ -471,8 +471,7 @@ function checkSpam(socketId, message, room) {
       shouldWarn = true;
       tracker.warnings = 1;
       tracker.lastWarningTime = now;
-      // Reset tracking but keep last message time
-      tracker.recentMessages = [now];
+      // DON'T clear - keep tracking for next check
     }
   } else if (tracker.warnings < SPAM_CONFIG.MAX_WARNINGS) {
     // After first warning: each instant spam message triggers next warning
@@ -480,8 +479,7 @@ function checkSpam(socketId, message, room) {
       shouldWarn = true;
       tracker.warnings++;
       tracker.lastWarningTime = now;
-      // Reset tracking but keep last message time for next check
-      tracker.recentMessages = [now];
+      // DON'T clear - keep tracking for next check
       
       // Check if we should kick after this warning
       if (tracker.warnings >= SPAM_CONFIG.MAX_WARNINGS) {
