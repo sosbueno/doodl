@@ -1798,15 +1798,20 @@
                 try {
                     h.localStorage.setItem("kickReason", e.toString());
                     console.log("[REASON EVENT] Stored kickReason in localStorage:", e.toString());
-                    // Force sync - wait a tiny bit to ensure storage is complete
+                    // Force sync - verify it was stored
                     var stored = h.localStorage.getItem("kickReason");
                     console.log("[REASON EVENT] Verified storage, got back:", stored);
+                    if (stored != e.toString()) {
+                        console.error("[REASON EVENT] Storage verification failed!");
+                    }
                 } catch (err) {
                     console.log("[REASON EVENT] Could not store kick reason:", err);
                 }
-                // Redirect to home page WITHOUT query parameter (clean URL)
-                console.log("[REASON EVENT] Redirecting to /");
-                h.location.href = "/";
+                // Small delay to ensure localStorage is persisted, then redirect
+                setTimeout(function() {
+                    console.log("[REASON EVENT] Redirecting to /");
+                    h.location.href = "/";
+                }, 50);
             }
         }),
         S.on("disconnect", function(e) {
@@ -2074,6 +2079,12 @@
         // Check for kick message on page load
         // This MUST run after the page is fully loaded and game.js is initialized
         function checkAndShowKickMessage() {
+            // Verify modal elements exist before trying to show
+            if (!m || !g || !g[ve]) {
+                console.log("[KICK CHECK] Modal elements not ready yet, will retry...");
+                return false;
+            }
+            
             console.log("[KICK CHECK] Checking for kick message...");
             var kickReason = null;
             try {
@@ -2093,15 +2104,23 @@
                 }
                 if (message) {
                     console.log("[KICK CHECK] Showing modal with message:", message);
+                    console.log("[KICK CHECK] Modal elements - m:", m, "g[ve]:", g[ve]);
                     // Show modal with "Disconnected!" title and the message
                     // ve = 2 is the "Disconnected!" modal type
-                    qe(ve, message);
-                    // Clean up localStorage after showing
                     try {
-                        h.localStorage.removeItem('kickReason');
-                        console.log("[KICK CHECK] Removed kickReason from localStorage");
-                    } catch (e) {
-                        console.log("[KICK CHECK] Could not remove from localStorage:", e);
+                        qe(ve, message);
+                        console.log("[KICK CHECK] Modal shown successfully");
+                        // Clean up localStorage after showing
+                        try {
+                            h.localStorage.removeItem('kickReason');
+                            console.log("[KICK CHECK] Removed kickReason from localStorage");
+                        } catch (e) {
+                            console.log("[KICK CHECK] Could not remove from localStorage:", e);
+                        }
+                        return true; // Successfully shown
+                    } catch (err) {
+                        console.error("[KICK CHECK] Error showing modal:", err);
+                        return false;
                     }
                 } else {
                     console.log("[KICK CHECK] No message to show for reason:", kickReason);
@@ -2109,15 +2128,28 @@
             } else {
                 console.log("[KICK CHECK] No kick reason found in localStorage");
             }
+            return false;
         }
         
         // Check multiple times to ensure we catch it
-        // First check after a short delay
-        setTimeout(checkAndShowKickMessage, 200);
-        // Second check after page should be ready
-        setTimeout(checkAndShowKickMessage, 800);
-        // Third check after everything should be loaded
-        setTimeout(checkAndShowKickMessage, 1500);
+        var checkCount = 0;
+        var maxChecks = 10;
+        function tryCheck() {
+            checkCount++;
+            console.log("[KICK CHECK] Attempt", checkCount, "of", maxChecks);
+            if (checkAndShowKickMessage()) {
+                console.log("[KICK CHECK] Modal shown successfully, stopping checks");
+                return; // Successfully shown, stop checking
+            }
+            if (checkCount < maxChecks) {
+                setTimeout(tryCheck, 300);
+            } else {
+                console.log("[KICK CHECK] Max checks reached, giving up");
+            }
+        }
+        
+        // Start checking after a short delay
+        setTimeout(tryCheck, 300);
     }
     function ha(e) {
         S && S.connected && L.id == V && S.emit("data", {
