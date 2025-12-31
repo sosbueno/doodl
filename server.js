@@ -492,12 +492,13 @@ function checkSpam(socketId, message, room) {
       tracker.warnings = 3;
       tracker.lastWarningTime = now;
       console.log(`[SPAM] Third warning shown, warnings now = ${tracker.warnings}`);
+      // After showing 3rd warning, the NEXT message should kick
     }
-  } else if (tracker.warnings >= SPAM_CONFIG.MAX_WARNINGS) {
-    // Already at max warnings (3), ANY message = kick immediately (don't wait for instant spam)
+  } else if (tracker.warnings === 3) {
+    // After 3 warnings, ANY message (even if not instant spam) = kick immediately
     shouldKick = true;
     console.log(`[SPAM] ========================================`);
-    console.log(`[SPAM] *** KICKING ${socketId} ***`);
+    console.log(`[SPAM] *** KICKING ${socketId} - 3 warnings reached ***`);
     console.log(`[SPAM] warnings: ${tracker.warnings}, MAX_WARNINGS: ${SPAM_CONFIG.MAX_WARNINGS}`);
     console.log(`[SPAM] isInstantSpam: ${isInstantSpam}`);
     console.log(`[SPAM] timeSinceLast: ${previousLastMessageTime > 0 ? now - previousLastMessageTime : 'N/A'}ms`);
