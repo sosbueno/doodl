@@ -146,29 +146,52 @@ function generateRoomCode() {
   return code;
 }
 
-function getRandomWords(lang, count, customWords = null) {
-  const words = customWords && customWords.length >= 10 
-    ? customWords.split(',').map(w => w.trim()).filter(w => w.length > 0 && w.length <= 32)
-    : wordLists[lang] || wordLists[0];
+function getRandomWords(lang, count, customWords = null, customWordsOnly = false) {
+  let words;
+  
+  if (customWordsOnly && customWords && customWords.length >= 10) {
+    // Only use custom words if customWordsOnly is true
+    words = customWords.split(',').map(w => w.trim()).filter(w => w.length > 0 && w.length <= 32);
+  } else if (customWords && customWords.length >= 10) {
+    // Combine custom words with database
+    const customWordsList = customWords.split(',').map(w => w.trim()).filter(w => w.length > 0 && w.length <= 32);
+    const databaseWords = wordLists[lang] || wordLists[0];
+    words = [...customWordsList, ...databaseWords];
+  } else {
+    // Use only database words
+    words = wordLists[lang] || wordLists[0];
+  }
   
   const shuffled = [...words].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count);
 }
 
 function calculateScore(timeRemaining, totalTime, wordLength, guessPosition) {
-  // skribbl.io scoring formula:
-  // Base score = wordLength * 10, multiplied by time ratio, then by position multiplier
-  const baseScore = wordLength * 10;
+  // Enhanced scoring formula with much higher points:
+  // Base score = wordLength * 50 (increased from 10), multiplied by time ratio, then by position multiplier
+  const baseScore = wordLength * 50; // Increased from 10 to 50
   const timeRatio = timeRemaining / totalTime;
   
-  // Position multipliers: 1st = 100%, 2nd = 75%, 3rd = 50%, 4th+ = 25%
+  // Position multipliers: 1st = 200% (much more), 2nd = 100%, 3rd = 75%, 4th = 50%, 5th+ = 25%
   let positionMultiplier = 1.0;
-  if (guessPosition === 1) positionMultiplier = 1.0;
-  else if (guessPosition === 2) positionMultiplier = 0.75;
-  else if (guessPosition === 3) positionMultiplier = 0.5;
+  if (guessPosition === 1) positionMultiplier = 2.0;      // First guesser gets DOUBLE points
+  else if (guessPosition === 2) positionMultiplier = 1.0;  // Second gets full base
+  else if (guessPosition === 3) positionMultiplier = 0.75;
+  else if (guessPosition === 4) positionMultiplier = 0.5;
   else positionMultiplier = 0.25;
   
   return Math.floor(baseScore * timeRatio * positionMultiplier);
+}
+
+// Calculate drawer's score (drawer gets less points than guessers)
+function calculateDrawerScore(guesserScore, guessPosition) {
+  // Drawer gets a percentage of the guesser's score, but less than the guesser
+  // First guesser gives drawer 50% of their points, others give 30%
+  if (guessPosition === 1) {
+    return Math.floor(guesserScore * 0.5); // Drawer gets 50% of first guesser's points
+  } else {
+    return Math.floor(guesserScore * 0.3); // Drawer gets 30% of other guessers' points
+  }
 }
 
 // Initialize public rooms for each language (only English for now)
@@ -180,7 +203,7 @@ function initializePublicRooms() {
       const room = {
         id: roomId,
         players: [],
-        settings: [0, 8, 80, 3, 3, 0, 0, 0], // Default settings (English only)
+        settings: [0, 8, 80, 3, 6, 2, 0, 0], // Default settings (English only) - 6 words per round, 2 hints
         state: GAME_STATE.LOBBY,
         currentRound: 0,
         currentDrawer: -1,
@@ -311,7 +334,7 @@ app.post('/api/play', (req, res) => {
         availableRoom = {
           id: roomId,
           players: [],
-          settings: [0, 8, 80, 3, 6, 0, 0, 0], // Fixed settings: English, 8 max, 80s, 3 rounds, 6 words
+          settings: [0, 8, 80, 3, 6, 2, 0, 0], // Fixed settings: English, 8 max, 80s, 3 rounds, 6 words, 2 hints
           state: GAME_STATE.LOBBY,
           currentRound: 0,
           currentDrawer: -1,
@@ -744,7 +767,13 @@ io.on('connection', (socket) => {
     }
     
     const room = rooms.get(roomId);
+    if (!room) {
+      console.log('⚠️ Room not found in Socket.IO login:', roomId);
+      socket.emit('joinerr', 1); // Room not found
+      return;
+    }
     if (room.players.length >= room.settings[SETTINGS.SLOTS]) {
+      console.log('⚠️ Room is full:', roomId, `(${room.players.length}/${room.settings[SETTINGS.SLOTS]} players)`);
       socket.emit('joinerr', 2); // Room full
       return;
     }
@@ -860,6 +889,11 @@ io.on('connection', (socket) => {
           console.log('🚫 Settings change blocked for public room:', currentRoomId);
           return; // Ignore settings changes for public rooms
         }
+        // Block WORDMODE changes (remove word mode setting)
+        if (data.data.id === SETTINGS.WORDMODE) {
+          console.log('🚫 Word mode setting change blocked');
+          return; // Ignore word mode setting changes
+        }
         if (room.owner === socket.id) {
           room.settings[data.data.id] = data.data.val;
           io.to(currentRoomId).emit('data', {
@@ -908,7 +942,8 @@ io.on('connection', (socket) => {
           const words = room.currentWords || getRandomWords(
             room.settings[SETTINGS.LANG],
             room.settings[SETTINGS.WORDCOUNT],
-            room.customWords
+            room.customWords,
+            room.settings[SETTINGS.CUSTOMWORDSONLY] === 1
           );
           if (words && words[wordIndex] !== undefined) {
             room.currentWord = words[wordIndex];
@@ -1014,24 +1049,25 @@ io.on('connection', (socket) => {
           }
           
           if (!player.guessed) {
-            // Normalize both guess and word by removing hyphens and converting to lowercase
-            const guess = data.data.toLowerCase().trim().replace(/-/g, '');
-            const word = room.currentWord.toLowerCase().trim().replace(/-/g, '');
+            // Normalize both guess and word by removing hyphens, spaces, and converting to lowercase
+            const guess = data.data.toLowerCase().trim().replace(/-/g, '').replace(/\s+/g, '');
+            const word = room.currentWord.toLowerCase().trim().replace(/-/g, '').replace(/\s+/g, '');
             
             if (guess === word) {
               const timeRemaining = room.timer;
               room.guessCount = (room.guessCount || 0) + 1;
               const guessPosition = room.guessCount;
               
-              // Calculate guesser's score based on position
+              // Calculate guesser's score based on position (much higher now)
               const guesserScore = calculateScore(timeRemaining, room.settings[SETTINGS.DRAWTIME], word.length, guessPosition);
               player.score += guesserScore;
               player.guessed = true;
               
-              // Give drawer the same points as the guesser (faster guesses = more points for drawer)
+              // Give drawer a percentage of the guesser's score (drawer gets less than guesser)
               const drawer = room.players.find(p => p.id === room.currentDrawer);
               if (drawer) {
-                drawer.score += guesserScore;
+                const drawerScore = calculateDrawerScore(guesserScore, guessPosition);
+                drawer.score += drawerScore;
               }
               
               // If first guess and timer > 32s and more than 2 players, drop timer to 32s
@@ -1070,7 +1106,7 @@ io.on('connection', (socket) => {
                 }
               });
               
-              // Update drawer's score on all clients (they got the same points as the guesser)
+              // Update drawer's score on all clients (drawer gets less points than guesser)
               // Send GUESS packet with drawer's ID but no word, so client updates score without "guessed" message
               if (drawer) {
                 io.to(currentRoomId).emit('data', {
@@ -1138,8 +1174,23 @@ io.on('connection', (socket) => {
         
       case PACKET.CHAT:
         // Handle chat messages (packet id 30)
+        // Block links in chat messages - any 2+ letter word followed by a dot and anything
+        const message = data.data || '';
+        // Pattern: 2+ letters/numbers, then a dot, then anything (like "example.com", "test.io", etc.)
+        const linkPattern = /\b[a-zA-Z0-9]{2,}\.[a-zA-Z0-9.-]+/i;
+        if (linkPattern.test(message)) {
+          // Block the message and notify the user
+          socket.emit('data', {
+            id: PACKET.ERROR,
+            data: {
+              id: 0,
+              message: 'Links are not allowed in chat!'
+            }
+          });
+          return; // Don't send the message
+        }
         // Anti-spam check
-        const spamResult = checkSpam(socket.id, data.data, room);
+        const spamResult = checkSpam(socket.id, message, room);
         if (spamResult.isSpam) {
           if (spamResult.shouldKick) {
             // Kick should have already been called in checkSpam, just return
@@ -1243,13 +1294,13 @@ io.on('connection', (socket) => {
     if (player && currentRoomId) {
       const room = rooms.get(currentRoomId);
       if (room) {
-          // Remove player
-          const index = room.players.findIndex(p => p.id === socket.id);
-          if (index !== -1) {
-            const leavingPlayer = room.players[index];
-            const wasDrawer = room.currentDrawer === socket.id;
-            const wasInWordChoice = room.state === GAME_STATE.WORD_CHOICE;
-            room.players.splice(index, 1);
+        // Remove player
+        const index = room.players.findIndex(p => p.id === socket.id);
+        if (index !== -1) {
+          const leavingPlayer = room.players[index];
+          const wasDrawer = room.currentDrawer === socket.id;
+          const wasInWordChoice = room.state === GAME_STATE.WORD_CHOICE;
+          room.players.splice(index, 1);
             
             // Clear auto-start timer for public rooms if player count drops below 3
             if (room.isPublic && room.autoStartTimer) {
@@ -1294,7 +1345,8 @@ io.on('connection', (socket) => {
               const words = room.currentWords || getRandomWords(
                 room.settings[SETTINGS.LANG],
                 room.settings[SETTINGS.WORDCOUNT],
-                room.customWords
+                room.customWords,
+                room.settings[SETTINGS.CUSTOMWORDSONLY] === 1
               );
               sendWordChoice(room, words);
             }
@@ -1463,12 +1515,12 @@ io.on('connection', (socket) => {
       } else {
         // Notify owner that minimum players are required
         if (room.owner) {
-          io.to(room.owner).emit('data', {
-            id: PACKET.CLOSE,
+      io.to(room.owner).emit('data', {
+        id: PACKET.CLOSE,
             data: `Minimum ${minPlayers} players required to start the game!`
-          });
+      });
         }
-        return;
+      return;
       }
     }
     
@@ -1504,7 +1556,8 @@ io.on('connection', (socket) => {
     const words = getRandomWords(
       room.settings[SETTINGS.LANG],
       room.settings[SETTINGS.WORDCOUNT],
-      room.customWords
+      room.customWords,
+      room.settings[SETTINGS.CUSTOMWORDSONLY] === 1
     );
     
     room.state = GAME_STATE.WORD_CHOICE;
@@ -1713,10 +1766,26 @@ io.on('connection', (socket) => {
     const word = room.currentWord;
     if (!word) return;
     
-    // Calculate max hints based on word length
-    // 3 letters and below: 1 hint at 44 seconds
-    // 4+ letters: 2 hints at 44s and 25s
-    const maxHints = word.length <= 3 ? 1 : 2;
+    // Get hint count from settings (default to 2)
+    const hintCount = room.settings[SETTINGS.HINTCOUNT] || 2;
+    
+    // First hint at 44 seconds, second at 25 seconds
+    // Then show remaining hints (hintCount - 2) evenly distributed after 25s
+    const totalHints = hintCount;
+    const hintsAfter25s = Math.max(0, totalHints - 2); // Remaining hints after the first 2
+    const drawTime = room.settings[SETTINGS.DRAWTIME] || 80;
+    
+    // Calculate intervals for hints after 25s
+    // Split the remaining time (25 seconds) evenly across the remaining hints
+    let hintTimesAfter25s = [];
+    if (hintsAfter25s > 0 && drawTime > 25) {
+      const timeAfter25s = 25; // Time from 25s to 0s
+      const interval = timeAfter25s / (hintsAfter25s + 1); // +1 to space them out
+      for (let i = 1; i <= hintsAfter25s; i++) {
+        hintTimesAfter25s.push(Math.floor(25 - (interval * i)));
+      }
+      hintTimesAfter25s.sort((a, b) => b - a); // Sort descending (highest first)
+    }
     
     // Check hints based on timer remaining (not intervals)
     room.hintInterval = setInterval(() => {
@@ -1740,9 +1809,20 @@ io.on('connection', (socket) => {
         revealHint(room);
       }
       
-      // Second hint at 25 seconds remaining (only if exactly 1 hint has been revealed and word is 4+ letters)
-      if (timeRemaining === 25 && room.revealedIndices.size === 1 && maxHints >= 2) {
+      // Second hint at 25 seconds remaining (only if exactly 1 hint has been revealed)
+      if (timeRemaining === 25 && room.revealedIndices.size === 1 && totalHints >= 2) {
         revealHint(room);
+      }
+      
+      // Show remaining hints after 25s at calculated intervals
+      if (timeRemaining < 25 && hintsAfter25s > 0) {
+        const revealedAfter25s = room.revealedIndices.size - 2; // Hints revealed after the first 2
+        if (revealedAfter25s >= 0 && revealedAfter25s < hintsAfter25s) {
+          const targetTime = hintTimesAfter25s[revealedAfter25s];
+          if (timeRemaining === targetTime || (timeRemaining < targetTime && timeRemaining >= targetTime - 1)) {
+            revealHint(room);
+          }
+        }
       }
       
       // Also check if we're past 44 and no hint revealed yet (catch edge cases)
@@ -1751,7 +1831,7 @@ io.on('connection', (socket) => {
       }
       
       // Clean up if max hints are revealed or timer is past hint times
-      if (room.revealedIndices.size >= maxHints || timeRemaining < 25) {
+      if (room.revealedIndices.size >= totalHints || timeRemaining <= 0) {
         clearInterval(room.hintInterval);
         room.hintInterval = null;
       }
@@ -1869,7 +1949,24 @@ io.on('connection', (socket) => {
       if (room.timer <= 0) {
         clearInterval(countdownInterval);
         
-        // Reset room and return to lobby (players stay in room)
+        // For public rooms, automatically start a new game (don't return to lobby)
+        if (room.isPublic) {
+          // Reset scores and start new game immediately
+          room.currentRound = 0;
+          room.currentDrawer = -1;
+          room.currentWord = '';
+          room.timer = 0;
+          room.players.forEach(p => {
+            p.score = 0;
+            p.guessed = false;
+          });
+          
+          // Auto-start new game for public rooms
+          setTimeout(() => {
+            startGame(room);
+          }, 1000);
+        } else {
+          // Private rooms: return to lobby (settings screen)
         room.state = GAME_STATE.LOBBY;
         room.currentRound = 0;
         room.currentDrawer = -1;
@@ -1889,6 +1986,7 @@ io.on('connection', (socket) => {
             data: {}
           }
         });
+        }
       }
     }, 1000);
   }
@@ -1905,6 +2003,15 @@ io.on('connection', (socket) => {
       room.votekicks = new Map();
     }
     
+    // Clean up expired votes (older than 30 seconds)
+    const now = Date.now();
+    const VOTE_EXPIRY_MS = 30000; // 30 seconds
+    for (const [key, vote] of room.votekicks.entries()) {
+      if (now - vote.timestamp > VOTE_EXPIRY_MS) {
+        room.votekicks.delete(key);
+      }
+    }
+    
     const votekickKey = `${voterId}_${targetId}`;
     
     // Check if already voted
@@ -1912,16 +2019,36 @@ io.on('connection', (socket) => {
       return; // Already voted
     }
     
-    // Add vote
-    room.votekicks.set(votekickKey, { voterId, targetId, timestamp: Date.now() });
+    // Add vote with timestamp
+    room.votekicks.set(votekickKey, { voterId, targetId, timestamp: now });
     
-    // Count votes for this target
+    // Set expiration timer for this vote (30 seconds)
+    setTimeout(() => {
+      if (room.votekicks && room.votekicks.has(votekickKey)) {
+        room.votekicks.delete(votekickKey);
+        // Recalculate and broadcast updated vote count
     let voteCount = 0;
     for (const [key, vote] of room.votekicks.entries()) {
       if (vote.targetId === targetId) {
         voteCount++;
       }
     }
+        const targetPlayer = room.players.find(p => p.id === targetId);
+        if (targetPlayer) {
+          const playerCount = room.players.length;
+          let requiredVotes;
+          if (playerCount <= 3) {
+            requiredVotes = 2;
+          } else {
+            requiredVotes = 2;
+          }
+          io.to(room.id).emit('data', {
+            id: PACKET.VOTEKICK,
+            data: [null, targetId, voteCount, requiredVotes] // null voterId indicates vote expired
+          });
+        }
+      }
+    }, VOTE_EXPIRY_MS);
     
     const targetPlayer = room.players.find(p => p.id === targetId);
     const voterPlayer = room.players.find(p => p.id === voterId);
@@ -1931,8 +2058,23 @@ io.on('connection', (socket) => {
     }
     
     // Calculate required votes based on lobby size (like skribbl.io)
-    // Formula: Math.ceil((players - 1) / 2) - minimum 1 vote required
-    const requiredVotes = Math.max(1, Math.ceil((room.players.length - 1) / 2));
+    // 2-3 players: need 2 votes minimum
+    // 4+ players: need 2 votes minimum
+    const playerCount = room.players.length;
+    let requiredVotes;
+    if (playerCount <= 3) {
+      requiredVotes = 2; // 2-3 players need 2 votes
+    } else {
+      requiredVotes = 2; // 4+ players need 2 votes minimum
+    }
+    
+    // Count votes for this target (only non-expired votes)
+    let voteCount = 0;
+    for (const [key, vote] of room.votekicks.entries()) {
+      if (vote.targetId === targetId && (now - vote.timestamp) <= VOTE_EXPIRY_MS) {
+        voteCount++;
+      }
+    }
     
     // Broadcast vote progress
     io.to(room.id).emit('data', {

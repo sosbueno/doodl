@@ -248,6 +248,7 @@
         g[s].querySelector(".buttons button.mute").textContent = E(e ? "Unmute" : "Mute")
     }
     function qe(e, t) {
+        currentModalType = e; // Track which modal type is showing
         m.style.display = "block";
         for (var n = 0; n < g.length; n++) g[n].style.display = "none";
         g[e].style.display = "flex";
@@ -307,15 +308,22 @@
             }
         }
     }
+    var currentModalType = null; // Track current modal type for error handling
     function xe() {
-        m.style.display = "none"
+        // If this is an error modal (ye or ve), redirect to home page
+        if (currentModalType === ye || currentModalType === ve) {
+            ua(); // Leave lobby/cleanup
+            h.location.href = h.location.origin + "/"; // Redirect to home (just domain, no query params)
+        }
+        m.style.display = "none";
+        currentModalType = null;
     }
     g[s] = m.querySelector(".modal-container-player"),
     g[ye] = m.querySelector(".modal-container-info"),
     g[ve] = m.querySelector(".modal-container-info"),
     g[be] = m.querySelector(".modal-container-room"),
     g[p] = m.querySelector(".modal-container-settings"),
-    D([m.querySelector(".close"), g[ye].querySelector("button.ok")], "click", xe);
+    D([m.querySelector(".close"), g[ye].querySelector("button.ok"), g[ve].querySelector("button.ok")], "click", xe);
     let Me = 0
       , Le = 2
       , De = 3
@@ -1737,30 +1745,32 @@
             S.off("joinerr"),
             S.off("data", Pa),
             S.on("joinerr", function(e) {
-                ua(),
-                qe(ye, (e => {
-                    switch (e) {
-                    case 1:
-                        return E("Room not found!");
-                    case 2:
-                        return E("Room is full!");
-                    case 3:
-                        return E("You are on a kick cooldown!");
-                    case 4:
-                        return E("You are banned from this room!");
-                    case 5:
-                        return E("You are joining rooms too quickly!");
-                    case 100:
-                        return E("You are already connected to this room!");
-                    case 200:
-                        return E("Too many users from your IP are connected to this room!");
-                    case 300:
-                        return E("You have been kicked too many times!");
-                    default:
-                        return E("An unknown error ('$') occured!", e)
-                    }
+                var errorMsg = "";
+                switch (e) {
+                case 1:
+                    errorMsg = E("Room not found! The room may have been closed or the room code is invalid.");
+                    break;
+                case 2:
+                    errorMsg = E("Room is full! This room has reached its maximum player limit.");
+                    break;
+                case 3:
+                    errorMsg = E("You are on a kick cooldown! Please wait before joining again.");
+                    break;
+                case 4:
+                    errorMsg = E("You are banned from this room!");
+                    break;
+                case 5:
+                    errorMsg = E("Invalid room code! Please check the room code and try again.");
+                    break;
+                case 100:
+                    errorMsg = E("Server restarting! Please try again in a few moments.");
+                    break;
+                default:
+                    errorMsg = E("Failed to join room! Please try again.");
                 }
-                )(e))
+                ua();
+                qe(ye, errorMsg);
+                // No auto-redirect - user clicks "Okay" to redirect
             }),
             S.on("data", Pa);
             var e = Kn.value.split("#")
@@ -1831,7 +1841,18 @@
         S.on("connect_error", function(e) {
             console.log("connect_error: " + e.message);
             // Redirect to home page on connection error
-            h.location.href = "/"
+            setTimeout(function() {
+                ua();
+                h.location.href = "/";
+            }, 1000);
+        }),
+        S.on("error", function(e) {
+            console.log("socket error: " + e);
+            // Redirect to home on any socket error
+            setTimeout(function() {
+                ua();
+                h.location.href = "/";
+            }, 1000);
         })
     }
     function aa(e) {
@@ -2568,20 +2589,18 @@
             case 100:
                 // Room owner left or room closed - show error and redirect
                 if (n.message) {
-                    y(n.message, "", f(Ee), !0);
-                    // Redirect to home after a delay
-                    setTimeout(function() {
-                        ua(); // Leave lobby
-                        h.location.href = "/"; // Redirect to home
-                    }, 3000);
+                    ua();
+                    qe(ye, n.message); // Show error modal - clicking okay will redirect
                 } else {
-                y(E("Server restarting in about $ seconds!", n.data), "", f(Ee), !0)
+                    ua();
+                    qe(ye, E("Server restarting in about $ seconds!", n.data)); // Show error modal - clicking okay will redirect
                 }
                 break;
             default:
                 // Generic error message
                 if (n.message) {
-                    y(n.message, "", f(Ee), !0);
+                    ua();
+                    qe(ye, n.message); // Show error modal - clicking okay will redirect
                 }
             }
             break;

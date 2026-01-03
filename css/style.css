@@ -1866,11 +1866,24 @@ form.chat-form input {
     display: flex
 }
 
+@keyframes text_introduce {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 #game-canvas .overlay-content .text {
     color: #fff;
     font-size: 2.5em;
     flex-direction: column;
-    align-items: center
+    align-items: center;
+    animation: text_introduce 0.5s ease-out;
+    transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 #game-canvas .overlay-content .words {
@@ -2432,8 +2445,8 @@ form.chat-form input {
 #game-word .hints .container .word-length {
     position: absolute;
     left: 102%;
-    top: -.2em;
-    font-size: .55em;
+    top: .3em;
+    font-size: .85em;
     font-weight: 700;
     white-space: nowrap
 }
