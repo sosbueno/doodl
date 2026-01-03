@@ -1909,12 +1909,16 @@
         if (n = L = e,
         null != fn && (h.cancelAnimationFrame(fn),
         fn = void 0),
-        n.id == j ? yn({
-            top: -100,
-            opacity: 0
-        }, 600, function() {
-            cn.classList.remove("show")
-        }) : cn.classList.contains("show") ? yn({
+        n.id == j ? (
+            // Clear waiting dots interval when game starts
+            h._waitingDotsInterval && (clearInterval(h._waitingDotsInterval), h._waitingDotsInterval = null),
+            yn({
+                top: -100,
+                opacity: 0
+            }, 600, function() {
+                cn.classList.remove("show")
+            })
+        ) : cn.classList.contains("show") ? yn({
             top: -100,
             opacity: 1
         }, 600, function() {
@@ -1924,11 +1928,37 @@
                 opacity: 1
             }, 600)
         }) : (cn.classList.add("show"),
-        bn(n),
-        yn({
-            top: 0,
-            opacity: 1
-        }, 600)),
+        // For public rooms in LOBBY state, show waiting overlay instead of settings panel
+        (n.id == J && ((In !== void 0 && In !== null && In !== false) || (In === void 0 && n.type === 0))) ? (
+            // Public room - show waiting overlay with animated dots, don't show settings panel
+            vn(A),
+            (function() {
+                var dots = 0;
+                var baseText = E("Waiting for players");
+                function updateDots() {
+                    var dotStr = ".";
+                    for (var i = 0; i < dots; i++) dotStr += ".";
+                    A.textContent = baseText + dotStr;
+                    dots = (dots + 1) % 4; // Cycle 0, 1, 2, 3 (0, 1, 2, 3 dots)
+                }
+                updateDots();
+                // Clear any existing interval
+                if (h._waitingDotsInterval) clearInterval(h._waitingDotsInterval);
+                // Update dots every 500ms
+                h._waitingDotsInterval = setInterval(updateDots, 500);
+            })(),
+            yn({
+                top: 0,
+                opacity: 1
+            }, 600)
+        ) : (
+            // Private room or other state - use normal flow
+            bn(n),
+            yn({
+                top: 0,
+                opacity: 1
+            }, 600)
+        )),
         a = e.time,
         oo(),
         ro(a),
@@ -1945,9 +1975,18 @@
         yt(),
         da(!1),
         e.id == J ? (la(),
-        // Only show settings panel for private rooms (In = false), hide for public rooms (In = true)
-        // In is set from e.isPublic: true = public, false = private
-        In === false ? Pn.classList.add("room") : Pn.classList.remove("room")) : Pn.classList.remove("room"),
+        (function() {
+            // Only show settings panel for private rooms, hide for public rooms
+            // In: true = public, false = private
+            // e.type: 0 = public, 1 = private
+            var isPrivateRoom = (In === false) || (In === void 0 && e.type === 1);
+            if (isPrivateRoom) {
+                Pn.classList.add("room");
+            } else {
+                // Public room - hide settings panel (waiting overlay already shown above)
+                Pn.classList.remove("room");
+            }
+        })()) : Pn.classList.remove("room"),
         e.id == F && (ia(e.data),
         0 == e.data) && la(),
         e.id == Z) {
