@@ -1945,7 +1945,9 @@
         yt(),
         da(!1),
         e.id == J ? (la(),
-        Pn.classList.add("room")) : Pn.classList.remove("room"),
+        // Only show settings panel for private rooms (In = false), hide for public rooms (In = true)
+        // In is set from e.isPublic: true = public, false = private
+        In === false ? Pn.classList.add("room") : Pn.classList.remove("room")) : Pn.classList.remove("room"),
         e.id == F && (ia(e.data),
         0 == e.data) && la(),
         e.id == Z) {
