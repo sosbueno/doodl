@@ -682,7 +682,10 @@ io.on('connection', (socket) => {
     const lang = 0;
     let roomId = join || code;
     
-    console.log('🔐 Socket.IO login:', { join, create, name, lang, code, roomId });
+    // Limit name to 16 characters
+    const playerName = (name || 'Player').trim().substring(0, 16);
+    
+    console.log('🔐 Socket.IO login:', { join, create, name: playerName, lang, code, roomId });
     
     // IMPORTANT: If create=1, this is a private room create request
     // The API might have returned a public room ID, but we need to create a private room
@@ -781,7 +784,7 @@ io.on('connection', (socket) => {
     // Create player
     player = {
       id: socket.id,
-      name: name || 'Player',
+      name: playerName, // Already limited to 16 characters above
       avatar: avatar || [0, 0, 0, -1],
       score: 0,
       guessed: false,
@@ -1504,7 +1507,7 @@ io.on('connection', (socket) => {
             
             // Make the remaining player the new owner (for private rooms)
             if (!room.isPublic) {
-              room.owner = remainingPlayer.id;
+            room.owner = remainingPlayer.id;
             }
             
             console.log(`⏸️ Only 1 player left in room ${currentRoomId}, returning to lobby`);
@@ -1535,10 +1538,10 @@ io.on('connection', (socket) => {
             
             // Send owner change first (for private rooms), then lobby state
             if (!room.isPublic) {
-              io.to(remainingPlayer.id).emit('data', {
-                id: PACKET.OWNER,
-                data: room.owner
-              });
+            io.to(remainingPlayer.id).emit('data', {
+              id: PACKET.OWNER,
+              data: room.owner
+            });
             }
             
             // Small delay before sending LOBBY state to ensure owner message shows first
