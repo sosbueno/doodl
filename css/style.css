@@ -2389,9 +2389,6 @@ form.chat-form input {
     width: 100%;
     font-size: 1.1em;
     color: var(--COLOR_GAMEBAR_WORD_DESCRIPTION);
-    animation: word_description_introduce 0.4s ease-out;
-    display: inline-block;
-    text-align: center;
 }
 
 #game-word .description.waiting {
@@ -2456,16 +2453,14 @@ form.chat-form input {
     animation: hint_uncover .8s ease-in-out 1
 }
 
-#game-word .description .word-length {
-    display: inline;
-    font-size: 0.85em;
-    font-weight: 700;
-    margin-left: 0.3em;
-    vertical-align: baseline;
-}
 
 #game-word .hints .container .word-length {
-    display: none; /* Word length is now in description, not here */
+    position: absolute;
+    left: 102%;
+    top: -.2em;
+    font-size: .55em;
+    font-weight: 700;
+    white-space: nowrap;
 }
 
 @keyframes rot_right {
