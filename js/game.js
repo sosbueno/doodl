@@ -2333,26 +2333,11 @@
         }
     }
     function ma(e) {
-        if (!e || !Array.isArray(e)) return; // Safety check
-        if (!N[2] || !N[2].hints) return; // Safety check - ensure hints array exists
         for (var t = N[2].hints, n = 0; n < e.length; n++) {
-            // Check if e[n] exists and is an array
-            if (!e[n] || !Array.isArray(e[n]) || e[n].length < 2) continue;
-            var a = e[n][0]  // Index in the word (including spaces)
-              , o = e[n][1]; // Character to reveal
-            // Official way - exactly like skribbl.io
+            var a = e[n][0],
+                o = e[n][1];
             if (t && t[a] && t[a] !== null) {
-                var hintEl = t[a];
-                // Set text first
-                hintEl.textContent = o;
-                // Remove class if it exists to retrigger animation
-                hintEl.classList.remove("uncover");
-                // Use requestAnimationFrame to ensure animation triggers in next frame
-                (function(el, idx) {
-                    h.requestAnimationFrame(function() {
-                        el.classList.add("uncover");
-                    });
-                })(hintEl, n);
+                t[a].textContent = o, t[a].classList.add("uncover")
             }
         }
     }
