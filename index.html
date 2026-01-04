@@ -21,7 +21,6 @@
           const urlParams = new URLSearchParams(window.location.search);
           const roomCode = urlParams.get('room') || Array.from(urlParams.keys()).find(key => key.length === 8 && /^[A-Za-z0-9]+$/.test(key));
           if (roomCode) {
-            console.log('🔗 Room code detected in URL:', roomCode);
             window._roomCodeFromUrl = roomCode;
             window._joinRoomCode = roomCode;
             // NO auto-join - user should click Play button to join
@@ -599,7 +598,6 @@
                 const originalData = data || '';
                 const roomCodeParam = '&roomCode=' + encodeURIComponent(window._joinRoomCode);
                 data = originalData + (originalData ? roomCodeParam : roomCodeParam.substring(1));
-                console.log('🔗 Adding room code to API request:', window._joinRoomCode);
               }
               
               const originalOnReadyStateChange = xhr.onreadystatechange;
@@ -608,10 +606,8 @@
                   if (this.status === 200) {
                     try {
                       const response = JSON.parse(this.responseText);
-                      console.log('📥 API response:', response);
                       if (response.success) {
                         window._lastApiRoomId = response.roomId;
-                        console.log('📦 Stored roomId:', response.roomId);
                         if (!response.data || typeof response.data !== 'string') {
                           response.data = location.origin;
                         }
@@ -708,7 +704,6 @@
                 options.transports = ['websocket', 'polling'];
       }
       
-              console.log('🔌 Connecting Socket.IO to:', actualUrl, 'with options:', options);
               
               // Show loading screen when Socket.IO connects
               const loadScreen = document.getElementById('load');
@@ -749,7 +744,6 @@
               
               // Log connection events
               socket.on('connect', function() {
-                console.log('✅ Socket.IO connected on Render');
               });
               
               socket.on('connect_error', function(error) {
@@ -761,7 +755,6 @@
               });
               
               socket.on('disconnect', function() {
-                console.log('❌ Socket.IO disconnected');
               });
               
               const originalEmit = socket.emit;
@@ -772,7 +765,6 @@
                     data.create = 1;
                     data.join = undefined; // Don't join existing room, create new one
                     data.code = undefined; // Don't use code from API
-                    console.log('🔧 Setting create=1 for private room');
                     // Clear the flag after use
                     window._isCreateButton = false;
                   } else if (window._joinRoomCode) {
@@ -780,24 +772,20 @@
                     data.join = window._joinRoomCode;
                     data.code = window._joinRoomCode;
                     data.create = 0; // Don't create, join existing
-                    console.log('🔗 Using room code from URL for login:', window._joinRoomCode);
                   } else if (window._lastApiRoomId) {
                     // Normal join - use API room ID
                     data.join = window._lastApiRoomId;
                     data.code = window._lastApiRoomId;
                   }
-                  console.log('📤 Emitting login:', { join: data.join, create: data.create, name: data.name, code: data.code });
                 }
                 return originalEmit.apply(this, arguments);
               };
               
               // Handle page transitions and private room display
               socket.on('data', function(data) {
-                console.log('📡 Socket data received:', data);
                 if (data && data.id === 10) { // GAME_DATA packet
                   gameDataReceived = true;
                   clearTimeout(fallbackTimeout);
-                  console.log('✅ GAME_DATA received, transitioning...');
                   
                   // Hide loading screen (reduced delay for faster transition like localhost)
                   setTimeout(function() {
@@ -814,7 +802,6 @@
                     if (home && game) {
                       home.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important;';
                       game.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important;';
-                      console.log('✅ Page transition complete');
                     }
                   }, 800);
                   
@@ -822,7 +809,6 @@
                   if (data.data) {
                     window._roomCode = data.data.code || data.data.id;
                     window._roomId = data.data.id;
-                    console.log('🔗 Room code/ID received:', window._roomCode);
                     
                     // Patch invite functionality to use our domain and room code
                     // Wait for game.js to initialize first, then patch continuously
@@ -903,7 +889,6 @@
                         // Copy to clipboard
                         if (navigator.clipboard) {
                           navigator.clipboard.writeText(inviteUrl).then(function() {
-                            console.log('✅ Copied invite link:', inviteUrl);
                           }).catch(function(err) {
                             console.error('❌ Failed to copy:', err);
                             // Fallback

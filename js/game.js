@@ -115,7 +115,7 @@
         Ye && d.setItem("keyboard", Ye.value),
         ze && d.setItem("keyboardlayout", ze.value),
         d.setItem("chatBubbles", l.chatBubbles),
-        console.log("Settings saved.")) : console.log("Settings not saved. LocalStorage unavailable.")
+        void 0) : void 0
     }
     function D(e, t, n) {
         for (var a, o = e, r = ("string" == typeof e ? o = c.querySelectorAll(e) : "[object Array]" !== (a = Object.prototype.toString.call(e)) && "[object NodeList]" !== a && "[object HTMLCollection]" !== a && (o = [e]),
@@ -612,8 +612,7 @@
                 key: o,
                 element: e,
                 type: t
-            }) : (console.log("Empty key passed to translate with!"),
-            console.log(e))
+            }) : void 0
         }
     }
     Ge.en = {},
@@ -1063,7 +1062,7 @@
             x2: C.width + t + r,
             y2: C.height + t + a
         }).x1 < n && n < i.x2 && i.y1 < o && o < i.y2)) ? (v.push(e),
-        x == M && Gt(jt(e))) : console.log("IGNORED COMMAND OUT OF CANVAS BOUNDS")
+        x == M && Gt(jt(e))) : void 0
     }
     function jt(e) {
         var t = [0, 0, C.width, C.height];
@@ -1354,7 +1353,7 @@
             data: n
         }),
         dt = Math.min(t, v.length),
-        console.log(`Sent ${n.length} commands. ${e} remaining.`))
+        void 0)
     }, 50),
     setInterval(function() {
         S && L.id == j && M != x && ut < v.length && (Gt(jt(v[ut]), v[ut]),
@@ -1589,7 +1588,7 @@
                 n.buffer = e,
                 n.loaded = !0
             }, function(e) {
-                console.log("Failed loading audio from url '" + t + "'")
+                console.error("Failed loading audio from url '" + t + "'")
             })
         }
         ,
@@ -1640,10 +1639,9 @@
                 this.gain = this.context.createGain(),
                 this.gain.connect(this.context.destination),
                 this.setVolume(l.volume),
-                console.log("AudioContext created."),
                 this.loadSounds()
             } catch (e) {
-                console.log("Error creating AudioContext.", e),
+                console.error("Error creating AudioContext:", e),
                 this.context = null
             }
     }
@@ -1785,11 +1783,9 @@
             S.emit("login", e)
         }),
         S.on("reason", function(e) {
-            console.log("[REASON EVENT] Received reason:", e);
             o = e;
             // IMMEDIATELY disable all input when kicked/banned
             if (e == 1 || e == 2) {
-                console.log("[REASON EVENT] Kicked/banned, storing reason and redirecting");
                 // Disable both input fields immediately
                 if (_n[0]) {
                     _n[0].disabled = true;
@@ -1804,28 +1800,18 @@
                     _n[1].setAttribute("disabled", "");
                 }
                 // Store reason in localStorage to show message on home page
-                // Use a synchronous method to ensure it's stored before redirect
                 try {
                     h.localStorage.setItem("kickReason", e.toString());
-                    console.log("[REASON EVENT] Stored kickReason in localStorage:", e.toString());
-                    // Force sync - verify it was stored
-                    var stored = h.localStorage.getItem("kickReason");
-                    console.log("[REASON EVENT] Verified storage, got back:", stored);
-                    if (stored != e.toString()) {
-                        console.error("[REASON EVENT] Storage verification failed!");
-                    }
                 } catch (err) {
-                    console.log("[REASON EVENT] Could not store kick reason:", err);
+                    console.error("[KICK] Could not store kick reason:", err);
                 }
                 // Small delay to ensure localStorage is persisted, then redirect
                 setTimeout(function() {
-                    console.log("[REASON EVENT] Redirecting to /");
                     h.location.href = "/";
                 }, 50);
             }
         }),
         S.on("disconnect", function(e) {
-            console.log("socket disconnect: " + e);
             // If we have a reason (kick/ban), always redirect regardless of lobby state
             if (o == 1 || o == 2) {
                 // Already handled in reason handler, but ensure redirect if disconnect happens first
@@ -1839,7 +1825,6 @@
             // If in lobby and not kicked, stay on the page (owner change scenario)
         }),
         S.on("connect_error", function(e) {
-            console.log("connect_error: " + e.message);
             // Redirect to home page on connection error
             setTimeout(function() {
                 ua();
@@ -1847,7 +1832,6 @@
             }, 1000);
         }),
         S.on("error", function(e) {
-            console.log("socket error: " + e);
             // Redirect to home on any socket error
             setTimeout(function() {
                 ua();
@@ -1885,8 +1869,7 @@
                 (adsbygoogle = h.adsbygoogle || []).push({}),
                 (adsbygoogle = h.adsbygoogle || []).push({})
             } catch (e) {
-                console.log("google ad request failed"),
-                console.log(e)
+                console.error("Google ad request failed:", e)
             }
         }, 1500),
         Wn = !0)
@@ -2147,7 +2130,6 @@
         c.querySelector("#game-rate").style.display = e ? "" : "none"
     }
     function ua() {
-        console.log("lobby left"),
         S && S.close(),
         Kt(!(S = void 0)),
         oo(),
@@ -2178,21 +2160,17 @@
         function checkAndShowKickMessage() {
             // Verify modal elements exist before trying to show
             if (!m || !g || !g[ve]) {
-                console.log("[KICK CHECK] Modal elements not ready yet, will retry...");
                 return false;
             }
             
-            console.log("[KICK CHECK] Checking for kick message...");
             var kickReason = null;
             try {
                 kickReason = h.localStorage.getItem('kickReason');
-                console.log("[KICK CHECK] localStorage kickReason:", kickReason);
             } catch (e) {
-                console.log("[KICK CHECK] Could not access localStorage:", e);
+                console.error("[KICK] Could not access localStorage:", e);
             }
             
             if (kickReason) {
-                console.log("[KICK CHECK] Found kick reason:", kickReason);
                 var message = '';
                 if (kickReason == '1') {
                     message = E("You have been kicked!");
@@ -2200,30 +2178,20 @@
                     message = E("You have been banned!");
                 }
                 if (message) {
-                    console.log("[KICK CHECK] Showing modal with message:", message);
-                    console.log("[KICK CHECK] Modal elements - m:", m, "g[ve]:", g[ve]);
-                    // Show modal with "Disconnected!" title and the message
-                    // ve = 2 is the "Disconnected!" modal type
                     try {
                         qe(ve, message);
-                        console.log("[KICK CHECK] Modal shown successfully");
                         // Clean up localStorage after showing
                         try {
                             h.localStorage.removeItem('kickReason');
-                            console.log("[KICK CHECK] Removed kickReason from localStorage");
                         } catch (e) {
-                            console.log("[KICK CHECK] Could not remove from localStorage:", e);
+                            console.error("[KICK] Could not remove from localStorage:", e);
                         }
                         return true; // Successfully shown
                     } catch (err) {
-                        console.error("[KICK CHECK] Error showing modal:", err);
+                        console.error("[KICK] Error showing modal:", err);
                         return false;
                     }
-                } else {
-                    console.log("[KICK CHECK] No message to show for reason:", kickReason);
                 }
-            } else {
-                console.log("[KICK CHECK] No kick reason found in localStorage");
             }
             return false;
         }
@@ -2233,15 +2201,11 @@
         var maxChecks = 10;
         function tryCheck() {
             checkCount++;
-            console.log("[KICK CHECK] Attempt", checkCount, "of", maxChecks);
             if (checkAndShowKickMessage()) {
-                console.log("[KICK CHECK] Modal shown successfully, stopping checks");
                 return; // Successfully shown, stop checking
             }
             if (checkCount < maxChecks) {
                 setTimeout(tryCheck, 300);
-            } else {
-                console.log("[KICK CHECK] Max checks reached, giving up");
             }
         }
         
@@ -2337,7 +2301,18 @@
             var a = e[n][0],
                 o = e[n][1];
             if (t && t[a] && t[a] !== null) {
-                t[a].textContent = o, t[a].classList.add("uncover")
+                var hintEl = t[a];
+                hintEl.textContent = o;
+                // Remove class first to retrigger animation
+                hintEl.classList.remove("uncover");
+                // Force reflow
+                void hintEl.offsetWidth;
+                // Add class with small delay to ensure animation triggers (especially when revealing all at once)
+                setTimeout(function(el) {
+                    return function() {
+                        el.classList.add("uncover");
+                    };
+                }(hintEl), n * 30);
             }
         }
     }
@@ -2631,7 +2606,7 @@
             Ut(n);
             break;
         default:
-            return void console.log("Unimplemented data packed received with id " + t)
+            return void 0
         }
     }
     function W(e) {
@@ -2984,7 +2959,7 @@
         var e = h.location.origin + "/?" + Tn;
         if (navigator.clipboard)
             navigator.clipboard.writeText(e).then(function() {
-                console.log("Async: Copying to clipboard was successful!")
+                void 0
             }, function(e) {
                 console.error("Async: Could not copy text: ", e)
             });
@@ -2999,9 +2974,9 @@
             t.focus();
             try {
                 var n = c.execCommand("copy");
-                console.log("Copying link was " + (n ? "successful" : "unsuccessful"))
+                void 0
             } catch (e) {
-                console.log("Unable to copy link " + e)
+                console.error("Unable to copy link:", e)
             }
             c.body.removeChild(t)
         }
@@ -3168,7 +3143,7 @@
     })(),
     R.setVolume(l.volume),
     po(),
-    console.log("Settings loaded.")) : console.log("Settings not loaded. LocalStorage unavailable.");
+    void 0) : void 0;
     
     // Check for kick message on initial page load
     (function() {
