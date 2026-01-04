@@ -2532,14 +2532,19 @@
                 })(),
                 Fa(a, !0),
                 R.playSound(xn),
+                // Reveal the word with animation for all players (except drawer)
+                // Drawer already sees the word, so only reveal for non-drawers
+                x != M && ga(n.word),
                 n.id == x && (
                     // Current user guessed correctly - show them the word like the drawer sees it
-                    ga(n.word),
-                    // Display the word in the word display area (same as drawer sees)
-                    N[0].textContent = E("DRAW THIS"),
-                    N[1].style.display = "",
-                    N[2].style.display = "none",
-                    N[1].textContent = n.word
+                    // Delay the display switch to allow the animation to complete (animation is 0.8s)
+                    setTimeout(function() {
+                        // Display the word in the word display area (same as drawer sees)
+                        N[0].textContent = E("DRAW THIS"),
+                        N[1].style.display = "",
+                        N[2].style.display = "none",
+                        N[1].textContent = n.word
+                    }, 900)  // 900ms delay to let animation complete
                 )
             ),
             Ka()  // Update score display (always update leaderboard)
