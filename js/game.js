@@ -2101,16 +2101,21 @@
             // wordStructure should be a string like "_____ _____" with underscores and spaces
             (function() {
                 var wordData = e.data.wordStructure;
+                console.log("[WORD DISPLAY] wordStructure:", wordData, "wordLength:", e.data.wordLength, "word:", e.data.word);
                 if (!wordData && e.data.wordLength !== undefined) {
                     // Fallback: create underscores based on wordLength
                     wordData = e.data.wordLength;
+                    console.log("[WORD DISPLAY] Using wordLength fallback:", wordData);
                 } else if (!wordData && e.data.word) {
                     // Fallback: use word length
                     wordData = e.data.word.length;
+                    console.log("[WORD DISPLAY] Using word.length fallback:", wordData);
                 } else if (!wordData) {
                     // Last resort: use 0 (shouldn't happen)
                     wordData = 0;
+                    console.log("[WORD DISPLAY] Using 0 fallback (ERROR!)");
                 }
+                console.log("[WORD DISPLAY] Calling pa() with:", wordData, "type:", typeof wordData);
                 pa(wordData, !1);
             })(),
             ma(e.data.hints))
@@ -2284,32 +2289,33 @@
         }
         o = !t && 1 == An[te.WORDMODE];
         o && (n = 3);
-        // Display "GUESS THIS" with number below "THIS" (like the image)
+        // Display "GUESS THIS" with number inline (like the second image)
         // Clear any existing word-length from description
         var existingWordLength = N[0].querySelector(".word-length");
         if (existingWordLength) {
             existingWordLength.remove();
         }
-        // Create description with "GUESS THIS" and number below
+        // Create description with "GUESS THIS" and number inline
         N[0].innerHTML = "";
         var guessText = c.createElement("span");
         guessText.textContent = E(o ? "WORD HIDDEN" : "GUESS THIS");
         N[0].appendChild(guessText);
-        // Add word-length number below "THIS" (only if not hidden mode)
+        // Add word-length number inline with "GUESS THIS" (only if not hidden mode)
         if (!o) {
-            var wordLengthEl = $("word-length", "");
+            var wordLengthEl = c.createElement("span");
+            wordLengthEl.className = "word-length";
             if (wordLengths.length > 1) {
-                wordLengthEl.textContent = wordLengths.join(" ");
+                wordLengthEl.textContent = " " + wordLengths.join(" ");
             } else if (wordLengths.length === 1) {
-                wordLengthEl.textContent = wordLengths[0].toString();
+                wordLengthEl.textContent = " " + wordLengths[0].toString();
             } else if (Array.isArray(e)) {
-                wordLengthEl.textContent = e.join(" ");
+                wordLengthEl.textContent = " " + e.join(" ");
             } else if (typeof e === "number") {
-                wordLengthEl.textContent = n.toString();
+                wordLengthEl.textContent = " " + n.toString();
             } else if (typeof e === "string" && e.length > 0) {
                 // Calculate total length for string
                 var totalLen = wordLengths.length > 0 ? wordLengths.reduce(function(sum, len) { return sum + len; }, 0) : e.replace(/\s+/g, '').length;
-                wordLengthEl.textContent = totalLen.toString();
+                wordLengthEl.textContent = " " + totalLen.toString();
             }
             N[0].appendChild(wordLengthEl);
         }
@@ -2320,8 +2326,10 @@
             N[2].removeChild(N[2].firstChild);
         }
         N[2].hints = [];
+        console.log("[PA] e type:", typeof e, "e value:", e, "e.length:", typeof e === "string" ? e.length : "N/A", "n:", n, "o:", o);
         // If we have the actual word structure (string), handle spaces and dashes properly
         if (typeof e === "string" && e.length > 0) {
+            console.log("[PA] Processing string wordStructure, length:", e.length);
             for (a = 0; a < e.length; a++) {
                 if (e[a] === " ") {
                     // For spaces, create a visible gap between word parts (slightly bigger than before)
@@ -2339,15 +2347,28 @@
                     N[2].hints[a] = $("hint", "-");
                     N[2].appendChild(N[2].hints[a]);
                 } else {
-                    N[2].hints[a] = $("hint", o ? "?" : "_"),
+                    // For underscores or any other character, create a hint with "_" or "?"
+                    var hintText = o ? "?" : "_";
+                    N[2].hints[a] = $("hint", hintText);
                     N[2].appendChild(N[2].hints[a]);
+                    console.log("[PA] Created hint at index", a, "with text:", hintText);
                 }
             }
+            console.log("[PA] Created", N[2].hints.filter(function(h) { return h !== null; }).length, "hint elements");
         } else {
             // For number or array mode, use underscores for all positions
-            for (a = 0; a < n; a++)
-                N[2].hints[a] = $("hint", o ? "?" : "_"),
-                N[2].appendChild(N[2].hints[a]);
+            console.log("[PA] Processing number/array mode, n:", n);
+            if (n > 0) {
+                for (a = 0; a < n; a++) {
+                    var hintText = o ? "?" : "_";
+                    N[2].hints[a] = $("hint", hintText);
+                    N[2].appendChild(N[2].hints[a]);
+                    console.log("[PA] Created hint at index", a, "with text:", hintText);
+                }
+                console.log("[PA] Created", n, "hint elements");
+            } else {
+                console.log("[PA] WARNING: n is 0 or invalid, no hints created!");
+            }
         }
         // Word-length is now shown in the description above, not next to underscores
     }

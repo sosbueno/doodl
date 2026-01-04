@@ -2391,9 +2391,10 @@ form.chat-form input {
     color: var(--COLOR_GAMEBAR_WORD_DESCRIPTION);
     animation: word_description_introduce 0.4s ease-out;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
+    flex-wrap: wrap;
 }
 
 #game-word .description.waiting {
@@ -2459,11 +2460,13 @@ form.chat-form input {
 }
 
 #game-word .description .word-length {
-    display: block;
-    font-size: 1em;
+    display: inline;
+    font-size: 0.85em;
     font-weight: 700;
-    margin-top: 0.2em;
-    text-align: center;
+    margin-left: 0.3em;
+    vertical-align: super;
+    position: relative;
+    top: -0.2em;
 }
 
 #game-word .hints .container .word-length {
