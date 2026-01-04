@@ -2302,17 +2302,18 @@
                 o = e[n][1];
             if (t && t[a] && t[a] !== null) {
                 var hintEl = t[a];
+                // Set text content first
                 hintEl.textContent = o;
-                // Remove class first to retrigger animation
+                // Remove class if it exists to retrigger animation
                 hintEl.classList.remove("uncover");
                 // Force reflow
                 void hintEl.offsetWidth;
-                // Add class with small delay to ensure animation triggers (especially when revealing all at once)
-                setTimeout(function(el) {
-                    return function() {
-                        el.classList.add("uncover");
-                    };
-                }(hintEl), n * 30);
+                // Add uncover class with staggered delay for animation effect
+                (function(index, element) {
+                    setTimeout(function() {
+                        element.classList.add("uncover");
+                    }, index * 50);
+                })(n, hintEl);
             }
         }
     }
@@ -2534,17 +2535,22 @@
                 R.playSound(xn),
                 // Reveal the word with animation for all players (except drawer)
                 // Drawer already sees the word, so only reveal for non-drawers
-                x != M && ga(n.word),
+                x != M && (
+                    // Ensure hints container is visible
+                    N[2].style.display = "",
+                    N[1].style.display = "none",
+                    ga(n.word)
+                ),
                 n.id == x && (
                     // Current user guessed correctly - show them the word like the drawer sees it
-                    // Delay the display switch to allow the animation to complete (animation is 0.8s)
+                    // Delay the display switch to allow the animation to complete (animation is 0.8s + staggered delays)
                     setTimeout(function() {
                         // Display the word in the word display area (same as drawer sees)
                         N[0].textContent = E("DRAW THIS"),
                         N[1].style.display = "",
                         N[2].style.display = "none",
                         N[1].textContent = n.word
-                    }, 900)  // 900ms delay to let animation complete
+                    }, 1200)  // 1200ms delay to let animation complete (0.8s animation + staggered delays)
                 )
             ),
             Ka()  // Update score display (always update leaderboard)
