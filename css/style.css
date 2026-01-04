@@ -2451,6 +2451,7 @@ form.chat-form input {
 
 #game-word .hints .container .hint.uncover {
     animation: hint_uncover .8s ease-in-out 1 !important;
+    animation-fill-mode: both !important;
 }
 
 

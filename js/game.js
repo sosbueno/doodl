@@ -2348,14 +2348,15 @@
             // Official way - exactly like skribbl.io
             if (t && t[a] && t[a] !== null) {
                 var hintEl = t[a];
-                // Remove class if exists to retrigger animation
-                hintEl.classList.remove("uncover");
                 // Set text
                 hintEl.textContent = o;
-                // Use requestAnimationFrame to ensure animation retriggers
-                h.requestAnimationFrame(function() {
-                    hintEl.classList.add("uncover");
-                });
+                // Remove class to reset animation
+                hintEl.classList.remove("uncover");
+                // Force reflow
+                void hintEl.offsetWidth;
+                // Explicitly set animation via JavaScript to ensure it triggers
+                hintEl.style.animation = 'hint_uncover .8s ease-in-out 1';
+                hintEl.classList.add("uncover");
             }
         }
     }
