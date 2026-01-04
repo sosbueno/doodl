@@ -2345,7 +2345,14 @@
             var a = e[n][0]  // Index in the word (including spaces)
               , o = e[n][1]; // Character to reveal
             // Skip if hint element is null (spaces) or doesn't exist
-            if (t && t[a] && t[a] !== null && t[a].textContent !== undefined) {
+            if (t && t[a] && t[a] !== null) {
+                // Remove uncover class first to retrigger animation if it was already there
+                if (t[a].classList.contains("uncover")) {
+                    t[a].classList.remove("uncover");
+                    // Force reflow to ensure class removal is processed
+                    void t[a].offsetWidth;
+                }
+                // Set text and add class (official way - exactly like skribbl.io)
                 t[a].textContent = o;
                 t[a].classList.add("uncover");
             }
