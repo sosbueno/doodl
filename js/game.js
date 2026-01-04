@@ -2298,7 +2298,11 @@
     }
     function ma(e) {
         var t = N[2].hints;
-        if (!t) return;
+        if (!t) {
+            console.log("ma: hints array is null or undefined");
+            return;
+        }
+        console.log("ma: processing", e.length, "characters, hints array length:", t.length);
         
         // First pass: set text content and remove uncover class from ALL hints
         for (var n = 0; n < e.length; n++) {
@@ -2310,6 +2314,8 @@
                 hintEl.textContent = o;
                 // Remove uncover class if it exists to retrigger animation
                 hintEl.classList.remove("uncover");
+            } else {
+                console.log("ma: hint at index", a, "is null or doesn't exist");
             }
         }
         
@@ -2326,6 +2332,8 @@
             }
         }
         
+        console.log("ma: found", validIndices.length, "valid hint indices");
+        
         // Calculate delays for inwards animation and apply
         for (n = 0; n < e.length; n++) {
             a = e[n][0];
@@ -2341,28 +2349,41 @@
                 var distanceFromEnd = totalValid - 1 - posInValid;
                 // Delay: start from both ends, meet in the middle (inwards animation)
                 var delay = Math.min(distanceFromStart, distanceFromEnd) * 50;
+                console.log("ma: adding uncover to index", a, "with delay", delay);
                 // Add uncover class with staggered delay using IIFE to capture variables
-                (function(element, delayTime) {
+                (function(element, delayTime, index) {
                     setTimeout(function() {
+                        console.log("ma: adding uncover class to element at index", index);
                         element.classList.add("uncover");
                     }, delayTime);
-                })(hintEl, delay);
+                })(hintEl, delay, a);
             }
         }
     }
     function ga(e) {
-        if (!e || typeof e !== "string") return;
+        if (!e || typeof e !== "string") {
+            console.log("ga: word is not a string", e);
+            return;
+        }
+        console.log("ga: revealing word", e, "hints exist:", !!N[2].hints, "hints length:", N[2].hints ? N[2].hints.length : 0);
         // Ensure hints container is visible
         N[2].style.display = "";
         N[1].style.display = "none";
         // Official way - exactly like skribbl.io
         // Initialize hints if they don't exist or are too short
         if (!N[2].hints || N[2].hints.length < e.length) {
+            console.log("ga: initializing hints for word length", e.length);
             pa([e.length], !0);
         }
-        // Build array of [index, character] pairs
-        for (var t = [], n = 0; n < e.length; n++) 
-            t.push([n, e.charAt(n)]);
+        // Build array of [index, character] pairs - only for non-space characters
+        for (var t = [], n = 0; n < e.length; n++) {
+            var char = e.charAt(n);
+            // Only add non-space characters to the reveal list
+            if (char !== " ") {
+                t.push([n, char]);
+            }
+        }
+        console.log("ga: calling ma with", t.length, "characters");
         ma(t);
     }
     function fa(e) {
