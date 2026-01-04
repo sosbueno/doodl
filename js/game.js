@@ -2289,9 +2289,12 @@
             }
             N[0].appendChild(wordLengthEl);
         }
-        N[1].style.display = "none",
-        N[2].style.display = "",
-        ce(N[2]),
+        N[1].style.display = "none";
+        N[2].style.display = "";
+        // Clear container completely - remove all children including any leftover word-length elements
+        while (N[2].firstChild) {
+            N[2].removeChild(N[2].firstChild);
+        }
         N[2].hints = [];
         // If we have the actual word structure (string), handle spaces and dashes properly
         if (typeof e === "string" && e.length > 0) {
@@ -2326,15 +2329,19 @@
     }
     function ma(e) {
         if (!e || !Array.isArray(e)) return; // Safety check
+        if (!N[2] || !N[2].hints) return; // Safety check - ensure hints array exists
         for (var t = N[2].hints, n = 0; n < e.length; n++) {
             // Check if e[n] exists and is an array
             if (!e[n] || !Array.isArray(e[n]) || e[n].length < 2) continue;
-            var a = e[n][0]
-              , o = e[n][1];
-            // Skip if hint element is null (spaces)
-            if (t && t[a]) {
-                t[a].textContent = o,
-                t[a].classList.add("uncover")
+            var a = e[n][0]  // Index in the word (including spaces)
+              , o = e[n][1]; // Character to reveal
+            // Skip if hint element is null (spaces) or doesn't exist
+            if (t && t[a] && t[a] !== null) {
+                t[a].textContent = o;
+                t[a].classList.add("uncover");
+            } else if (t && !t[a]) {
+                // Debug: hint index doesn't exist in array
+                console.warn("[HINT] Index", a, "not found in hints array, length:", t.length);
             }
         }
     }
