@@ -2345,20 +2345,26 @@
             var a = e[n][0]  // Index in the word (including spaces)
               , o = e[n][1]; // Character to reveal
             // Skip if hint element is null (spaces) or doesn't exist
-            if (t && t[a] && t[a] !== null) {
+            if (t && t[a] && t[a] !== null && t[a].textContent !== undefined) {
                 t[a].textContent = o;
                 t[a].classList.add("uncover");
-            } else if (t && !t[a]) {
-                // Debug: hint index doesn't exist in array
-                console.warn("[HINT] Index", a, "not found in hints array, length:", t.length);
             }
         }
     }
     function ga(e) {
-        (!N[2].hints || N[2].hints.length < e.length) && pa([e.length], !0);
-        for (var t = [], n = 0; n < e.length; n++)
-            t.push([n, e.charAt(n)]);
-        ma(t)
+        if (!e || typeof e !== "string") return;
+        // If hints array doesn't exist or is too short, recreate it
+        if (!N[2].hints || N[2].hints.length < e.length) {
+            pa([e.length], !0);
+        }
+        // Create array of [index, character] pairs for all characters
+        for (var t = [], n = 0; n < e.length; n++) {
+            // Only reveal actual letters (skip spaces and dashes if they're null in hints array)
+            if (N[2].hints && N[2].hints[n] !== null && N[2].hints[n] !== undefined) {
+                t.push([n, e.charAt(n)]);
+            }
+        }
+        ma(t);
     }
     function fa(e) {
         En = e;

@@ -1794,14 +1794,15 @@ io.on('connection', (socket) => {
     const word = room.currentWord;
     if (!word || !room.revealedIndices) return;
     
-    // Find a random unrevealed letter
+    // Find a random unrevealed letter (skip spaces and dashes)
     let index;
     let attempts = 0;
     do {
       index = Math.floor(Math.random() * word.length);
       attempts++;
       if (attempts > 100) return; // Safety check
-    } while (room.revealedIndices.has(index) && room.revealedIndices.size < word.length);
+      // Skip spaces and dashes - only reveal actual letters
+    } while ((room.revealedIndices.has(index) || word.charAt(index) === ' ' || word.charAt(index) === '-') && room.revealedIndices.size < word.replace(/[\s\-]/g, '').length);
     
     room.revealedIndices.add(index);
     const character = word.charAt(index);
