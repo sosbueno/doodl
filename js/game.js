@@ -2009,9 +2009,19 @@
         e.id == J ? (la(),
         (function() {
             // Only show settings panel for private rooms, hide for public rooms
-            // In: true = public, false = private
+            // In: true = public, false = private, -1 = not set yet
             // e.type: 0 = public, 1 = private
-            var isPrivateRoom = (In === false) || (In === void 0 && e.type === 1);
+            var isPrivateRoom = false;
+            if (In === false) {
+                // Explicitly private
+                isPrivateRoom = true;
+            } else if (In === true) {
+                // Explicitly public
+                isPrivateRoom = false;
+            } else if (In === -1 || In === void 0) {
+                // Not set yet, use e.type
+                isPrivateRoom = (e.type === 1);
+            }
             if (isPrivateRoom) {
                 Pn.classList.add("room");
             } else {
@@ -2088,7 +2098,21 @@
             _n[0].removeAttribute("readonly"),
             _n[1].removeAttribute("readonly"),
             // For guessing players, use wordStructure if available (preserves spaces), otherwise use wordLength or word length
-            pa(e.data.wordStructure || (e.data.word === undefined && e.data.wordLength !== undefined ? e.data.wordLength : (e.data.word ? e.data.word.length : 0)), !1),
+            // wordStructure should be a string like "_____ _____" with underscores and spaces
+            (function() {
+                var wordData = e.data.wordStructure;
+                if (!wordData && e.data.wordLength !== undefined) {
+                    // Fallback: create underscores based on wordLength
+                    wordData = e.data.wordLength;
+                } else if (!wordData && e.data.word) {
+                    // Fallback: use word length
+                    wordData = e.data.word.length;
+                } else if (!wordData) {
+                    // Last resort: use 0 (shouldn't happen)
+                    wordData = 0;
+                }
+                pa(wordData, !1);
+            })(),
             ma(e.data.hints))
         } else {
             M = -1;
