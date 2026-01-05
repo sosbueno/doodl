@@ -190,7 +190,6 @@ const wordLists = {
   'George',
   'George Washington',
   'Germany',
-  'God',
   'Godzilla',
   'Goofy',
   'Google',
