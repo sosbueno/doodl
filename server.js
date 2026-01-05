@@ -898,7 +898,8 @@ io.on('connection', (socket) => {
             room.autoStartTimer = null;
           }, 2000); // 2 second delay to allow more players to join
         }
-      } catch (error) {
+      }
+    } catch (error) {
       console.error(`❌ Error in login handler for ${socket.id}:`, error);
       console.error('Stack:', error.stack);
       socket.emit('loginerr', { id: 32, message: 'Login failed due to server error' });
