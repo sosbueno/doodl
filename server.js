@@ -689,28 +689,85 @@ io.on('connection', (socket) => {
   socket.on('login', (data) => {
     try {
       const { join, create, name, code, avatar } = data;
-    // Force English only (lang = 0)
-    const lang = 0;
-    let roomId = join || code;
-    
-    // Limit name to 16 characters
-    const playerName = (name || 'Player').trim().substring(0, 16);
-    
-    console.log('🔐 Socket.IO login:', { join, create, name: playerName, lang, code, roomId });
-    
-    // IMPORTANT: If create=1, this is a private room create request
-    // The API might have returned a public room ID, but we need to create a private room
-    if (create === 1 || create === '1') {
-      // This is a create private room request - generate new room ID and code
-      roomId = generateRoomId();
-      const roomCode = generateRoomCode();
-      console.log('🔧 Creating private room:', roomId, 'with code:', roomCode);
+      // Force English only (lang = 0)
+      const lang = 0;
+      let roomId = join || code;
       
-      // Create the room if it doesn't exist
+      // Limit name to 16 characters
+      const playerName = (name || 'Player').trim().substring(0, 16);
+      
+      console.log('🔐 Socket.IO login:', { join, create, name: playerName, lang, code, roomId });
+      
+      // IMPORTANT: If create=1, this is a private room create request
+      // The API might have returned a public room ID, but we need to create a private room
+      if (create === 1 || create === '1') {
+      let roomId = join || code;
+      
+      // Limit name to 16 characters
+      const playerName = (name || 'Player').trim().substring(0, 16);
+      
+      console.log('🔐 Socket.IO login:', { join, create, name: playerName, lang, code, roomId });
+      
+      // IMPORTANT: If create=1, this is a private room create request
+      // The API might have returned a public room ID, but we need to create a private room
+      if (create === 1 || create === '1') {
+        // This is a create private room request - generate new room ID and code
+        roomId = generateRoomId();
+        const roomCode = generateRoomCode();
+        console.log('🔧 Creating private room:', roomId, 'with code:', roomCode);
+        
+        // Create the room if it doesn't exist
+        if (!rooms.has(roomId)) {
+          const room = {
+            id: roomId,
+            code: roomCode,
+            players: [],
+            settings: [0, 8, 80, 3, 3, 0, 0, 0], // Force English (lang = 0)
+            state: GAME_STATE.LOBBY,
+            currentRound: 0,
+            currentDrawer: -1,
+            currentWord: '',
+            currentWordIndex: -1,
+            timer: 0,
+            drawCommands: [],
+            customWords: null,
+            owner: null,
+            startTime: null,
+            timerInterval: null,
+            hintInterval: null,
+            hintIndex: 0,
+            wordChoiceTimer: null,
+            isPublic: false
+          };
+          rooms.set(roomId, room);
+          roomCodes.set(roomCode, roomId);
+          roomCodeToId.set(roomId, roomCode);
+        }
+      } else if (roomId) {
+        // Check if roomId is actually a room code (8 alphanumeric chars) and resolve it
+        // This handles invite links where users join with a room code
+        if (roomId.length === 8 && /^[A-Za-z0-9]+$/.test(roomId) && !rooms.has(roomId)) {
+          const resolvedRoomId = roomCodes.get(roomId);
+          if (resolvedRoomId && rooms.has(resolvedRoomId)) {
+            console.log('🔗 Resolved room code in Socket.IO login:', roomId, '→', resolvedRoomId);
+            roomId = resolvedRoomId;
+          } else {
+            console.log('⚠️ Room code not found:', roomId);
+            socket.emit('joinerr', 1); // Room not found
+            return;
+          }
+        }
+      }
+      
+      if (!roomId) {
+        socket.emit('joinerr', 1); // Room not found
+        return;
+      }
+      
+      // Room should already exist from /api/play call, but create if it doesn't (fallback)
       if (!rooms.has(roomId)) {
         const room = {
           id: roomId,
-          code: roomCode,
           players: [],
           settings: [0, 8, 80, 3, 3, 0, 0, 0], // Force English (lang = 0)
           state: GAME_STATE.LOBBY,
@@ -721,174 +778,127 @@ io.on('connection', (socket) => {
           timer: 0,
           drawCommands: [],
           customWords: null,
-          owner: null,
+          owner: socket.id,
           startTime: null,
           timerInterval: null,
           hintInterval: null,
           hintIndex: 0,
           wordChoiceTimer: null,
-          isPublic: false
+          isPublic: create !== 1 && create !== '1'
         };
         rooms.set(roomId, room);
-        roomCodes.set(roomCode, roomId);
-        roomCodeToId.set(roomId, roomCode);
-      }
-    } else if (roomId) {
-      // Check if roomId is actually a room code (8 alphanumeric chars) and resolve it
-      // This handles invite links where users join with a room code
-      if (roomId.length === 8 && /^[A-Za-z0-9]+$/.test(roomId) && !rooms.has(roomId)) {
-        const resolvedRoomId = roomCodes.get(roomId);
-        if (resolvedRoomId && rooms.has(resolvedRoomId)) {
-          console.log('🔗 Resolved room code in Socket.IO login:', roomId, '→', resolvedRoomId);
-          roomId = resolvedRoomId;
-        } else {
-          console.log('⚠️ Room code not found:', roomId);
-          socket.emit('joinerr', 1); // Room not found
-          return;
-        }
-      }
-    }
-    
-    if (!roomId) {
-      socket.emit('joinerr', 1); // Room not found
-      return;
-    }
-    
-    // Room should already exist from /api/play call, but create if it doesn't (fallback)
-    if (!rooms.has(roomId)) {
-      const room = {
-        id: roomId,
-        players: [],
-          settings: [0, 8, 80, 3, 3, 0, 0, 0], // Force English (lang = 0)
-        state: GAME_STATE.LOBBY,
-        currentRound: 0,
-        currentDrawer: -1,
-        currentWord: '',
-        currentWordIndex: -1,
-        timer: 0,
-        drawCommands: [],
-        customWords: null,
-        owner: socket.id,
-        startTime: null,
-        timerInterval: null,
-        hintInterval: null,
-        hintIndex: 0,
-        wordChoiceTimer: null,
-        isPublic: create !== 1 && create !== '1'
-      };
-      rooms.set(roomId, room);
-      console.log('✅ Created room:', roomId, 'isPublic:', room.isPublic);
-    }
-    
-    const room = rooms.get(roomId);
-    if (!room) {
-      console.log('⚠️ Room not found in Socket.IO login:', roomId);
-      socket.emit('joinerr', 1); // Room not found
-      return;
-    }
-    if (room.players.length >= room.settings[SETTINGS.SLOTS]) {
-      console.log('⚠️ Room is full:', roomId, `(${room.players.length}/${room.settings[SETTINGS.SLOTS]} players)`);
-      socket.emit('joinerr', 2); // Room full
-      return;
-    }
-    
-    // Create player
-    player = {
-      id: socket.id,
-      name: playerName, // Already limited to 16 characters above
-      avatar: avatar || [0, 0, 0, -1],
-      score: 0,
-      guessed: false,
-      flags: 0,
-      roomId: roomId
-    };
-    
-    players.set(socket.id, player);
-    socket.join(roomId);
-    currentRoomId = roomId;
-    
-    // Add player to room
-    room.players.push(player);
-    
-    // Public rooms have no owner (no host controls)
-    if (!room.isPublic && !room.owner) {
-      room.owner = socket.id;
-    }
-    
-    // Send game data (include room code for private rooms)
-    const gameData = {
-      me: socket.id,
-      type: create === 1 || create === '1' ? 1 : 0,
-      id: roomId,
-      users: room.players.map(p => ({
-        id: p.id,
-        name: p.name,
-        avatar: p.avatar,
-        score: p.score,
-        guessed: p.guessed === true ? true : false,
-        flags: p.flags
-      })),
-      round: room.currentRound,
-      owner: room.owner,
-      settings: room.settings,
-      state: {
-        id: room.state,
-        time: room.timer,
-        data: room.state === GAME_STATE.DRAWING ? {
-          id: room.currentDrawer,
-          word: room.currentDrawer === socket.id ? room.currentWord : undefined,
-          wordLength: room.currentDrawer !== socket.id && room.currentWord ? room.currentWord.length : undefined, // Send word length for non-drawers
-          wordStructure: room.currentDrawer !== socket.id && room.currentWord ? room.currentWord.replace(/[^\s\-]/g, '_') : undefined, // Send word structure with underscores, preserving spaces and dashes
-          hints: (room.revealedIndices && room.currentWord) ? Array.from(room.revealedIndices).map(idx => [idx, room.currentWord.charAt(idx)]) : [], // Send already revealed hints
-          drawCommands: room.drawCommands
-        } : {}
-      },
-      isPublic: room.isPublic || false
-    };
-    
-    // Add room code for private rooms (for invite links)
-    if (room.code) {
-      gameData.code = room.code;
-    }
-    
-    socket.emit('data', {
-      id: PACKET.GAME_DATA,
-      data: gameData
-    });
-    
-    // Broadcast join to other players
-    socket.to(roomId).emit('data', {
-      id: PACKET.JOIN,
-      data: {
-        id: socket.id,
-        name: player.name,
-        avatar: player.avatar,
-        score: 0,
-        guessed: false,
-        flags: 0
-      }
-    });
-    
-    // Auto-start public rooms when 3+ players join
-    if (room.isPublic && room.state === GAME_STATE.LOBBY) {
-      // Clear any existing auto-start timer
-      if (room.autoStartTimer) {
-        clearTimeout(room.autoStartTimer);
-        room.autoStartTimer = null;
+        console.log('✅ Created room:', roomId, 'isPublic:', room.isPublic);
       }
       
-      // If we have 3+ players, auto-start after a short delay (2 seconds)
-      if (room.players.length >= 3) {
-        console.log(`🎮 Auto-starting public room ${roomId} with ${room.players.length} players`);
-        room.autoStartTimer = setTimeout(() => {
-          // Double-check we still have 3+ players and are in lobby
-          if (room.players.length >= 3 && room.state === GAME_STATE.LOBBY) {
-            startGame(room);
-          }
-          room.autoStartTimer = null;
-        }, 2000); // 2 second delay to allow more players to join
+      const room = rooms.get(roomId);
+      if (!room) {
+        console.log('⚠️ Room not found in Socket.IO login:', roomId);
+        socket.emit('joinerr', 1); // Room not found
+        return;
       }
-    } catch (error) {
+      if (room.players.length >= room.settings[SETTINGS.SLOTS]) {
+        console.log('⚠️ Room is full:', roomId, `(${room.players.length}/${room.settings[SETTINGS.SLOTS]} players)`);
+        socket.emit('joinerr', 2); // Room full
+        return;
+      }
+      
+      // Create player
+      player = {
+        id: socket.id,
+        name: playerName, // Already limited to 16 characters above
+        avatar: avatar || [0, 0, 0, -1],
+        score: 0,
+        guessed: false,
+        flags: 0,
+        roomId: roomId
+      };
+      
+      players.set(socket.id, player);
+      socket.join(roomId);
+      currentRoomId = roomId;
+      
+      // Add player to room
+      room.players.push(player);
+      
+      // Public rooms have no owner (no host controls)
+      if (!room.isPublic && !room.owner) {
+        room.owner = socket.id;
+      }
+      
+      // Send game data (include room code for private rooms)
+      const gameData = {
+        me: socket.id,
+        type: create === 1 || create === '1' ? 1 : 0,
+        id: roomId,
+        users: room.players.map(p => ({
+          id: p.id,
+          name: p.name,
+          avatar: p.avatar,
+          score: p.score,
+          guessed: p.guessed === true ? true : false,
+          flags: p.flags
+        })),
+        round: room.currentRound,
+        owner: room.owner,
+        settings: room.settings,
+        state: {
+          id: room.state,
+          time: room.timer,
+          data: room.state === GAME_STATE.DRAWING ? {
+            id: room.currentDrawer,
+            word: room.currentDrawer === socket.id ? room.currentWord : undefined,
+            wordLength: room.currentDrawer !== socket.id && room.currentWord ? room.currentWord.length : undefined, // Send word length for non-drawers
+            wordStructure: room.currentDrawer !== socket.id && room.currentWord ? room.currentWord.replace(/[^\s\-]/g, '_') : undefined, // Send word structure with underscores, preserving spaces and dashes
+            hints: (room.revealedIndices && room.currentWord) ? Array.from(room.revealedIndices).map(idx => [idx, room.currentWord.charAt(idx)]) : [], // Send already revealed hints
+            drawCommands: room.drawCommands
+          } : {}
+        },
+        isPublic: room.isPublic || false
+      };
+      
+      // Add room code for private rooms (for invite links)
+      if (room.code) {
+        gameData.code = room.code;
+      }
+      
+      socket.emit('data', {
+        id: PACKET.GAME_DATA,
+        data: gameData
+      });
+      
+      // Broadcast join to other players
+      socket.to(roomId).emit('data', {
+        id: PACKET.JOIN,
+        data: {
+          id: socket.id,
+          name: player.name,
+          avatar: player.avatar,
+          score: 0,
+          guessed: false,
+          flags: 0
+        }
+      });
+      
+      // Auto-start public rooms when 3+ players join
+      if (room.isPublic && room.state === GAME_STATE.LOBBY) {
+        // Clear any existing auto-start timer
+        if (room.autoStartTimer) {
+          clearTimeout(room.autoStartTimer);
+          room.autoStartTimer = null;
+        }
+        
+        // If we have 3+ players, auto-start after a short delay (2 seconds)
+        if (room.players.length >= 3) {
+          console.log(`🎮 Auto-starting public room ${roomId} with ${room.players.length} players`);
+          room.autoStartTimer = setTimeout(() => {
+            // Double-check we still have 3+ players and are in lobby
+            if (room.players.length >= 3 && room.state === GAME_STATE.LOBBY) {
+              startGame(room);
+            }
+            room.autoStartTimer = null;
+          }, 2000); // 2 second delay to allow more players to join
+        }
+      } catch (error) {
       console.error(`❌ Error in login handler for ${socket.id}:`, error);
       console.error('Stack:', error.stack);
       socket.emit('loginerr', { id: 32, message: 'Login failed due to server error' });
