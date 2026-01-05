@@ -2297,93 +2297,21 @@
         }
     }
     function ma(e) {
-        var t = N[2].hints;
-        if (!t) {
-            console.log("ma: hints array is null or undefined");
-            return;
-        }
-        console.log("ma: processing", e.length, "characters, hints array length:", t.length);
-        
-        // First pass: set text content and remove uncover class from ALL hints
-        for (var n = 0; n < e.length; n++) {
+        for (var t = N[2].hints, n = 0; n < e.length; n++) {
             var a = e[n][0],
                 o = e[n][1];
-            if (t[a] && t[a] !== null) {
-                var hintEl = t[a];
-                // Set text content first
-                hintEl.textContent = o;
-                // Remove uncover class if it exists to retrigger animation
-                hintEl.classList.remove("uncover");
-            } else {
-                console.log("ma: hint at index", a, "is null or doesn't exist");
-            }
-        }
-        
-        // Force reflow to ensure all class removals are processed
-        void N[2].offsetWidth;
-        
-        // Second pass: add uncover class with staggered delay from outside in (inwards animation)
-        // Collect all valid hint indices first
-        var validIndices = [];
-        for (n = 0; n < e.length; n++) {
-            a = e[n][0];
-            if (t[a] && t[a] !== null) {
-                validIndices.push(a);
-            }
-        }
-        
-        console.log("ma: found", validIndices.length, "valid hint indices");
-        
-        // Calculate delays for inwards animation and apply
-        for (n = 0; n < e.length; n++) {
-            a = e[n][0];
-            o = e[n][1];
-            if (t[a] && t[a] !== null) {
-                hintEl = t[a];
-                // Find position in valid indices array
-                var posInValid = validIndices.indexOf(a);
-                if (posInValid === -1) continue;
-                var totalValid = validIndices.length;
-                // Calculate distance from start and end of valid hints
-                var distanceFromStart = posInValid;
-                var distanceFromEnd = totalValid - 1 - posInValid;
-                // Delay: start from both ends, meet in the middle (inwards animation)
-                var delay = Math.min(distanceFromStart, distanceFromEnd) * 50;
-                console.log("ma: adding uncover to index", a, "with delay", delay);
-                // Add uncover class with staggered delay using IIFE to capture variables
-                (function(element, delayTime, index) {
-                    setTimeout(function() {
-                        console.log("ma: adding uncover class to element at index", index);
-                        element.classList.add("uncover");
-                    }, delayTime);
-                })(hintEl, delay, a);
+            if (t && t[a] && t[a] !== null) {
+                t[a].textContent = o;
+                t[a].classList.add("uncover");
             }
         }
     }
     function ga(e) {
-        if (!e || typeof e !== "string") {
-            console.log("ga: word is not a string", e);
-            return;
-        }
-        console.log("ga: revealing word", e, "hints exist:", !!N[2].hints, "hints length:", N[2].hints ? N[2].hints.length : 0);
-        // Ensure hints container is visible
-        N[2].style.display = "";
-        N[1].style.display = "none";
+        if (!e || typeof e !== "string") return;
         // Official way - exactly like skribbl.io
-        // Initialize hints if they don't exist or are too short
-        if (!N[2].hints || N[2].hints.length < e.length) {
-            console.log("ga: initializing hints for word length", e.length);
-            pa([e.length], !0);
-        }
-        // Build array of [index, character] pairs - only for non-space characters
-        for (var t = [], n = 0; n < e.length; n++) {
-            var char = e.charAt(n);
-            // Only add non-space characters to the reveal list
-            if (char !== " ") {
-                t.push([n, char]);
-            }
-        }
-        console.log("ga: calling ma with", t.length, "characters");
+        (!N[2].hints || N[2].hints.length < e.length) && pa([e.length], !0);
+        for (var t = [], n = 0; n < e.length; n++) 
+            t.push([n, e.charAt(n)]);
         ma(t);
     }
     function fa(e) {
@@ -2422,7 +2350,6 @@
     function Pa(e) {
         var t = e.id
           , n = e.data;
-        console.log("Pa: received packet, id:", t, "data:", n);
         switch (t) {
         case Ca:
             aa(n);
@@ -2582,13 +2509,11 @@
             o && r && y(E("$ is voting to kick $ ($/$)", [o.name, r.name, i, l]), "", f(Le), !0);
             break;
         case Da:
-            console.log("GUESS case reached! n.id:", n.id, "n.word:", n.word, "x:", x, "M:", M);
             (a = W(n.id)) && (
             // Update player's score if provided
             n.score !== undefined && (a.score = n.score),
             // Only show "guessed" message if word is provided (silent score updates for drawer when word is null)
             n.word && (
-                console.log("GUESS: word exists, a.name:", a.name),
                 (function() {
                     var msg = E("$ guessed the word!", a.name);
                     var msgEl = y(msg, "", f(1), !0);
@@ -2597,35 +2522,8 @@
                 })(),
                 Fa(a, !0),
                 R.playSound(xn),
-                // Reveal the word with animation for all players (except drawer)
-                // Drawer already sees the word, so only reveal for non-drawers
-                (function() {
-                    console.log("GUESS: checking reveal condition - x != M:", x != M);
-                    if (x != M) {
-                        console.log("GUESS: revealing word, N[2] exists:", !!N[2]);
-                        // Ensure hints container is visible and word element is hidden
-                        N[2].style.display = "";
-                        N[1].style.display = "none";
-                        // Small delay to ensure DOM is ready, then reveal with animation
-                        setTimeout(function() {
-                            console.log("GUESS: calling ga with word:", n.word);
-                            ga(n.word);
-                        }, 10);
-                    } else {
-                        console.log("GUESS: user is drawer, skipping");
-                    }
-                })(),
-                n.id == x && (
-                    // Current user guessed correctly - show them the word like the drawer sees it
-                    // Delay the display switch to allow the animation to complete (animation is 0.8s + staggered delays)
-                    setTimeout(function() {
-                        // Display the word in the word display area (same as drawer sees)
-                        N[0].textContent = E("DRAW THIS"),
-                        N[1].style.display = "",
-                        N[2].style.display = "none",
-                        N[1].textContent = n.word
-                    }, 1200)  // 1200ms delay to let animation complete (0.8s animation + staggered delays)
-                )
+                // Reveal the word with animation ONLY for the person who guessed (like official skribbl.io)
+                n.id == x && ga(n.word)
             ),
             Ka()  // Update score display (always update leaderboard)
             );
