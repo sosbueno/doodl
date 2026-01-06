@@ -3685,20 +3685,29 @@ form.chat-form input {
 #modal button {
     font-size: 1em;
     padding: 0 .3em 0 .3em;
-    width: 100%;
-    background-color: var(--COLOR_PANEL_BUTTON);
-    text-shadow: 2px 2px 0 #0000007a;
-    transition: background-color .1s;
+    width: calc(100% - 30px); /* Add horizontal spacing */
+    margin: 15px 15px 0 15px; /* Add padding around button - top margin for spacing from content */
+    background: linear-gradient(135deg, #8a8a8a 0%, #707070 100%); /* Grey color scheme */
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
     height: 2.5em;
-    border-radius: var(--BORDER_RADIUS)
+    border-radius: var(--BORDER_RADIUS);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    color: #fff;
+    font-weight: 700
 }
 
 #modal button:hover:not(:disabled) {
-    background-color: var(--COLOR_PANEL_BUTTON_HOVER)
+    background: linear-gradient(135deg, #707070 0%, #5a5a5a 100%); /* Darker grey on hover */
+    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.4);
+    transform: translateY(-2px)
 }
 
 #modal button:active:not(:disabled) {
-    background-color: var(--COLOR_PANEL_BUTTON_ACTIVE)
+    background: linear-gradient(135deg, #5a5a5a 0%, #4a4a4a 100%); /* Even darker grey when active */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    transform: translateY(0);
+    padding-top: 2px
 }
 
 #modal .modal-container-settings {
@@ -3844,7 +3853,10 @@ form.chat-form input {
     width: 410px;
     flex-direction: column;
     align-items: center;
-    text-align: center
+    text-align: center;
+    background-color: rgba(40, 40, 40, 0.98) !important; /* Much darker background for better visibility */
+    padding-bottom: 20px; /* Add padding at bottom for button spacing */
+    box-shadow: 0 0 50px 0 rgba(0, 0, 0, 0.5) !important; /* Stronger shadow for better visibility */
 }
 
 #modal .modal-container-info .message {
@@ -3863,7 +3875,14 @@ form.chat-form input {
 #modal .modal-container-player button {
     flex: 1 1 auto;
     height: auto;
-    margin-top: .5em
+    margin-top: .5em;
+    margin-left: 0;
+    margin-right: 0;
+    width: auto; /* Override full width for player modal buttons */
+    background: linear-gradient(135deg, #8a8a8a 0%, #707070 100%); /* Grey color scheme */
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    color: #fff;
+    font-weight: 700
 }
 
 #modal .modal-container-player button.ban,#modal .modal-container-player button.kick {
@@ -4010,6 +4029,12 @@ form.chat-form input {
     display: flex;
     flex-direction: column;
     padding-top: 0
+}
+
+/* Make all error/info modals darker for better visibility */
+#modal .modal-container-info {
+    background-color: rgba(40, 40, 40, 0.98) !important;
+    box-shadow: 0 0 50px 0 rgba(0, 0, 0, 0.5) !important;
 }
 
 #modal .modal-container .modal-title {
