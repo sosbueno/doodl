@@ -881,8 +881,13 @@ io.on('connection', (socket) => {
     room.players.push(player);
     
     // Public rooms have no owner (no host controls)
+    // Private rooms get owner set
     if (!room.isPublic && !room.owner) {
       room.owner = socket.id;
+    }
+    // Ensure public rooms never have an owner
+    if (room.isPublic) {
+      room.owner = null;
     }
     
     // Send game data (include room code for private rooms)
@@ -1517,8 +1522,8 @@ io.on('connection', (socket) => {
             }
           }
           
-          // Handle ownership transfer
-          if (room.owner === socket.id) {
+          // Handle ownership transfer (only for private rooms - public rooms have no owner)
+          if (room.owner === socket.id && !room.isPublic) {
             if (room.players.length > 0) {
               // Transfer to first remaining player
             room.owner = room.players[0].id;
@@ -1636,10 +1641,78 @@ io.on('connection', (socket) => {
             rooms.delete(currentRoomId);
             console.log('🗑️ Room deleted (empty):', currentRoomId);
           } else if (room.players.length === 1) {
-            // Only 1 player left - behavior depends on game state
+            // Only 1 player left - behavior depends on game state and room type
             const remainingPlayer = room.players[0];
             
-            // Make the remaining player the new owner (for private rooms)
+            // For public lobbies, if in LOBBY state, stay in LOBBY (waiting for players)
+            if (room.isPublic && room.state === GAME_STATE.LOBBY) {
+              console.log(`⏸️ Only 1 player left in public LOBBY room ${currentRoomId}, staying in lobby (waiting for players)`);
+              // CRITICAL: Ensure public room has no owner (this determines settings vs waiting screen)
+              room.owner = null;
+              // Reset round to 0 for public lobbies so it shows "waiting for players" correctly
+              room.currentRound = 0;
+              // Clear any active timers to prevent countdown
+              if (room.timerInterval) {
+                clearInterval(room.timerInterval);
+                room.timerInterval = null;
+              }
+              if (room.hintInterval) {
+                clearInterval(room.hintInterval);
+                room.hintInterval = null;
+              }
+              if (room.wordChoiceTimer) {
+                clearInterval(room.wordChoiceTimer);
+                room.wordChoiceTimer = null;
+              }
+              // Set timer to 0 and ensure it stays at 0
+              room.timer = 0;
+              // Stay in LOBBY state - don't go to settings screen
+              io.to(currentRoomId).emit('data', {
+                id: PACKET.STATE,
+                data: {
+                  id: GAME_STATE.LOBBY,
+                  time: 0,
+                  data: {}
+                }
+              });
+              // Send TIMER packet to ensure timer displays 0 (no countdown)
+              io.to(currentRoomId).emit('data', {
+                id: PACKET.TIMER,
+                data: 0
+              });
+              // Also send GAME_DATA to ensure client knows it's a public lobby
+              // Make sure owner is null and type is 0 for public rooms
+              // Use same format as initial GAME_DATA
+              const gameData = {
+                me: remainingPlayer.id,
+                type: 0, // 0 = public room (no settings screen), 1 = private
+                id: room.id,
+                users: room.players.map(p => ({
+                  id: p.id,
+                  name: p.name,
+                  avatar: p.avatar,
+                  score: p.score,
+                  guessed: p.guessed === true ? true : false,
+                  flags: p.flags
+                })),
+                round: room.currentRound,
+                owner: null, // Public rooms have no owner - CRITICAL for showing waiting screen
+                settings: room.settings,
+                state: {
+                  id: room.state,
+                  time: 0,
+                  data: {}
+                },
+                isPublic: true // Explicitly mark as public
+              };
+              io.to(currentRoomId).emit('data', {
+                id: PACKET.GAME_DATA,
+                data: gameData
+              });
+              return; // Don't continue with owner/private room logic
+            }
+            
+            // Make the remaining player the new owner (for private rooms only)
             if (!room.isPublic) {
               room.owner = remainingPlayer.id;
             }
@@ -1647,6 +1720,28 @@ io.on('connection', (socket) => {
             // If in LOBBY state (waiting for players), stay in LOBBY
             if (room.state === GAME_STATE.LOBBY) {
               console.log(`⏸️ Only 1 player left in LOBBY state in room ${currentRoomId}, staying in lobby (waiting for players)`);
+              // Clear any active timers to prevent countdown
+              if (room.timerInterval) {
+                clearInterval(room.timerInterval);
+                room.timerInterval = null;
+              }
+              if (room.hintInterval) {
+                clearInterval(room.hintInterval);
+                room.hintInterval = null;
+              }
+              if (room.wordChoiceTimer) {
+                clearInterval(room.wordChoiceTimer);
+                room.wordChoiceTimer = null;
+              }
+              // Set timer to 0 and ensure it stays at 0
+              room.timer = 0;
+              // For private rooms, send owner change
+              if (!room.isPublic) {
+                io.to(remainingPlayer.id).emit('data', {
+                  id: PACKET.OWNER,
+                  data: room.owner
+                });
+              }
               // Stay in LOBBY state - don't change anything, just ensure state is sent
               io.to(currentRoomId).emit('data', {
                 id: PACKET.STATE,
@@ -1655,6 +1750,11 @@ io.on('connection', (socket) => {
                   time: 0,
                   data: {}
                 }
+              });
+              // Send TIMER packet to ensure timer displays 0 (no countdown)
+              io.to(currentRoomId).emit('data', {
+                id: PACKET.TIMER,
+                data: 0
               });
             } else {
               // Mid-game: show podium screen (GAME_END) - the remaining player wins
@@ -1677,28 +1777,6 @@ io.on('connection', (socket) => {
               // End the game and show podium
               endGame(room);
             }
-            
-            // Send owner change first (for private rooms), then lobby state
-            if (!room.isPublic) {
-            io.to(remainingPlayer.id).emit('data', {
-              id: PACKET.OWNER,
-              data: room.owner
-            });
-            }
-            
-            // Small delay before sending LOBBY state to ensure owner message shows first
-            setTimeout(() => {
-              io.to(currentRoomId).emit('data', {
-                id: PACKET.STATE,
-                data: {
-                  id: GAME_STATE.LOBBY,
-                  time: 0,
-                  data: {}
-                }
-              });
-            }, 150);
-            
-            console.log('🔄 Private room: owner left, remaining player is new owner, returning to lobby:', currentRoomId);
           }
         }
       }
@@ -1776,19 +1854,25 @@ io.on('connection', (socket) => {
     room.timer = 15; // 15 second timer for word choice
     
     // Step 1: Send "Round X" text to overlay (no countdown in overlay)
-    const roundNumber = room.currentRound - 1; // Round number (0-indexed, client adds 1)
+    const roundNumber = room.currentRound - 1; // Round number (0-indexed, client adds 1 to display)
     
     io.to(room.id).emit('data', {
       id: PACKET.STATE,
       data: {
         id: GAME_STATE.ROUND_START, // F = 2
-        time: 0,
-        data: roundNumber  // Normal round number (client will show "Round X")
+        time: 3, // Start with 3 for countdown display
+        data: roundNumber  // Round number (client will show "Round X")
       }
     });
     
     // Step 2: Send countdown (3, 2, 1) to clock only (using TIMER packets)
-    let countdown = 3;
+    // Send initial timer value immediately
+    io.to(room.id).emit('data', {
+      id: PACKET.TIMER,
+      data: 3
+    });
+    
+    let countdown = 2; // Next will be 2, then 1, then 0
     
     const sendCountdown = () => {
       if (countdown > 0) {
@@ -1800,7 +1884,11 @@ io.on('connection', (socket) => {
         countdown--;
         setTimeout(sendCountdown, 1000);
       } else {
-        // Countdown finished, hide overlay and send word choice states
+        // Countdown finished (0), hide overlay and send word choice states
+        io.to(room.id).emit('data', {
+          id: PACKET.TIMER,
+          data: 0
+        });
         setTimeout(() => {
           sendWordChoice(room, words);
         }, 100);
@@ -1810,7 +1898,7 @@ io.on('connection', (socket) => {
     // Start countdown after a brief delay to show "Round X"
     setTimeout(() => {
       sendCountdown();
-    }, 500);
+    }, 1000);
   }
   
   function sendWordChoice(room, words) {
