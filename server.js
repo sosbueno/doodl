@@ -45,10 +45,13 @@ app.use(express.static(__dirname, {
 
 // Serve favicon
 app.get('/favicon.png', (req, res) => {
-  res.sendFile(path.join(__dirname, 'favicon1.png'));
+  res.sendFile(path.join(__dirname, 'img', 'favicon1.png'));
 });
 app.get('/favicon1.png', (req, res) => {
-  res.sendFile(path.join(__dirname, 'favicon1.png'));
+  res.sendFile(path.join(__dirname, 'img', 'favicon1.png'));
+});
+app.get('/img/favicon1.png', (req, res) => {
+  res.sendFile(path.join(__dirname, 'img', 'favicon1.png'));
 });
 
 // Handle room code URLs (e.g., /?UsCN6Pnv or /?room=UsCN6Pnv)
