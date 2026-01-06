@@ -1681,18 +1681,36 @@ io.on('connection', (socket) => {
             // Only 1 player left - behavior depends on game state and room type
             const remainingPlayer = room.players[0];
             
-            // For public lobbies, if in LOBBY state, kick the last player back to home
-            if (room.isPublic && room.state === GAME_STATE.LOBBY) {
-              console.log(`🏠 Only 1 player left in public LOBBY room ${currentRoomId}, kicking them back to home (lobby is empty)`);
+            // For public rooms, ALWAYS kick the last player back to home (regardless of state)
+            if (room.isPublic) {
+              console.log(`🏠 Only 1 player left in public room ${currentRoomId}, kicking them back to home (lobby is empty)`);
               
               // Get the remaining player's socket
               const remainingPlayerSocket = io.sockets.sockets.get(remainingPlayer.id);
               if (remainingPlayerSocket) {
-                // Send reason event (similar to kick) - use reason code 3 for "lobby is empty"
+                // Clear any active timers before removing player
+                if (room.timerInterval) {
+                  clearInterval(room.timerInterval);
+                  room.timerInterval = null;
+                }
+                if (room.hintInterval) {
+                  clearInterval(room.hintInterval);
+                  room.hintInterval = null;
+                }
+                if (room.wordChoiceTimer) {
+                  clearInterval(room.wordChoiceTimer);
+                  room.wordChoiceTimer = null;
+                }
+                if (room.autoStartTimer) {
+                  clearTimeout(room.autoStartTimer);
+                  room.autoStartTimer = null;
+                }
+                
+                // CRITICAL: Send reason event FIRST (similar to kick/ban)
                 // Reason codes: 1 = kicked, 2 = banned, 3 = lobby empty
                 remainingPlayerSocket.emit('reason', 3);
                 
-                // Remove player from room
+                // Remove player from room BEFORE disconnecting
                 const playerIndex = room.players.findIndex(p => p.id === remainingPlayer.id);
                 if (playerIndex !== -1) {
                   room.players.splice(playerIndex, 1);
@@ -1705,8 +1723,13 @@ io.on('connection', (socket) => {
                 // Delete the empty room
                 rooms.delete(currentRoomId);
                 console.log('🗑️ Public lobby deleted (empty):', currentRoomId);
+                
+                // Disconnect the socket to ensure they're kicked (same as kick/ban)
+                setTimeout(() => {
+                  remainingPlayerSocket.disconnect(true);
+                }, 100); // Small delay to ensure reason event is processed
               }
-              return; // Don't continue with other logic
+              return; // Don't continue with other logic - CRITICAL to prevent podium screen
             }
             
             // Make the remaining player the new owner (for private rooms only)
