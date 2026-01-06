@@ -1438,36 +1438,38 @@ io.on('connection', (socket) => {
             }
             
             // Check if there are enough players left
-            // Game continues until only 1 player left (then return to lobby)
+            // Game continues until only 1 player left (then show podium if mid-game, or stay in lobby if already in lobby)
             if (room.players.length < 2) {
-              // Only 1 player left - return to lobby (waiting for players)
-              console.log(`⏸️ Only 1 player left in room ${currentRoomId}, returning to lobby`);
-              room.state = GAME_STATE.LOBBY;
-              room.currentRound = 0;
-              room.currentDrawer = -1;
-              room.currentWord = '';
-              room.timer = 0;
-              // Clear all timers
-              if (room.timerInterval) {
-                clearInterval(room.timerInterval);
-                room.timerInterval = null;
-              }
-              if (room.hintInterval) {
-                clearInterval(room.hintInterval);
-                room.hintInterval = null;
-              }
-              if (room.wordChoiceTimer) {
-                clearInterval(room.wordChoiceTimer);
-                room.wordChoiceTimer = null;
-              }
-              io.to(currentRoomId).emit('data', {
-                id: PACKET.STATE,
-                data: {
-                  id: GAME_STATE.LOBBY,
-                  time: 0,
-                  data: {}
+              // Only 1 player left - if mid-game, show podium; if in lobby, stay in lobby
+              if (room.state === GAME_STATE.LOBBY) {
+                // Already in lobby - stay in lobby (waiting for players)
+                console.log(`⏸️ Only 1 player left in LOBBY state in room ${currentRoomId}, staying in lobby`);
+                io.to(currentRoomId).emit('data', {
+                  id: PACKET.STATE,
+                  data: {
+                    id: GAME_STATE.LOBBY,
+                    time: 0,
+                    data: {}
+                  }
+                });
+              } else {
+                // Mid-game - show podium (they win)
+                console.log(`🏆 Only 1 player left mid-game in room ${currentRoomId}, showing podium`);
+                // Clear all timers
+                if (room.timerInterval) {
+                  clearInterval(room.timerInterval);
+                  room.timerInterval = null;
                 }
-              });
+                if (room.hintInterval) {
+                  clearInterval(room.hintInterval);
+                  room.hintInterval = null;
+                }
+                if (room.wordChoiceTimer) {
+                  clearInterval(room.wordChoiceTimer);
+                  room.wordChoiceTimer = null;
+                }
+                endGame(room);
+              }
             } else {
               // 2+ players left - game continues
               // Move to next drawer using round robin (same logic as startRound)
@@ -1487,16 +1489,11 @@ io.on('connection', (socket) => {
           }
           
           // If drawer left, end round (only if actually in DRAWING state)
-          // But only if we have 2+ players - if only 1 player left, return to lobby instead
+          // But only if we have 2+ players - if only 1 player left, show podium if mid-game, or stay in lobby
           if (wasDrawer && room.state === GAME_STATE.DRAWING) {
             if (room.players.length < 2) {
-              // Only 1 player left - return to lobby instead of ending round
-              console.log(`⏸️ Drawer left, only 1 player remaining in room ${currentRoomId}, returning to lobby`);
-              room.state = GAME_STATE.LOBBY;
-              room.currentRound = 0;
-              room.currentDrawer = -1;
-              room.currentWord = '';
-              room.timer = 0;
+              // Only 1 player left - if mid-game, show podium; if in lobby, stay in lobby
+              console.log(`🏆 Drawer left, only 1 player remaining mid-game in room ${currentRoomId}, showing podium`);
               // Clear all timers
               if (room.timerInterval) {
                 clearInterval(room.timerInterval);
@@ -1510,14 +1507,8 @@ io.on('connection', (socket) => {
                 clearInterval(room.wordChoiceTimer);
                 room.wordChoiceTimer = null;
               }
-              io.to(currentRoomId).emit('data', {
-                id: PACKET.STATE,
-                data: {
-                  id: GAME_STATE.LOBBY,
-                  time: 0,
-                  data: {}
-                }
-              });
+              // Show podium (they win)
+              endGame(room);
             } else {
               // 2+ players left - continue game, end round and move to next drawer
             endRound(room, 1); // Drawer left
@@ -1544,48 +1535,78 @@ io.on('connection', (socket) => {
                 };
           
                 // If it's a private room, return to lobby (settings screen)
+                // Public rooms don't have owners, so this only applies to private rooms
                 if (!room.isPublic) {
-                  // Reset room state to lobby
-                  room.state = GAME_STATE.LOBBY;
-                  room.currentRound = 0;
-                  room.currentDrawer = -1;
-                  room.currentWord = '';
-                  room.timer = 0;
-                  // Clear any active timers
-                  if (room.timerInterval) {
-                    clearInterval(room.timerInterval);
-                    room.timerInterval = null;
-                  }
-                  if (room.hintInterval) {
-                    clearInterval(room.hintInterval);
-                    room.hintInterval = null;
-                  }
-                  if (room.wordChoiceTimer) {
-                    clearInterval(room.wordChoiceTimer);
-                    room.wordChoiceTimer = null;
-                  }
-                  // Reset player scores and guessed status
-                  room.players.forEach(p => {
-                    p.score = 0;
-                    p.guessed = false;
-                  });
-                  
-                  // Send LOBBY state to all players (returns to settings screen)
-                  setTimeout(() => {
-                    io.to(currentRoomId).emit('data', {
-                      id: PACKET.STATE,
-                      data: {
-                        id: GAME_STATE.LOBBY,
-                        time: 0,
-                        data: {}
+                  // For private rooms, check if we should return to lobby or show podium
+                  if (room.state === GAME_STATE.LOBBY) {
+                    // Already in lobby - just send owner change, don't reset state
+                    sendOwnerChange();
+                  } else {
+                    // Mid-game - check if only 1 player left
+                    if (room.players.length === 1) {
+                      // Only 1 player left mid-game - show podium
+                      console.log(`🏆 Owner left, only 1 player remaining mid-game in private room ${currentRoomId}, showing podium`);
+                      // Clear all timers
+                      if (room.timerInterval) {
+                        clearInterval(room.timerInterval);
+                        room.timerInterval = null;
                       }
-                    });
-                  }, 50);
-                  
-                  // Delay owner change slightly to avoid spam detection
-                  setTimeout(sendOwnerChange, 100);
+                      if (room.hintInterval) {
+                        clearInterval(room.hintInterval);
+                        room.hintInterval = null;
+                      }
+                      if (room.wordChoiceTimer) {
+                        clearInterval(room.wordChoiceTimer);
+                        room.wordChoiceTimer = null;
+                      }
+                      endGame(room);
+                      sendOwnerChange();
+                    } else {
+                      // Multiple players - return to lobby (settings screen) for private rooms
+                      // Reset room state to lobby
+                      room.state = GAME_STATE.LOBBY;
+                      room.currentRound = 0;
+                      room.currentDrawer = -1;
+                      room.currentWord = '';
+                      room.timer = 0;
+                      // Clear any active timers
+                      if (room.timerInterval) {
+                        clearInterval(room.timerInterval);
+                        room.timerInterval = null;
+                      }
+                      if (room.hintInterval) {
+                        clearInterval(room.hintInterval);
+                        room.hintInterval = null;
+                      }
+                      if (room.wordChoiceTimer) {
+                        clearInterval(room.wordChoiceTimer);
+                        room.wordChoiceTimer = null;
+                      }
+                      // Reset player scores and guessed status
+                      room.players.forEach(p => {
+                        p.score = 0;
+                        p.guessed = false;
+                      });
+                      
+                      // Send LOBBY state to all players (returns to settings screen)
+                      setTimeout(() => {
+                        io.to(currentRoomId).emit('data', {
+                          id: PACKET.STATE,
+                          data: {
+                            id: GAME_STATE.LOBBY,
+                            time: 0,
+                            data: {}
+                          }
+                        });
+                      }, 50);
+                      
+                      // Delay owner change slightly to avoid spam detection
+                      setTimeout(sendOwnerChange, 100);
+                    }
+                  }
                 } else {
-                  sendOwnerChange();
+                  // Public rooms don't have owners, so just continue
+                  // (This shouldn't happen for public rooms, but just in case)
                 }
               }
             } else {
@@ -1613,39 +1634,47 @@ io.on('connection', (socket) => {
             rooms.delete(currentRoomId);
             console.log('🗑️ Room deleted (empty):', currentRoomId);
           } else if (room.players.length === 1) {
-            // Only 1 player left (public or private) - return to lobby (waiting for players)
+            // Only 1 player left - behavior depends on game state
             const remainingPlayer = room.players[0];
             
             // Make the remaining player the new owner (for private rooms)
             if (!room.isPublic) {
-            room.owner = remainingPlayer.id;
+              room.owner = remainingPlayer.id;
             }
             
-            console.log(`⏸️ Only 1 player left in room ${currentRoomId}, returning to lobby`);
-            // Reset room state to lobby
-            room.state = GAME_STATE.LOBBY;
-            room.currentRound = 0;
-            room.currentDrawer = -1;
-            room.currentWord = '';
-            room.timer = 0;
-            // Clear any active timers
-            if (room.timerInterval) {
-              clearInterval(room.timerInterval);
-              room.timerInterval = null;
+            // If in LOBBY state (waiting for players), stay in LOBBY
+            if (room.state === GAME_STATE.LOBBY) {
+              console.log(`⏸️ Only 1 player left in LOBBY state in room ${currentRoomId}, staying in lobby (waiting for players)`);
+              // Stay in LOBBY state - don't change anything, just ensure state is sent
+              io.to(currentRoomId).emit('data', {
+                id: PACKET.STATE,
+                data: {
+                  id: GAME_STATE.LOBBY,
+                  time: 0,
+                  data: {}
+                }
+              });
+            } else {
+              // Mid-game: show podium screen (GAME_END) - the remaining player wins
+              console.log(`🏆 Only 1 player left mid-game in room ${currentRoomId}, showing podium (they win)`);
+              
+              // Clear any active timers
+              if (room.timerInterval) {
+                clearInterval(room.timerInterval);
+                room.timerInterval = null;
+              }
+              if (room.hintInterval) {
+                clearInterval(room.hintInterval);
+                room.hintInterval = null;
+              }
+              if (room.wordChoiceTimer) {
+                clearInterval(room.wordChoiceTimer);
+                room.wordChoiceTimer = null;
+              }
+              
+              // End the game and show podium
+              endGame(room);
             }
-            if (room.hintInterval) {
-              clearInterval(room.hintInterval);
-              room.hintInterval = null;
-            }
-            if (room.wordChoiceTimer) {
-              clearInterval(room.wordChoiceTimer);
-              room.wordChoiceTimer = null;
-            }
-            // Reset player scores and guessed status
-            room.players.forEach(p => {
-              p.score = 0;
-              p.guessed = false;
-            });
             
             // Send owner change first (for private rooms), then lobby state
             if (!room.isPublic) {

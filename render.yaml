@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: skribbl-clone
+    name: doodl
     env: node
     buildCommand: npm install
     startCommand: npm start

@@ -1938,15 +1938,15 @@
             vn(A),
             (function() {
                 // Check player count to determine message
-                if (w.length >= 3) {
-                    // 3+ players - show "Starting game..."
+                if (w.length >= 8) {
+                    // 8 players - show "Starting game..."
                     if (h._waitingDotsInterval) {
                         clearInterval(h._waitingDotsInterval);
                         h._waitingDotsInterval = null;
                     }
                     A.textContent = E("Starting game...");
                 } else {
-                    // < 3 players - show "Waiting for players..." with animated dots
+                    // < 8 players - show "Waiting for players..." with animated dots
                     var dots = 0;
                     var baseText = E("Waiting for players");
                     function updateDots() {
@@ -2378,8 +2378,8 @@
             // Update waiting message for public rooms based on player count
             if (L.id == J && ((In !== void 0 && In !== null && In !== false) || (In === void 0 && L.type === 0))) {
                 // Public room in lobby - update message based on player count
-                if (w.length >= 3) {
-                    // 3+ players - show "Starting game..."
+                if (w.length >= 8) {
+                    // 8 players - show "Starting game..."
                     if (h._waitingDotsInterval) {
                         clearInterval(h._waitingDotsInterval);
                         h._waitingDotsInterval = null;
@@ -2394,7 +2394,7 @@
                         }, 600);
                     }
                 } else {
-                    // < 3 players - show "Waiting for players..." with animated dots
+                    // < 8 players - show "Waiting for players..." with animated dots
                     if (!cn.classList.contains("show")) {
                         cn.classList.add("show");
                         yn({
@@ -2458,8 +2458,8 @@
             // Update waiting message for public rooms when player leaves
             if (L.id == J && ((In !== void 0 && In !== null && In !== false) || (In === void 0 && L.type === 0))) {
                 // Public room in lobby - update message based on player count
-                if (w.length >= 3) {
-                    // 3+ players - show "Starting game..."
+                if (w.length >= 8) {
+                    // 8 players - show "Starting game..."
                     if (h._waitingDotsInterval) {
                         clearInterval(h._waitingDotsInterval);
                         h._waitingDotsInterval = null;
@@ -2474,7 +2474,7 @@
                         }, 600);
                     }
                 } else {
-                    // < 3 players - show "Waiting for players..." with animated dots
+                    // < 8 players - show "Waiting for players..." with animated dots
                     vn(A);
                     (function() {
                         var dots = 0;
