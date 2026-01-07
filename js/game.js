@@ -1502,6 +1502,11 @@
             break;
         case V:
             console.log("[WORD_CHOICE] Received WORD_CHOICE state, e.data:", e.data);
+            // If e.data is empty, wait for the next packet with actual data
+            if (!e.data || (Object.keys(e.data).length === 0 && !e.data.words && !e.data.id)) {
+                console.log("[WORD_CHOICE] Empty data received, waiting for next packet");
+                return;
+            }
             // Set current drawer during word choice (for green chat messages)
             // If we're the drawer (e.data.words exists), M is us (x)
             // If we're not the drawer (e.data.id exists), M is the drawer's ID
@@ -1963,21 +1968,19 @@
     function ia(e) {
         var e = (Rn = e) + 1
           , t = An[te.ROUNDS];
-        console.log("[ROUND] ia() called with e=", e - 1, "will display Round", e, "of", t, "Un:", Un);
         if (Un) {
             Un.textContent = E("Round $ of $", [e, t]);
-            console.log("[ROUND] Set text to:", Un.textContent);
-            // Ensure the element is visible
-            if (Un.parentElement) {
-                Un.parentElement.style.display = "";
-                Un.parentElement.style.visibility = "visible";
-                Un.parentElement.style.opacity = "1";
+            // Ensure the element and its parent are visible
+            var roundParent = Un.parentElement;
+            if (roundParent) {
+                roundParent.style.display = "";
+                roundParent.style.visibility = "visible";
+                roundParent.style.opacity = "1";
+                roundParent.style.position = "";
             }
             Un.style.display = "";
             Un.style.visibility = "visible";
             Un.style.opacity = "1";
-        } else {
-            console.error("[ROUND] ERROR: Un element not found!");
         }
     }
     function la() {
