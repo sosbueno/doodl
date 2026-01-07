@@ -1955,6 +1955,14 @@
             return shouldShowWaiting;
         })() ? (
             // Public room - show waiting overlay, check player count to determine message
+            // CRITICAL: Hide settings panel overlay first, then show waiting overlay
+            (function() {
+                // Clear all overlays first (including settings panel overlay)
+                for (var i = 0; i < dn.children.length; i++)
+                    dn.children[i].classList.remove("show");
+                // Explicitly hide settings panel overlay
+                if (pn) pn.classList.remove("show");
+            })(),
             vn(A),
             (function() {
                 // Check player count to determine message
@@ -2009,7 +2017,7 @@
         Pn.classList.add("toolbar-hidden"),
         yt(),
         da(!1),
-        e.id == J ? (la(),
+        e.id == J ? (
         (function() {
             // CRITICAL: ALWAYS hide settings panel for public rooms
             // Only show settings panel if EXPLICITLY private (In === false AND room doesn't start with PUBLIC-)
@@ -2021,11 +2029,25 @@
             if (In === false && !(roomIdToCheck && typeof roomIdToCheck === "string" && roomIdToCheck.indexOf("PUBLIC-") === 0)) {
                 // Explicitly private - show settings panel
                 console.log("[SETTINGS] Showing settings panel (private room)");
+                la(); // Only call la() for private rooms
                 Pn.classList.add("room");
+                // Show settings panel overlay
+                if (pn) pn.classList.add("show");
             } else {
                 // Public room or unknown - FORCE HIDE settings panel
                 console.log("[SETTINGS] Hiding settings panel (public room or unknown)");
                 Pn.classList.remove("room");
+                // Explicitly hide settings panel overlay - do this multiple times to ensure it's hidden
+                if (pn) {
+                    pn.classList.remove("show");
+                    // Force hide with setTimeout to override any other code
+                    setTimeout(function() {
+                        if (pn) pn.classList.remove("show");
+                    }, 0);
+                    setTimeout(function() {
+                        if (pn) pn.classList.remove("show");
+                    }, 10);
+                }
             }
         })()) : Pn.classList.remove("room"),
         e.id == F && (ia(e.data),
