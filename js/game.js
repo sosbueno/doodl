@@ -1390,6 +1390,12 @@
         case F:
             vn(A),
             A.textContent = E("Round $", e.data + 1);
+            // Ensure round text in game-bar is visible (it's separate from overlay)
+            if (Un) {
+                Un.style.display = "";
+                Un.style.visibility = "visible";
+                Un.style.opacity = "1";
+            }
             break;
         case G:
             vn(A),
@@ -1568,22 +1574,11 @@
                 }
             } else {
                 // For non-drawers: Show "User is choosing a word" overlay
-                // Server sends: { id: STATE, data: { id: WORD_CHOICE, data: { id: drawerId, name: ..., avatar: ... } } }
-                // So in bn(), e.data is { id: WORD_CHOICE, data: { id: drawerId, name: ..., avatar: ... } }
-                console.log("[WORD_CHOICE] Full e.data structure:", JSON.stringify(e.data));
-                
-                var drawerId = null;
-                var drawerName = null;
-                var drawerAvatar = null;
-                
-                // Extract drawer info from server data structure
-                if (e.data && e.data.data) {
-                    // Server sends nested: e.data.data.id, e.data.data.name, e.data.data.avatar
-                    drawerId = e.data.data.id;
-                    drawerName = e.data.data.name;
-                    drawerAvatar = e.data.data.avatar;
-                    console.log("[WORD_CHOICE] Extracted from e.data.data - id:", drawerId, "name:", drawerName, "avatar:", drawerAvatar);
-                }
+                // In bn(), e is the state object: { id: WORD_CHOICE, time: ..., data: { id: drawerId, name: ..., avatar: ... } }
+                // So e.data is { id: drawerId, name: ..., avatar: ... }
+                var drawerId = e.data && e.data.id ? e.data.id : null;
+                var drawerName = e.data && e.data.name ? e.data.name : null;
+                var drawerAvatar = (e.data && e.data.avatar && Array.isArray(e.data.avatar) && e.data.avatar.length >= 3) ? e.data.avatar : null;
                 
                 // ALWAYS try player list first - it's the most reliable source
                 var s = drawerId ? W(drawerId) : null;
@@ -1591,13 +1586,10 @@
                     // Use player list data (always correct and up-to-date)
                     drawerName = s.name;
                     drawerAvatar = s.avatar;
-                    console.log("[WORD_CHOICE] Using player list - drawer:", drawerName, "id:", drawerId, "avatar:", drawerAvatar);
-                } else if (drawerName && drawerAvatar && Array.isArray(drawerAvatar) && drawerAvatar.length >= 3) {
+                } else if (drawerName && drawerAvatar) {
                     // Use server-provided data if player not found in list
-                    console.log("[WORD_CHOICE] Using server-provided drawer info - name:", drawerName, "avatar:", drawerAvatar);
                 } else {
-                    // Fallback - this should not happen
-                    console.error("[WORD_CHOICE] ERROR: Could not find drawer! drawerId:", drawerId, "e.data:", e.data);
+                    // Fallback
                     drawerName = E("User");
                     drawerAvatar = [0, 0, 0, 0];
                 }
