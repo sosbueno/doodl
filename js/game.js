@@ -1390,11 +1390,6 @@
         case F:
             vn(A),
             A.textContent = E("Round $", e.data + 1);
-            // Mark that we've shown "Round X" so WORD_CHOICE doesn't show it again
-            (h || window)._roundStartShown = true;
-            setTimeout(function() {
-                (h || window)._roundStartShown = false;
-            }, 3500); // Clear flag after overlay would have finished (3s countdown + 0.5s buffer)
             break;
         case G:
             vn(A),
@@ -1572,8 +1567,8 @@
                     }
                 }
             } else {
-                // For non-drawers: Show "User is choosing a word" overlay
-                // If ROUND_START already showed "Round X", we skip showing it again to avoid duplication
+                // For non-drawers: Just show "User is choosing a word" overlay
+                // ROUND_START already showed "Round X" before WORD_CHOICE is sent, so we don't show it again
                 // Get drawer info from server data
                 var drawerId = (e.data && e.data.data && e.data.data.id) ? e.data.data.id : (e.data && e.data.id !== V ? e.data.id : null);
                 var drawerName = null;
@@ -1594,61 +1589,22 @@
                     drawerAvatar = [0, 0, 0, 0];
                 }
                 
-                // Check if ROUND_START already showed "Round X" - if so, just show "User is choosing a word"
-                // If not (edge case), show "Round X" first, then "User is choosing a word"
-                var roundStartShown = (h || window)._roundStartShown === true;
-                if (roundStartShown) {
-                    // ROUND_START already showed "Round X", so just show "User is choosing a word"
-                    vn(A);
-                    var L = drawerName;
-                    var avatarEl = de(drawerAvatar, drawerId == En);
-                    // Apply player filters if we have the player object
-                    if (s) {
-                        pe(avatarEl, Ya(s));
-                    }
-                    A.textContent = "";
-                    A.appendChild(se("span", void 0, E("$ is choosing a word!", L)));
-                    avatarEl.style.width = "2em";
-                    avatarEl.style.height = "2em";
-                    A.appendChild(avatarEl);
-                    
-                    // Ensure overlay is visible
-                    if (!cn.classList.contains("show")) {
-                        cn.classList.add("show");
-                    }
-                    yn({
-                        top: 0,
-                        opacity: 1
-                    }, 600);
-                } else {
-                    // Edge case: ROUND_START didn't show "Round X" (shouldn't happen, but handle it)
-                    // Show "Round X" first, then "User is choosing a word" after delay
-                    vn(A);
-                    A.textContent = E("Round $", Rn + 1);
-                    
-                    if (!cn.classList.contains("show")) {
-                        cn.classList.add("show");
-                    }
-                    yn({
-                        top: 0,
-                        opacity: 1
-                    }, 600);
-                    
-                    // After delay, show "User is choosing a word"
-                    setTimeout(function() {
-                        vn(A);
-                        var L = drawerName;
-                        var avatarEl = de(drawerAvatar, drawerId == En);
-                        if (s) {
-                            pe(avatarEl, Ya(s));
-                        }
-                        A.textContent = "";
-                        A.appendChild(se("span", void 0, E("$ is choosing a word!", L)));
-                        avatarEl.style.width = "2em";
-                        avatarEl.style.height = "2em";
-                        A.appendChild(avatarEl);
-                    }, 2500);
+                // Show "User is choosing a word" overlay directly
+                // The server already delayed WORD_CHOICE by 2.5 seconds after ROUND_START,
+                // so "Round X" was already shown and the overlay should be transitioning
+                vn(A);
+                // Clear any existing content first (important to remove "Round X" text)
+                ce(A);
+                var L = drawerName;
+                var avatarEl = de(drawerAvatar, drawerId == En);
+                // Apply player filters if we have the player object
+                if (s) {
+                    pe(avatarEl, Ya(s));
                 }
+                A.appendChild(se("span", void 0, E("$ is choosing a word!", L)));
+                avatarEl.style.width = "2em";
+                avatarEl.style.height = "2em";
+                A.appendChild(avatarEl);
             }
         }
     }
