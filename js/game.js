@@ -1391,9 +1391,9 @@
             vn(A),
             A.textContent = E("Round $", e.data + 1);
             // Mark that we've shown "Round X" so WORD_CHOICE doesn't show it again
-            h._roundStartShown = true;
+            (h || window)._roundStartShown = true;
             setTimeout(function() {
-                h._roundStartShown = false;
+                (h || window)._roundStartShown = false;
             }, 3500); // Clear flag after overlay would have finished (3s countdown + 0.5s buffer)
             break;
         case G:
@@ -1596,7 +1596,8 @@
                 
                 // Check if ROUND_START already showed "Round X" - if so, just show "User is choosing a word"
                 // If not (edge case), show "Round X" first, then "User is choosing a word"
-                if (h._roundStartShown) {
+                var roundStartShown = (h || window)._roundStartShown === true;
+                if (roundStartShown) {
                     // ROUND_START already showed "Round X", so just show "User is choosing a word"
                     vn(A);
                     var L = drawerName;
