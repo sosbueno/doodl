@@ -1495,11 +1495,13 @@
                 I.querySelector(".winner-text").textContent = E("Nobody won!");
             break;
         case V:
+            console.log("[WORD_CHOICE] Received WORD_CHOICE state, e.data:", e.data);
             // Set current drawer during word choice (for green chat messages)
             // If we're the drawer (e.data.words exists), M is us (x)
             // If we're not the drawer (e.data.id exists), M is the drawer's ID
-            if (e.data.words) {
+            if (e.data && e.data.words) {
                 M = x; // We're the drawer
+                console.log("[WORD_CHOICE] We are the drawer");
                 // Enable chat input for drawer during word choice (they can type, messages appear in green)
                 _n[0].disabled = false,
                 _n[1].disabled = false,
@@ -1509,8 +1511,9 @@
                 _n[1].removeAttribute("readonly"),
                 _n[0].removeAttribute("disabled"),
                 _n[1].removeAttribute("disabled");
-            } else if (e.data.id !== undefined) {
+            } else if (e.data && e.data.id !== undefined) {
                 M = e.data.id; // Someone else is the drawer
+                console.log("[WORD_CHOICE] Drawer is:", e.data.id, "name:", e.data.name, "avatar:", e.data.avatar);
                 // Enable chat input for guessing players
                 _n[0].disabled = !1,
                 _n[1].disabled = !1,
@@ -1943,8 +1946,19 @@
     function ia(e) {
         var e = (Rn = e) + 1
           , t = An[te.ROUNDS];
-        console.log("[ROUND] Setting round display: Rn=", Rn, "e=", e, "t=", t);
-        Un.textContent = E("Round $ of $", [e, t])
+        console.log("[ROUND] Setting round display: Rn=", Rn, "e=", e, "t=", t, "Un element:", Un);
+        if (Un) {
+            Un.textContent = E("Round $ of $", [e, t]);
+            console.log("[ROUND] Round text set to:", Un.textContent);
+            // Make sure it's visible
+            if (Un.parentElement) {
+                Un.parentElement.style.display = "";
+                Un.parentElement.style.visibility = "visible";
+                Un.parentElement.style.opacity = "1";
+            }
+        } else {
+            console.error("[ROUND] ERROR: Un element not found!");
+        }
     }
     function la() {
         for (var e = 0; e < w.length; e++)

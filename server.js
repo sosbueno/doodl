@@ -2061,7 +2061,7 @@ io.on('connection', (socket) => {
     room.players.forEach(player => {
       if (player.id !== room.currentDrawer) {
         // Always send drawer data, even if invalid (client will handle fallback)
-        io.to(player.id).emit('data', {
+        const wordChoiceData = {
           id: PACKET.STATE,
           data: {
             id: GAME_STATE.WORD_CHOICE, // V = 3
@@ -2072,7 +2072,9 @@ io.on('connection', (socket) => {
               avatar: (drawerPlayer.avatar && Array.isArray(drawerPlayer.avatar) && drawerPlayer.avatar.length >= 3) ? drawerPlayer.avatar : [0, 0, 0, 0]  // Drawer's avatar (always send valid array)
             }
           }
-        });
+        };
+        console.log(`📤 Sending WORD_CHOICE to ${player.id} (non-drawer) with drawer:`, drawerPlayer.name, "avatar:", wordChoiceData.data.data.avatar);
+        io.to(player.id).emit('data', wordChoiceData);
       }
     });
     
