@@ -1566,7 +1566,7 @@
                         un.appendChild(wordEl)
                     }
                 }
-            else {
+            } else {
                 vn(A);
                 // Match reference code: W(e.data.id) - but our server sends drawer ID in e.data.data.id
                 // Extract drawer ID from nested data structure
