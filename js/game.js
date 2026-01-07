@@ -1855,6 +1855,8 @@
         // true = public, false = private, 0 = public (from type), 1 = private (from type)
         In = e.isPublic !== void 0 ? e.isPublic : (e.type !== void 0 ? (e.type === 0 ? true : false) : true),  // Store isPublic flag (backwards compat with type)
         Tn = e.code || e.id,  // Use room code if available (for private rooms), otherwise use room ID
+        // DEBUG: Log GAME_DATA to verify
+        console.log("[GAME_DATA] Received - isPublic:", e.isPublic, "type:", e.type, "In:", In, "Tn:", Tn, "code:", e.code, "id:", e.id),
         c.querySelector("#input-invite").value = h.location.origin + "/?" + (e.code || e.id),
         An = e.settings,
         oa(),
@@ -1936,11 +1938,20 @@
             }, 600)
         }) : (cn.classList.add("show"),
         // For public rooms in LOBBY state, show waiting overlay instead of settings panel
-        // CRITICAL: Show waiting screen if:
-        // 1. In is not false (not explicitly private), OR
-        // 2. Room ID starts with "PUBLIC-" (fallback check)
-        // This ensures public rooms ALWAYS show waiting screen, never settings
-        (n.id == J && (In !== false || (Tn && typeof Tn === "string" && Tn.indexOf("PUBLIC-") === 0))) ? (
+        // CRITICAL: ALWAYS show waiting screen for LOBBY state UNLESS explicitly private
+        // Default to public (waiting screen) if In is not explicitly false
+        // Check room ID pattern as fallback
+        var roomIdToCheck = Tn || "";
+        var isPublicRoom = (In !== false) || (roomIdToCheck && typeof roomIdToCheck === "string" && roomIdToCheck.indexOf("PUBLIC-") === 0);
+        // FORCE waiting screen for LOBBY state unless we're 100% sure it's private (In === false AND room doesn't start with PUBLIC-)
+        // CRITICAL: Default to waiting screen (public) unless explicitly private
+        // DEBUG: Log the values to help debug
+        if (n.id == J) {
+            console.log("[STATE] LOBBY state - In:", In, "Tn:", Tn, "roomIdToCheck:", roomIdToCheck, "isPublicRoom:", isPublicRoom, "willShowWaiting:", (In !== false || (roomIdToCheck && typeof roomIdToCheck === "string" && roomIdToCheck.indexOf("PUBLIC-") === 0)));
+        }
+        // ALWAYS show waiting screen for LOBBY unless In === false AND room doesn't start with PUBLIC-
+        var shouldShowWaiting = (n.id == J && (In !== false || (roomIdToCheck && typeof roomIdToCheck === "string" && roomIdToCheck.indexOf("PUBLIC-") === 0)));
+        shouldShowWaiting ? (
             // Public room - show waiting overlay, check player count to determine message
             vn(A),
             (function() {
@@ -1998,14 +2009,20 @@
         da(!1),
         e.id == J ? (la(),
         (function() {
-            // Only show settings panel for private rooms, hide for public rooms
-            // CRITICAL: Default to HIDE settings (public). Only show if EXPLICITLY private (In === false)
-            // This ensures public rooms NEVER show settings panel
-            if (In === false) {
+            // CRITICAL: ALWAYS hide settings panel for public rooms
+            // Only show settings panel if EXPLICITLY private (In === false AND room doesn't start with PUBLIC-)
+            var roomIdToCheck = Tn || "";
+            var isPublicRoom = (In !== false) || (roomIdToCheck && typeof roomIdToCheck === "string" && roomIdToCheck.indexOf("PUBLIC-") === 0);
+            // Only show settings if explicitly private AND room ID doesn't start with PUBLIC-
+            // DEBUG: Log settings panel decision
+            console.log("[SETTINGS] LOBBY state - In:", In, "Tn:", Tn, "roomIdToCheck:", roomIdToCheck, "isPublicRoom:", isPublicRoom);
+            if (In === false && !(roomIdToCheck && typeof roomIdToCheck === "string" && roomIdToCheck.indexOf("PUBLIC-") === 0)) {
                 // Explicitly private - show settings panel
+                console.log("[SETTINGS] Showing settings panel (private room)");
                 Pn.classList.add("room");
             } else {
-                // Public room or unknown - HIDE settings panel (waiting overlay already shown above)
+                // Public room or unknown - FORCE HIDE settings panel
+                console.log("[SETTINGS] Hiding settings panel (public room or unknown)");
                 Pn.classList.remove("room");
             }
         })()) : Pn.classList.remove("room"),
