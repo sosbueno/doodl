@@ -1936,10 +1936,11 @@
             }, 600)
         }) : (cn.classList.add("show"),
         // For public rooms in LOBBY state, show waiting overlay instead of settings panel
-        // CRITICAL: Show waiting screen UNLESS In is EXPLICITLY false (private)
-        // Default to waiting screen for public rooms or if In is not set yet
+        // CRITICAL: Show waiting screen if:
+        // 1. In is not false (not explicitly private), OR
+        // 2. Room ID starts with "PUBLIC-" (fallback check)
         // This ensures public rooms ALWAYS show waiting screen, never settings
-        (n.id == J && In !== false) ? (
+        (n.id == J && (In !== false || (Tn && typeof Tn === "string" && Tn.indexOf("PUBLIC-") === 0))) ? (
             // Public room - show waiting overlay, check player count to determine message
             vn(A),
             (function() {
