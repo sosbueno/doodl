@@ -1896,6 +1896,7 @@ io.on('connection', (socket) => {
       return;
     }
     
+    // Reset round to 0, then startRound will increment to 1 for the first round
     room.currentRound = 0;
     room.players.forEach(p => {
       p.score = 0;
@@ -1904,11 +1905,13 @@ io.on('connection', (socket) => {
     });
     // Initialize pending scores map
     room.pendingScores = new Map();
+    console.log(`🎮 Starting game in room ${room.id}, currentRound reset to 0`);
     startRound(room);
   }
   
   function startRound(room) {
     room.currentRound++;
+    console.log(`🔄 Starting round ${room.currentRound} in room ${room.id}`);
     if (room.currentRound > room.settings[SETTINGS.ROUNDS]) {
       // Game end
       endGame(room);
@@ -1918,6 +1921,7 @@ io.on('connection', (socket) => {
     // Select drawer (round robin)
     const drawerIndex = (room.currentRound - 1) % room.players.length;
     room.currentDrawer = room.players[drawerIndex].id;
+    console.log(`🎨 Drawer for round ${room.currentRound}: ${room.currentDrawer} (index ${drawerIndex})`);
     // Store scores at round start to calculate round score later
     room.players.forEach(p => {
       p.guessed = false;
@@ -1942,6 +1946,7 @@ io.on('connection', (socket) => {
     // Step 1: Send "Round X" text to overlay (no countdown in overlay)
     // currentRound is 1-indexed (1, 2, 3...), client expects 0-indexed (0, 1, 2...) and adds 1 to display
     const roundNumber = room.currentRound - 1; // Round number (0-indexed, client adds 1 to display)
+    console.log(`📊 Sending round ${room.currentRound} (roundNumber=${roundNumber}) to all players`);
     
     // Also send updated GAME_DATA with correct round number to ensure round display is updated
     room.players.forEach(player => {
@@ -2041,6 +2046,11 @@ io.on('connection', (socket) => {
     // Send "choosing word" message to OTHER players (V = 3, WORD_CHOICE without words, with timer)
     // Also send drawer's name and avatar to ensure correct display
     const drawerPlayer = room.players.find(p => p.id === room.currentDrawer);
+    if (!drawerPlayer) {
+      console.error(`❌ ERROR: Drawer ${room.currentDrawer} not found in room ${room.id}! Players:`, room.players.map(p => p.id));
+    } else {
+      console.log(`👤 Sending drawer info: ${drawerPlayer.name}, avatar:`, drawerPlayer.avatar);
+    }
     room.players.forEach(player => {
       if (player.id !== room.currentDrawer) {
         io.to(player.id).emit('data', {

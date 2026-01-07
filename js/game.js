@@ -1561,14 +1561,16 @@
                 // Get drawer player - use e.data.id which should be the drawer's socket ID
                 var drawerId = e.data.id;
                 var s = null;
+                console.log("[WORD_CHOICE] Drawer ID:", drawerId, "has name:", e.data.name, "has avatar:", e.data.avatar);
                 // If server sent name and avatar directly, use those (most reliable)
-                if (e.data.name && e.data.avatar) {
+                if (e.data.name && e.data.avatar && Array.isArray(e.data.avatar) && e.data.avatar.length >= 3) {
                     // Create a temporary player object with server data
                     s = {
                         id: drawerId,
                         name: e.data.name,
                         avatar: e.data.avatar
                     };
+                    console.log("[WORD_CHOICE] Using server-provided drawer:", s.name, s.avatar);
                 } else {
                     // Fallback: try to find player in w array
                     if (drawerId) {
@@ -1588,8 +1590,11 @@
                         s = W(M);
                     }
                 }
+                if (!s) {
+                    console.error("[WORD_CHOICE] ERROR: Could not find drawer! drawerId:", drawerId, "M:", M, "w.length:", w.length);
+                }
                 var drawerName = s ? s.name : E("User");
-                var drawerAvatar = s ? s.avatar : [0, 0, 0, 0];
+                var drawerAvatar = s ? (s.avatar && Array.isArray(s.avatar) && s.avatar.length >= 3 ? s.avatar : [0, 0, 0, 0]) : [0, 0, 0, 0];
                 var L = (A.textContent = "",
                 A.appendChild(se("span", void 0, E("$ is choosing a word!", drawerName))),
                 de(drawerAvatar, drawerId == En));
@@ -1897,6 +1902,8 @@
             za(e.users[t], !1);
         Ga(),
         Ka(),
+        console.log("[GAME_DATA] Setting round to:", e.round, "will display as Round", e.round + 1),
+        console.log("[GAME_DATA] Setting round to:", e.round, "will display as Round", e.round + 1),
         ia(e.round),
         fa(e.owner),
         sa(e.state, !0),
@@ -1932,6 +1939,7 @@
     function ia(e) {
         var e = (Rn = e) + 1
           , t = An[te.ROUNDS];
+        console.log("[ROUND] Setting round display: Rn=", Rn, "e=", e, "t=", t);
         Un.textContent = E("Round $ of $", [e, t])
     }
     function la() {
