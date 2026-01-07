@@ -2061,16 +2061,21 @@ io.on('connection', (socket) => {
     room.players.forEach(player => {
       if (player.id !== room.currentDrawer) {
         // Always send drawer data, even if invalid (client will handle fallback)
+        // Reference code: bn() receives state object with e.id = state ID, e.data.id = drawer ID
+        // Structure: { id: PACKET.STATE, data: { id: GAME_STATE.WORD_CHOICE, data: { id: drawerId } } }
+        // But actually, looking at the code, bn() switches on e.id which is the state ID
+        // And in case V, it uses e.data.id for the drawer ID
+        // So we need: data.id = state ID, and data.data.id = drawer ID? No wait...
+        // Actually, sa() receives the state data, and bn() receives that same object
+        // So if sa() receives { id: WORD_CHOICE, data: {...} }, then bn() gets the same
+        // In bn(), e.id = WORD_CHOICE, and e.data.id should be the drawer ID
         const wordChoiceData = {
           id: PACKET.STATE,
           data: {
-            id: GAME_STATE.WORD_CHOICE, // V = 3
-            time: room.timer, // 15 seconds timer
-            id: room.currentDrawer,  // Drawer's ID at top level (for reference code compatibility)
-            name: drawerPlayer.name || "Player",  // Drawer's name
-            avatar: (drawerPlayer.avatar && Array.isArray(drawerPlayer.avatar) && drawerPlayer.avatar.length >= 3) ? drawerPlayer.avatar : [0, 0, 0, 0],  // Drawer's avatar
+            id: GAME_STATE.WORD_CHOICE, // State ID for bn() switch
+            time: room.timer,
             data: {
-              id: room.currentDrawer,  // Also in nested data for our code
+              id: room.currentDrawer,  // Drawer ID (reference code: W(e.data.id))
               name: drawerPlayer.name || "Player",
               avatar: (drawerPlayer.avatar && Array.isArray(drawerPlayer.avatar) && drawerPlayer.avatar.length >= 3) ? drawerPlayer.avatar : [0, 0, 0, 0]
             }

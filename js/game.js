@@ -1566,26 +1566,23 @@
                         un.appendChild(wordEl)
                     }
                 }
-            } else {
+            else {
                 vn(A);
-                console.log("[WORD_CHOICE] Not drawer - e.data:", e.data);
-                // Match reference code: W(e.data.id) - but our server sends drawer ID in e.data.data.id
-                // Extract drawer ID from nested data structure
-                var drawerId = (e.data.data && e.data.data.id) ? e.data.data.id : (e.data.id !== V ? e.data.id : null);
-                console.log("[WORD_CHOICE] Extracted drawerId:", drawerId, "from e.data.data:", e.data.data);
-                // Find player in w array (reference code pattern)
+                // Reference code: W(e.data.id) where e.data is the nested data object
+                // Server sends: { id: WORD_CHOICE, data: { id: drawerId, ... } }
+                // So e.data.id is the drawer ID
+                var drawerId = (e.data && e.data.data && e.data.data.id) ? e.data.data.id : (e.data && e.data.id !== V ? e.data.id : null);
                 var s = drawerId ? W(drawerId) : null;
-                console.log("[WORD_CHOICE] Found player via W():", s ? s.name : "not found");
-                // If not found but server sent name/avatar, create temp player object
-                if (!s && e.data.data && e.data.data.name && e.data.data.avatar && Array.isArray(e.data.data.avatar) && e.data.data.avatar.length >= 3) {
+                // If not found, try to use server-provided name/avatar
+                if (!s && e.data && e.data.data && e.data.data.name && e.data.data.avatar) {
+                    // Create temp player object
                     s = {
                         id: drawerId,
                         name: e.data.data.name,
                         avatar: e.data.data.avatar
                     };
-                    console.log("[WORD_CHOICE] Created temp player from server data:", s.name, s.avatar);
                 }
-                var L = (s = s || null) ? s.name : E("User"),
+                var L = s ? s.name : E("User"),
                 L = (A.textContent = "", A.appendChild(se("span", void 0, E("$ is choosing a word!", L))), de(s ? s.avatar : [0, 0, 0, 0], drawerId == En));
                 s && pe(L, Ya(s)),
                 L.style.width = "2em",
