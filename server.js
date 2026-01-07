@@ -2014,9 +2014,11 @@ io.on('connection', (socket) => {
           id: PACKET.TIMER,
           data: 0
         });
+        // Wait for "Round X" to display (same duration as other rounds - typically 2-3 seconds)
+        // This ensures everyone sees "Round 1" before word choice
         setTimeout(() => {
           sendWordChoice(room, words);
-        }, 100);
+        }, 2500); // 2.5 seconds to match round display duration
       }
     };
     

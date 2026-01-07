@@ -1566,16 +1566,14 @@
                         un.appendChild(wordEl)
                     }
                 }
-            } else {
+            else {
+                // Show "User is choosing a word" immediately when WORD_CHOICE is received
+                // The server already delays sending WORD_CHOICE until after "Round X" is shown
                 vn(A);
-                // Reference code: W(e.data.id) where e.data is the nested data object
-                // Server sends: { id: WORD_CHOICE, data: { id: drawerId, ... } }
-                // So e.data.id is the drawer ID
                 var drawerId = (e.data && e.data.data && e.data.data.id) ? e.data.data.id : (e.data && e.data.id !== V ? e.data.id : null);
                 var s = drawerId ? W(drawerId) : null;
                 // If not found, try to use server-provided name/avatar
                 if (!s && e.data && e.data.data && e.data.data.name && e.data.data.avatar) {
-                    // Create temp player object
                     s = {
                         id: drawerId,
                         name: e.data.data.name,
