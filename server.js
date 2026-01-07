@@ -949,42 +949,46 @@ io.on('connection', (socket) => {
       }
     });
     
-    // For public rooms in LOBBY, send updated GAME_DATA to ALL players
+    // For public rooms in LOBBY, ALWAYS send updated GAME_DATA to ALL players
     // to ensure they ALL see the waiting screen (not settings) when new players join
+    // CRITICAL: This must happen EVERY time someone joins to prevent settings screen from showing
     if (room.isPublic && room.state === GAME_STATE.LOBBY) {
-      // CRITICAL: Ensure room.isPublic is explicitly true
+      // CRITICAL: Ensure room.isPublic is explicitly true and owner is null
       room.isPublic = true;
       room.owner = null; // Ensure no owner
       
-      // Send updated GAME_DATA to ALL players (including the new one) to ensure consistency
-      room.players.forEach(p => {
-        const updatedGameData = {
-          me: p.id, // Each player's own ID
-          type: 0, // Public room - CRITICAL: must be 0
-          id: room.id,
-          users: room.players.map(pl => ({
-            id: pl.id,
-            name: pl.name,
-            avatar: pl.avatar,
-            score: pl.score,
-            guessed: pl.guessed === true ? true : false,
-            flags: pl.flags
-          })),
-          round: room.currentRound,
-          owner: null, // Public rooms have no owner - CRITICAL
-          settings: room.settings,
-          state: {
-            id: room.state,
-            time: 0,
-            data: {}
-          },
-          isPublic: true // CRITICAL: must be explicitly true
-        };
-        io.to(p.id).emit('data', {
-          id: PACKET.GAME_DATA,
-          data: updatedGameData
+      // Small delay to ensure JOIN packet is processed first
+      setTimeout(() => {
+        // Send updated GAME_DATA to ALL players to ensure consistency
+        room.players.forEach(p => {
+          const updatedGameData = {
+            me: p.id, // Each player's own ID
+            type: 0, // Public room - CRITICAL: must be 0
+            id: room.id,
+            users: room.players.map(pl => ({
+              id: pl.id,
+              name: pl.name,
+              avatar: pl.avatar,
+              score: pl.score,
+              guessed: pl.guessed === true ? true : false,
+              flags: pl.flags
+            })),
+            round: room.currentRound,
+            owner: null, // Public rooms have no owner - CRITICAL
+            settings: room.settings,
+            state: {
+              id: room.state,
+              time: 0,
+              data: {}
+            },
+            isPublic: true // CRITICAL: must be explicitly true
+          };
+          io.to(p.id).emit('data', {
+            id: PACKET.GAME_DATA,
+            data: updatedGameData
+          });
         });
-      });
+      }, 50); // Small delay to ensure JOIN is processed first
     }
     
     // Auto-start public rooms when exactly 8 players join
@@ -1777,6 +1781,40 @@ io.on('connection', (socket) => {
                   data: {}
                 }
               });
+              
+              // CRITICAL: For public rooms, also send GAME_DATA after STATE to ensure waiting screen (not settings)
+              if (room.isPublic) {
+                setTimeout(() => {
+                  room.players.forEach(p => {
+                    const gameData = {
+                      me: p.id,
+                      type: 0,
+                      id: room.id,
+                      users: room.players.map(pl => ({
+                        id: pl.id,
+                        name: pl.name,
+                        avatar: pl.avatar,
+                        score: pl.score,
+                        guessed: pl.guessed === true ? true : false,
+                        flags: pl.flags
+                      })),
+                      round: room.currentRound,
+                      owner: null,
+                      settings: room.settings,
+                      state: {
+                        id: room.state,
+                        time: 0,
+                        data: {}
+                      },
+                      isPublic: true
+                    };
+                    io.to(p.id).emit('data', {
+                      id: PACKET.GAME_DATA,
+                      data: gameData
+                    });
+                  });
+                }, 50);
+              }
               // Send TIMER packet to ensure timer displays 0 (no countdown)
               io.to(currentRoomId).emit('data', {
                 id: PACKET.TIMER,
