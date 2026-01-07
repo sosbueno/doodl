@@ -1940,7 +1940,41 @@ io.on('connection', (socket) => {
     room.timer = 15; // 15 second timer for word choice
     
     // Step 1: Send "Round X" text to overlay (no countdown in overlay)
+    // Send round number (currentRound is already 1-indexed after increment, but client expects 0-indexed)
     const roundNumber = room.currentRound - 1; // Round number (0-indexed, client adds 1 to display)
+    
+    // Also send updated GAME_DATA with correct round number to ensure round display is updated
+    room.players.forEach(player => {
+      const gameData = {
+        me: player.id,
+        type: room.isPublic ? 0 : 1,
+        id: room.id,
+        users: room.players.map(p => ({
+          id: p.id,
+          name: p.name,
+          avatar: p.avatar,
+          score: p.score,
+          guessed: p.guessed === true ? true : false,
+          flags: p.flags
+        })),
+        round: room.currentRound - 1, // Send 0-indexed round (client will add 1)
+        owner: room.isPublic ? null : room.owner,
+        settings: room.settings,
+        state: {
+          id: room.state,
+          time: room.timer,
+          data: {}
+        },
+        isPublic: room.isPublic
+      };
+      if (room.code) {
+        gameData.code = room.code;
+      }
+      io.to(player.id).emit('data', {
+        id: PACKET.GAME_DATA,
+        data: gameData
+      });
+    });
     
     io.to(room.id).emit('data', {
       id: PACKET.STATE,

@@ -1558,10 +1558,24 @@
                 }
             else {
                 vn(A);
-                var L = (s = W(e.data.id)) ? s.name : E("User")
-                  , L = (A.textContent = "",
-                A.appendChild(se("span", void 0, E("$ is choosing a word!", L))),
-                de(s ? s.avatar : [0, 0, 0, 0], e.data.id == En));
+                // Get drawer player - use e.data.id which should be the drawer's socket ID
+                var drawerId = e.data.id;
+                var s = W(drawerId);
+                // If player not found, try to find by currentDrawer or En
+                if (!s && drawerId) {
+                    // Try to find player in w array
+                    for (var i = 0; i < w.length; i++) {
+                        if (w[i].id === drawerId) {
+                            s = w[i];
+                            break;
+                        }
+                    }
+                }
+                var drawerName = s ? s.name : E("User");
+                var drawerAvatar = s ? s.avatar : [0, 0, 0, 0];
+                var L = (A.textContent = "",
+                A.appendChild(se("span", void 0, E("$ is choosing a word!", drawerName))),
+                de(drawerAvatar, drawerId == En));
                 s && pe(L, Ya(s)),
                 L.style.width = "2em",
                 L.style.height = "2em",
