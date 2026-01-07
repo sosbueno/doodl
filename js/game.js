@@ -1520,7 +1520,8 @@
                 _n[0].removeAttribute("readonly"),
                 _n[1].removeAttribute("readonly");
             }
-            if (e.data.words)
+            if (e.data && e.data.words) {
+                console.log("[WORD_CHOICE] We are the drawer, showing word choices, e.data:", e.data);
                 if (vn(A),
                 vn(un),
                 ce(un),
@@ -1559,7 +1560,8 @@
                         un.appendChild(wordEl)
                     }
                 }
-            else {
+            } else {
+                console.log("[WORD_CHOICE] We are NOT the drawer, showing 'choosing word' message");
                 vn(A);
                 // Get drawer player - use e.data.id which should be the drawer's socket ID
                 if (!e.data) {
@@ -1950,11 +1952,22 @@
         if (Un) {
             Un.textContent = E("Round $ of $", [e, t]);
             console.log("[ROUND] Round text set to:", Un.textContent);
-            // Make sure it's visible
+            // Make sure it's visible - force styles
+            Un.style.display = "";
+            Un.style.visibility = "visible";
+            Un.style.opacity = "1";
+            Un.style.color = "";
             if (Un.parentElement) {
                 Un.parentElement.style.display = "";
                 Un.parentElement.style.visibility = "visible";
                 Un.parentElement.style.opacity = "1";
+                Un.parentElement.style.zIndex = "10";
+            }
+            // Also check game-bar parent
+            var gameBar = c.querySelector("#game-bar");
+            if (gameBar) {
+                gameBar.style.display = "";
+                gameBar.style.visibility = "visible";
             }
         } else {
             console.error("[ROUND] ERROR: Un element not found!");
