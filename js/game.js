@@ -1941,17 +1941,19 @@
         // CRITICAL: ALWAYS show waiting screen for LOBBY state UNLESS explicitly private
         // Default to public (waiting screen) if In is not explicitly false
         // Check room ID pattern as fallback
-        var roomIdToCheck = Tn || "";
-        var isPublicRoom = (In !== false) || (roomIdToCheck && typeof roomIdToCheck === "string" && roomIdToCheck.indexOf("PUBLIC-") === 0);
-        // FORCE waiting screen for LOBBY state unless we're 100% sure it's private (In === false AND room doesn't start with PUBLIC-)
-        // CRITICAL: Default to waiting screen (public) unless explicitly private
-        // DEBUG: Log the values to help debug
-        if (n.id == J) {
-            console.log("[STATE] LOBBY state - In:", In, "Tn:", Tn, "roomIdToCheck:", roomIdToCheck, "isPublicRoom:", isPublicRoom, "willShowWaiting:", (In !== false || (roomIdToCheck && typeof roomIdToCheck === "string" && roomIdToCheck.indexOf("PUBLIC-") === 0)));
-        }
-        // ALWAYS show waiting screen for LOBBY unless In === false AND room doesn't start with PUBLIC-
-        var shouldShowWaiting = (n.id == J && (In !== false || (roomIdToCheck && typeof roomIdToCheck === "string" && roomIdToCheck.indexOf("PUBLIC-") === 0)));
-        shouldShowWaiting ? (
+        (function() {
+            var roomIdToCheck = Tn || "";
+            var isPublicRoom = (In !== false) || (roomIdToCheck && typeof roomIdToCheck === "string" && roomIdToCheck.indexOf("PUBLIC-") === 0);
+            // FORCE waiting screen for LOBBY state unless we're 100% sure it's private (In === false AND room doesn't start with PUBLIC-)
+            // CRITICAL: Default to waiting screen (public) unless explicitly private
+            // DEBUG: Log the values to help debug
+            if (n.id == J) {
+                console.log("[STATE] LOBBY state - In:", In, "Tn:", Tn, "roomIdToCheck:", roomIdToCheck, "isPublicRoom:", isPublicRoom, "willShowWaiting:", (In !== false || (roomIdToCheck && typeof roomIdToCheck === "string" && roomIdToCheck.indexOf("PUBLIC-") === 0)));
+            }
+            // ALWAYS show waiting screen for LOBBY unless In === false AND room doesn't start with PUBLIC-
+            var shouldShowWaiting = (n.id == J && (In !== false || (roomIdToCheck && typeof roomIdToCheck === "string" && roomIdToCheck.indexOf("PUBLIC-") === 0)));
+            return shouldShowWaiting;
+        })() ? (
             // Public room - show waiting overlay, check player count to determine message
             vn(A),
             (function() {
