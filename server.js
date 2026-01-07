@@ -908,7 +908,7 @@ io.on('connection', (socket) => {
         guessed: p.guessed === true ? true : false,
         flags: p.flags
       })),
-      round: room.currentRound,
+      round: room.state === GAME_STATE.LOBBY ? 0 : (room.currentRound > 0 ? room.currentRound - 1 : 0), // Send 0-indexed round
       owner: isPublicRoom ? null : room.owner, // Public rooms must have null owner
       settings: room.settings,
       state: {
@@ -995,7 +995,7 @@ io.on('connection', (socket) => {
               guessed: pl.guessed === true ? true : false,
               flags: pl.flags
             })),
-            round: room.currentRound,
+            round: room.state === GAME_STATE.LOBBY ? 0 : (room.currentRound > 0 ? room.currentRound - 1 : 0), // Send 0-indexed round
             owner: null, // Public rooms have no owner - CRITICAL
             settings: room.settings,
             state: {
@@ -1820,7 +1820,7 @@ io.on('connection', (socket) => {
                         guessed: pl.guessed === true ? true : false,
                         flags: pl.flags
                       })),
-                      round: room.currentRound,
+                      round: room.state === GAME_STATE.LOBBY ? 0 : (room.currentRound > 0 ? room.currentRound - 1 : 0), // Send 0-indexed round
                       owner: null,
                       settings: room.settings,
                       state: {

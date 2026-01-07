@@ -1559,11 +1559,11 @@
             else {
                 vn(A);
                 // Get drawer player - use e.data.id which should be the drawer's socket ID
-                var drawerId = e.data.id;
+                var drawerId = e.data && e.data.id ? e.data.id : undefined;
                 var s = null;
-                console.log("[WORD_CHOICE] Drawer ID:", drawerId, "has name:", e.data.name, "has avatar:", e.data.avatar);
+                console.log("[WORD_CHOICE] Drawer ID:", drawerId, "has name:", e.data ? e.data.name : "NO DATA", "has avatar:", e.data ? e.data.avatar : "NO DATA");
                 // If server sent name and avatar directly, use those (most reliable)
-                if (e.data.name && e.data.avatar && Array.isArray(e.data.avatar) && e.data.avatar.length >= 3) {
+                if (e.data && e.data.name && e.data.avatar && Array.isArray(e.data.avatar) && e.data.avatar.length >= 3) {
                     // Create a temporary player object with server data
                     s = {
                         id: drawerId,
@@ -1591,7 +1591,7 @@
                     }
                 }
                 if (!s) {
-                    console.error("[WORD_CHOICE] ERROR: Could not find drawer! drawerId:", drawerId, "M:", M, "w.length:", w.length);
+                    console.error("[WORD_CHOICE] ERROR: Could not find drawer! drawerId:", drawerId, "M:", M, "w.length:", w ? w.length : "w is undefined");
                 }
                 var drawerName = s ? s.name : E("User");
                 var drawerAvatar = s ? (s.avatar && Array.isArray(s.avatar) && s.avatar.length >= 3 ? s.avatar : [0, 0, 0, 0]) : [0, 0, 0, 0];
