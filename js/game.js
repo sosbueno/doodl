@@ -1388,18 +1388,22 @@
             vn(pn);
             break;
         case F:
+            console.log("[bn] ROUND_START case F, e.data:", e.data, "will display as Round", e.data + 1);
+            // CRITICAL: Set round text in game bar when ROUND_START is received
+            // e.data is the round number (0-indexed), so we call ia(e.data) to set "Round X of Y"
+            ia(e.data); // Set round text in game bar ("Round X of Y")
             vn(A),
-            A.textContent = E("Round $", e.data + 1);
+            A.textContent = E("Round $", e.data + 1); // Show "Round X" in overlay
             // Ensure round text in game-bar is visible (it's separate from overlay)
             if (Un) {
                 var roundParent = Un.parentElement;
                 if (roundParent) {
-                    roundParent.style.display = "";
+                    roundParent.style.display = "block";
                     roundParent.style.visibility = "visible";
                     roundParent.style.opacity = "1";
                     roundParent.style.position = "absolute";
                 }
-                Un.style.display = "";
+                Un.style.display = "block";
                 Un.style.visibility = "visible";
                 Un.style.opacity = "1";
             }
@@ -1939,7 +1943,7 @@
         Ga(),
         Ka(),
         console.log("[GAME_DATA] Setting round to:", e.round, "will display as Round", e.round + 1),
-        console.log("[GAME_DATA] Setting round to:", e.round, "will display as Round", e.round + 1),
+        // CRITICAL: Always set round text when GAME_DATA is received to ensure it's visible
         ia(e.round),
         fa(e.owner),
         sa(e.state, !0),
@@ -2067,7 +2071,11 @@
         }) : (cn.classList.add("show"),
         // For ROUND_START (F), always show "Round X" in overlay first
         n.id == F ? (
-            bn(n),
+            // CRITICAL: Set round text in game bar when ROUND_START is received
+            // n.data is the round number (0-indexed), so we call ia(n.data) to set "Round X of Y"
+            console.log("[ROUND_START] Received ROUND_START, n.data:", n.data, "will display as Round", n.data + 1),
+            ia(n.data), // Set round text in game bar
+            bn(n), // Show "Round X" in overlay
             yn({
                 top: 0,
                 opacity: 1
