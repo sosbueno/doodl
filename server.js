@@ -1981,6 +1981,7 @@ io.on('connection', (socket) => {
       });
     });
     
+    console.log(`📤 Sending ROUND_START state (id=${GAME_STATE.ROUND_START}) to room ${room.id} with roundNumber=${roundNumber} (will display as Round ${roundNumber + 1})`);
     io.to(room.id).emit('data', {
       id: PACKET.STATE,
       data: {
@@ -1989,6 +1990,7 @@ io.on('connection', (socket) => {
         data: roundNumber  // Round number (0-indexed, client will show "Round X" by adding 1)
       }
     });
+    console.log(`✅ ROUND_START packet sent to room ${room.id}`);
     
     // Step 2: Send countdown (3, 2, 1) to clock only (using TIMER packets)
     // Send initial timer value immediately

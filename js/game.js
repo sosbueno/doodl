@@ -2057,6 +2057,25 @@
         n.id == j ? (
             // Clear waiting dots interval when game starts
             h._waitingDotsInterval && (clearInterval(h._waitingDotsInterval), h._waitingDotsInterval = null),
+            // CRITICAL: Ensure round text stays visible when DRAWING phase starts
+            console.log("[DRAWING] DRAWING state started, ensuring round text is visible"),
+            ia(Rn), // Refresh round text display
+            // Force visibility of round text
+            (function() {
+                if (Un && Un.parentElement && Un.parentElement.id === "game-round") {
+                    var roundEl = Un.parentElement;
+                    var gameBar = c.querySelector("#game-bar");
+                    if (gameBar) {
+                        gameBar.style.display = "block";
+                        gameBar.style.visibility = "visible";
+                        roundEl.style.display = "block";
+                        roundEl.style.visibility = "visible";
+                        Un.style.display = "block";
+                        Un.style.visibility = "visible";
+                        console.log("[DRAWING] Round text forced visible for drawing phase");
+                    }
+                }
+            })(),
             yn({
                 top: -100,
                 opacity: 0
@@ -2568,6 +2587,10 @@
     function Pa(e) {
         var t = e.id
           , n = e.data;
+        // Log STATE packets to debug ROUND_START
+        if (t == qa && n && (n.id == F || n.id == V || n.id == j)) {
+            console.log("[Pa] Received STATE packet - id:", n.id, "data:", n.data, "time:", n.time);
+        }
         switch (t) {
         case Ca:
             aa(n);
