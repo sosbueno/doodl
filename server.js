@@ -1940,94 +1940,19 @@ io.on('connection', (socket) => {
       room.settings[SETTINGS.CUSTOMWORDSONLY] === 1
     );
     
-    room.state = GAME_STATE.WORD_CHOICE;
-    room.timer = 15; // 15 second timer for word choice
-    
-    // Step 1: Send "Round X" text to overlay (no countdown in overlay)
-    // currentRound is 1-indexed (1, 2, 3...), client expects 0-indexed (0, 1, 2...) and adds 1 to display
+    // Send ROUND_START state to show "Round X" overlay
     const roundNumber = room.currentRound - 1; // Round number (0-indexed, client adds 1 to display)
-    console.log(`📊 Sending round ${room.currentRound} (roundNumber=${roundNumber}) to all players`);
-    
-    // Also send updated GAME_DATA with correct round number to ensure round display is updated
-    room.players.forEach(player => {
-      const gameData = {
-        me: player.id,
-        type: room.isPublic ? 0 : 1,
-        id: room.id,
-        users: room.players.map(p => ({
-          id: p.id,
-          name: p.name,
-          avatar: p.avatar,
-          score: p.score,
-          guessed: p.guessed === true ? true : false,
-          flags: p.flags
-        })),
-        round: roundNumber, // Send 0-indexed round (0 for round 1, 1 for round 2, etc.)
-        owner: room.isPublic ? null : room.owner,
-        settings: room.settings,
-        state: {
-          id: room.state,
-          time: room.timer,
-          data: {}
-        },
-        isPublic: room.isPublic
-      };
-      if (room.code) {
-        gameData.code = room.code;
-      }
-      io.to(player.id).emit('data', {
-        id: PACKET.GAME_DATA,
-        data: gameData
-      });
-    });
-    
-    console.log(`📤 Sending ROUND_START state (id=${GAME_STATE.ROUND_START}) to room ${room.id} with roundNumber=${roundNumber} (will display as Round ${roundNumber + 1})`);
     io.to(room.id).emit('data', {
       id: PACKET.STATE,
       data: {
         id: GAME_STATE.ROUND_START, // F = 2
-        time: 3, // Start with 3 for countdown display
+        time: 0,
         data: roundNumber  // Round number (0-indexed, client will show "Round X" by adding 1)
       }
     });
-    console.log(`✅ ROUND_START packet sent to room ${room.id}`);
     
-    // Step 2: Send countdown (3, 2, 1) to clock only (using TIMER packets)
-    // Send initial timer value immediately
-    io.to(room.id).emit('data', {
-      id: PACKET.TIMER,
-      data: 3
-    });
-    
-    let countdown = 2; // Next will be 2, then 1, then 0
-    
-    const sendCountdown = () => {
-      if (countdown > 0) {
-        // Send countdown value to clock (TIMER packet)
-        io.to(room.id).emit('data', {
-          id: PACKET.TIMER,
-          data: countdown
-        });
-        countdown--;
-        setTimeout(sendCountdown, 1000);
-      } else {
-        // Countdown finished (0), hide overlay and send word choice states
-        io.to(room.id).emit('data', {
-          id: PACKET.TIMER,
-          data: 0
-        });
-        // Wait for "Round X" to display (same duration as other rounds - typically 2-3 seconds)
-        // This ensures everyone sees "Round 1" before word choice
-        setTimeout(() => {
-          sendWordChoice(room, words);
-        }, 2500); // 2.5 seconds to match round display duration
-      }
-    };
-    
-    // Start countdown after a brief delay to show "Round X"
-    setTimeout(() => {
-      sendCountdown();
-    }, 1000);
+    // Send word choice immediately (no delays)
+    sendWordChoice(room, words);
   }
   
   function sendWordChoice(room, words) {

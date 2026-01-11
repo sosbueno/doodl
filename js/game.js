@@ -2051,12 +2051,10 @@
     }
     function sa(e, t) {
         var n, a;
-        console.log("[sa] Called with e.id:", e ? e.id : "null", "F =", F, "n will be set to e");
         if (n = L = e,
         null != fn && (h.cancelAnimationFrame(fn),
         fn = void 0),
         // CRITICAL: Check ROUND_START FIRST, before checking overlay state
-        console.log("[sa] After assignment, n.id:", n.id, "F =", F, "n.id == F:", n.id == F),
         n.id == F ? (
             console.log("[ROUND_START] Received ROUND_START in sa(), n.data:", n.data, "calling ia() to set game bar text, then bn() for overlay"),
             // Ensure overlay is visible
