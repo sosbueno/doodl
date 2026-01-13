@@ -1568,60 +1568,17 @@
                 }
             } else {
                 // For non-drawers: Show "User is choosing a word" overlay
-                // ROUND_START already showed "Round 1" in overlay, so we just show the drawer choosing
-                // In bn(), e is the state object: { id: WORD_CHOICE, time: ..., data: { id: drawerId, name: ..., avatar: ... } }
-                // So e.data is { id: drawerId, name: ..., avatar: ... }
-                var drawerId = e.data && e.data.id ? e.data.id : null;
-                var drawerName = e.data && e.data.name ? e.data.name : null;
-                var drawerAvatar = (e.data && e.data.avatar && Array.isArray(e.data.avatar) && e.data.avatar.length >= 3) ? e.data.avatar : null;
-                
-                // ALWAYS try player list first - it's the most reliable source
-                var s = drawerId ? W(drawerId) : null;
-                if (s) {
-                    // Use player list data (always correct and up-to-date)
-                    drawerName = s.name;
-                    drawerAvatar = s.avatar;
-                } else if (drawerName && drawerAvatar) {
-                    // Use server-provided data if player not found in list
-                } else {
-                    // Fallback - should not happen, but if it does, don't show anything
-                    // The server always sends drawer info, so this is an error case
-                    console.error("[WORD_CHOICE] ERROR: No drawer info available!");
-                    return; // Don't show overlay if we don't have drawer info
-                }
-                
-                // Check if overlay is currently showing "Round X" - if so, wait a bit before showing "User is choosing a word"
-                // This ensures "Round 1" is visible first
-                var currentlyShowingRound = A && A.textContent && A.textContent.indexOf("Round") !== -1;
-                if (currentlyShowingRound) {
-                    // Overlay is showing "Round X", wait a bit before showing "User is choosing a word"
-                    setTimeout(function() {
-                        vn(A);
-                        ce(A);
-                        var L = drawerName;
-                        var avatarEl = de(drawerAvatar, drawerId == En);
-                        if (s) {
-                            pe(avatarEl, Ya(s));
-                        }
-                        A.appendChild(se("span", void 0, E("$ is choosing a word!", L)));
-                        avatarEl.style.width = "2em";
-                        avatarEl.style.height = "2em";
-                        A.appendChild(avatarEl);
-                    }, 500); // Small delay to ensure "Round 1" was visible
-                } else {
-                    // Show "User is choosing a word" overlay immediately
-                    vn(A);
-                    ce(A);
-                    var L = drawerName;
-                    var avatarEl = de(drawerAvatar, drawerId == En);
-                    if (s) {
-                        pe(avatarEl, Ya(s));
-                    }
-                    A.appendChild(se("span", void 0, E("$ is choosing a word!", L)));
-                    avatarEl.style.width = "2em";
-                    avatarEl.style.height = "2em";
-                    A.appendChild(avatarEl);
-                }
+                // Reference code: Simple lookup with fallbacks
+                vn(A);
+                var s = e.data && e.data.id ? W(e.data.id) : null;
+                var L = s ? s.name : E("User");
+                A.textContent = "";
+                var avatarEl = de(s ? s.avatar : [0, 0, 0, 0], e.data && e.data.id == En);
+                A.appendChild(se("span", void 0, E("$ is choosing a word!", L)));
+                s && pe(avatarEl, Ya(s));
+                avatarEl.style.width = "2em";
+                avatarEl.style.height = "2em";
+                A.appendChild(avatarEl);
             }
         }
     }
