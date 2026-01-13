@@ -2028,14 +2028,11 @@
         n.id == F ? (
             console.log("[ROUND_START] Received ROUND_START in sa(), n.data:", n.data, "calling ia() to set game bar text, then bn() for overlay"),
             // Ensure overlay is visible immediately
-            cn.classList.add("show");
-            cn.style.display = "block";
-            cn.style.visibility = "visible";
+            cn.classList.add("show"),
+            cn.style.display = "block",
+            cn.style.visibility = "visible",
             // Ensure overlay content is visible
-            if (dn) {
-                dn.style.display = "block";
-                dn.style.visibility = "visible";
-            }
+            (dn && (dn.style.display = "block", dn.style.visibility = "visible")),
             ia(n.data), // Set "Round X of Y" in game bar FIRST - this ensures it's visible
             // Force visibility immediately
             (function() {
@@ -2055,8 +2052,7 @@
             })(),
             bn(n), // Then show "Round X" in overlay
             // Force overlay to top and visible immediately (no animation delay)
-            cn.style.top = "0%";
-            cn.style.opacity = "1";
+            (cn.style.top = "0%", cn.style.opacity = "1"),
             yn({
                 top: 0,
                 opacity: 1
@@ -2105,12 +2101,7 @@
             }, 600)
         }) : (cn.classList.add("show"),
         // Ensure overlay is visible immediately
-        cn.style.display = "block";
-        cn.style.visibility = "visible";
-        if (dn) {
-            dn.style.display = "block";
-            dn.style.visibility = "visible";
-        }
+        (cn.style.display = "block", cn.style.visibility = "visible", dn && (dn.style.display = "block", dn.style.visibility = "visible")),
         // For public rooms in LOBBY state, show waiting overlay instead of settings panel
         // CRITICAL: ALWAYS show waiting screen for LOBBY state UNLESS explicitly private
         // Default to public (waiting screen) if In is not explicitly false
@@ -2137,12 +2128,9 @@
                 // Explicitly hide settings panel overlay
                 if (pn) pn.classList.remove("show");
             })(),
-            vn(A);
+            vn(A),
             // Ensure text element is visible
-            if (A) {
-                A.style.display = "block";
-                A.style.visibility = "visible";
-            }
+            (A && (A.style.display = "block", A.style.visibility = "visible")),
             (function() {
                 // Check player count to determine message
                 if (w.length >= 8) {
@@ -2152,6 +2140,8 @@
                         h._waitingDotsInterval = null;
                     }
                     A.textContent = E("Starting game...");
+                    // Force visibility
+                    A && (A.style.display = "block", A.style.visibility = "visible");
                     // Force visibility
                     if (A) {
                         A.style.display = "block";
