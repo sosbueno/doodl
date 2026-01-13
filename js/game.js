@@ -1572,13 +1572,11 @@
                 vn(A);
                 var s = e.data && e.data.id ? W(e.data.id) : null;
                 var L = s ? s.name : E("User");
-                A.textContent = "";
-                var avatarEl = de(s ? s.avatar : [0, 0, 0, 0], e.data && e.data.id == En);
-                A.appendChild(se("span", void 0, E("$ is choosing a word!", L)));
-                s && pe(avatarEl, Ya(s));
-                avatarEl.style.width = "2em";
-                avatarEl.style.height = "2em";
-                A.appendChild(avatarEl);
+                L = (A.textContent = "", A.appendChild(se("span", void 0, E("$ is choosing a word!", L))), de(s ? s.avatar : [0, 0, 0, 0], e.data && e.data.id == En));
+                s && pe(L, Ya(s));
+                L.style.width = "2em";
+                L.style.height = "2em";
+                A.appendChild(L);
             }
         }
     }
