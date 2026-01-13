@@ -2156,7 +2156,8 @@
         ia(e.data),
         // Ensure round text is visible
         Un && (Un.style.display = "", Un.style.visibility = "visible", Un.style.opacity = "1", Un.parentElement && (Un.parentElement.style.display = "", Un.parentElement.style.visibility = "visible")),
-        0 == e.data) && la(), e.id == Z) {
+        0 == e.data && la()),
+        e.id == Z) {
             x != M && ga(e.data.word);
             for (var o = 0; o < e.data.scores.length; o += 3) {
                 var r = e.data.scores[o + 0]
