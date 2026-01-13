@@ -1961,6 +1961,7 @@ io.on('connection', (socket) => {
     room.currentWords = words; // Store words in room for timer access
     
     // Send word choice to DRAWER (V = 3, WORD_CHOICE with words and timer)
+    console.log(`📤 Sending WORD_CHOICE to DRAWER ${room.currentDrawer} with ${words.length} words:`, words);
     io.to(room.currentDrawer).emit('data', {
       id: PACKET.STATE,
       data: {

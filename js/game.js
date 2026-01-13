@@ -1501,11 +1501,15 @@
                 I.querySelector(".winner-text").textContent = E("Nobody won!");
             break;
         case V:
+            // DEBUG: Log WORD_CHOICE state
+            console.log("[WORD_CHOICE] Received state, e.data:", e.data, "has words:", !!(e.data && e.data.words), "has id:", !!(e.data && e.data.id), "x (me):", x);
             // Set current drawer during word choice (for green chat messages)
             if (e.data && e.data.words) {
                 M = x; // We're the drawer
+                console.log("[WORD_CHOICE] We are the drawer, showing word choices");
             } else if (e.data && e.data.id) {
                 M = e.data.id; // Set M to the drawer's ID
+                console.log("[WORD_CHOICE] We are NOT the drawer, drawer ID:", e.data.id);
             }
             if (e.data && e.data.words) {
                 // Enable chat input for drawer during word choice
@@ -1525,10 +1529,15 @@
                 _n[1].removeAttribute("readonly");
             }
             if (e.data && e.data.words) {
-                if (vn(A),
-                vn(un),
-                ce(un),
-                An[te.WORDMODE] == ne.COMBINATION) {
+                console.log("[WORD_CHOICE] Showing word choices, words:", e.data.words, "wordMode:", An[te.WORDMODE], "A:", A, "un:", un);
+                // CRITICAL: Clear text overlay first, then show words
+                // This ensures "Round X" text doesn't interfere
+                ce(A);
+                vn(A);
+                vn(un);
+                ce(un);
+                if (An[te.WORDMODE] == ne.COMBINATION) {
+                    console.log("[WORD_CHOICE] Combination mode, creating word pairs");
                     A.textContent = E("Choose the first word");
                     for (var S = e.data.words.length / 2, k = [], w = [], C = 0, o = 0; o < S; o++) {
                         var q = $("word", e.data.words[o])
@@ -1553,15 +1562,18 @@
                         un.appendChild(x)
                     }
                 } else {
+                    console.log("[WORD_CHOICE] Normal mode, creating", e.data.words.length, "word buttons");
                     A.textContent = E("Choose a word");
                     for (o = 0; o < e.data.words.length; o++) {
                         var M = $("word", e.data.words[o]);
                         M.index = o,
                         D(M, "click", function() {
+                            console.log("[WORD_CHOICE] Word clicked, index:", this.index);
                             ha(this.index)
                         }),
                         un.appendChild(M)
                     }
+                    console.log("[WORD_CHOICE] Words added to container, un.children.length:", un.children.length);
                 }
             } else {
                 vn(A);
