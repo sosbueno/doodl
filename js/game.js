@@ -1508,10 +1508,7 @@
             if (x === undefined || x === null) {
                 console.warn("[WORD_CHOICE] Queuing - player ID (x) not set yet, will process after GAME_DATA");
                 // Store the state to process later
-                if (!h._pendingWordChoice) {
-                    h._pendingWordChoice = [];
-                }
-                h._pendingWordChoice.push(e);
+                _pendingWordChoice.push(e);
                 return; // Don't process WORD_CHOICE until we know who we are
             }
             // Set current drawer during word choice (for green chat messages)
@@ -1692,6 +1689,7 @@
       , In = -1
       , Rn = 0
       , Tn = void 0
+      , _pendingWordChoice = [] // Queue for WORD_CHOICE states that arrive before GAME_DATA
       , R = new Dn
       , T = void 0
       , Nn = !1
@@ -1882,10 +1880,10 @@
         x = e.me,
         // CRITICAL: Process any pending WORD_CHOICE states that arrived before GAME_DATA
         (function() {
-            if (h._pendingWordChoice && h._pendingWordChoice.length > 0) {
-                console.log("[GAME_DATA] Processing", h._pendingWordChoice.length, "pending WORD_CHOICE state(s)");
-                var pendingStates = h._pendingWordChoice;
-                h._pendingWordChoice = []; // Clear the queue
+            if (_pendingWordChoice && _pendingWordChoice.length > 0) {
+                console.log("[GAME_DATA] Processing", _pendingWordChoice.length, "pending WORD_CHOICE state(s)");
+                var pendingStates = _pendingWordChoice.slice(); // Copy the array
+                _pendingWordChoice.length = 0; // Clear the queue
                 // Process each pending WORD_CHOICE state after a small delay to ensure GAME_DATA is fully processed
                 setTimeout(function() {
                     for (var i = 0; i < pendingStates.length; i++) {
