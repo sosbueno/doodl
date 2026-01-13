@@ -1951,14 +1951,29 @@ io.on('connection', (socket) => {
       }
     });
     
-    // Send word choice immediately (no delays)
-    sendWordChoice(room, words);
+    // Send word choice with a small delay to ensure ROUND_START is processed first
+    // This is especially important for the first round
+    setTimeout(() => {
+      sendWordChoice(room, words);
+    }, 100);
   }
   
   function sendWordChoice(room, words) {
+    // Validate words array
+    if (!words || !Array.isArray(words) || words.length === 0) {
+      console.error(`❌ ERROR: Invalid words array in sendWordChoice:`, words);
+      return;
+    }
+    
     room.state = GAME_STATE.WORD_CHOICE;
     room.timer = 15; // 15 second timer for word choice
     room.currentWords = words; // Store words in room for timer access
+    
+    // Validate drawer exists
+    if (!room.currentDrawer || room.currentDrawer === -1) {
+      console.error(`❌ ERROR: Invalid drawer in sendWordChoice:`, room.currentDrawer);
+      return;
+    }
     
     // Send word choice to DRAWER (V = 3, WORD_CHOICE with words and timer)
     console.log(`📤 Sending WORD_CHOICE to DRAWER ${room.currentDrawer} with ${words.length} words:`, words);

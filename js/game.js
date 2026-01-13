@@ -1503,13 +1503,22 @@
         case V:
             // DEBUG: Log WORD_CHOICE state
             console.log("[WORD_CHOICE] Received state, e.data:", e.data, "has words:", !!(e.data && e.data.words), "has id:", !!(e.data && e.data.id), "x (me):", x);
+            // CRITICAL: If x is undefined, we haven't received GAME_DATA yet - ignore this packet
+            // This can happen in the first round if WORD_CHOICE arrives before GAME_DATA
+            if (x === undefined || x === null) {
+                console.warn("[WORD_CHOICE] Ignoring - player ID (x) not set yet, waiting for GAME_DATA");
+                return; // Don't process WORD_CHOICE until we know who we are
+            }
             // Set current drawer during word choice (for green chat messages)
-            if (e.data && e.data.words) {
+            if (e.data && e.data.words && Array.isArray(e.data.words) && e.data.words.length > 0) {
                 M = x; // We're the drawer
                 console.log("[WORD_CHOICE] We are the drawer, showing word choices");
             } else if (e.data && e.data.id) {
                 M = e.data.id; // Set M to the drawer's ID
                 console.log("[WORD_CHOICE] We are NOT the drawer, drawer ID:", e.data.id);
+            } else {
+                console.warn("[WORD_CHOICE] Invalid packet - no words and no drawer ID, e.data:", e.data);
+                return; // Invalid packet, ignore it
             }
             if (e.data && e.data.words) {
                 // Enable chat input for drawer during word choice
