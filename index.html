@@ -79,6 +79,8 @@
         <link href="https://fonts.googleapis.com/css2?family=Inconsolata&amp;display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&amp;display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+        <!-- Privy SDK -->
+        <script src="https://sdk.privy.io/js/v1.privy.js"></script>
     </head>
     <body translate="no">
         <div id="preroll"></div>
@@ -114,10 +116,19 @@
                             </div>
                             <div class="randomize" data-tooltip="Randomize your Avatar!" data-tooltipdir="N"></div>
                         </div>
-                        <button class="button-play">
+                        <div id="wallet-connect-section" style="margin-bottom: 15px; text-align: center;">
+                            <button id="privy-connect-button" class="button-play" style="background: linear-gradient(135deg, #9945FF 0%, #14F195 100%); margin-bottom: 10px;">
+                                <span>Connect Wallet</span>
+                            </button>
+                            <div id="wallet-info" style="display: none; color: #fff; font-size: 0.9em; margin-top: 10px;">
+                                <div id="wallet-address"></div>
+                                <button id="privy-disconnect-button" style="margin-top: 5px; padding: 5px 10px; font-size: 0.8em; background: rgba(255,255,255,0.2); border: none; border-radius: 5px; color: #fff; cursor: pointer;">Disconnect</button>
+                            </div>
+                        </div>
+                        <button class="button-play" id="play-button" style="display: none;">
                             <span data-translate="text">Play!</span>
                         </button>
-                        <button class="button-create">
+                        <button class="button-create" id="create-button" style="display: none;">
                             <span data-translate="text">Create Private Room</span>
                         </button>
                     </div>
@@ -916,6 +927,146 @@
 // NO AUTO-JOIN - User should go to home screen and click Play button
 // The Play button will automatically use the room code from URL (game.js handles this)
 </script>
+        <script>
+            // Privy initialization and wallet connection
+            (function() {
+                // Initialize Privy - Replace with your actual Privy App ID
+                const PRIVY_APP_ID = 'YOUR_PRIVY_APP_ID'; // TODO: Replace with your Privy App ID
+                
+                let privy = null;
+                let walletAddress = null;
+                
+                // Wait for Privy SDK to load
+                function initPrivy() {
+                    if (typeof Privy === 'undefined') {
+                        console.error('Privy SDK not loaded');
+                        return;
+                    }
+                    
+                    try {
+                        privy = new Privy({
+                            appId: PRIVY_APP_ID,
+                            config: {
+                                loginMethods: ['wallet', 'email'],
+                                appearance: {
+                                    theme: 'dark',
+                                    accentColor: '#9945FF'
+                                }
+                            }
+                        });
+                        
+                        // Check if user is already authenticated
+                        privy.ready().then(() => {
+                            const user = privy.getUser();
+                            if (user && user.wallet) {
+                                walletAddress = user.wallet.address;
+                                updateWalletUI(true);
+                            } else if (user && user.email) {
+                                // User logged in with email, show wallet address input
+                                showEmailWalletInput();
+                            }
+                        });
+                    } catch (error) {
+                        console.error('Error initializing Privy:', error);
+                    }
+                }
+                
+                function updateWalletUI(connected) {
+                    const connectBtn = document.getElementById('privy-connect-button');
+                    const walletInfo = document.getElementById('wallet-info');
+                    const walletAddressDiv = document.getElementById('wallet-address');
+                    const playBtn = document.getElementById('play-button');
+                    const createBtn = document.getElementById('create-button');
+                    
+                    if (connected && walletAddress) {
+                        connectBtn.style.display = 'none';
+                        walletInfo.style.display = 'block';
+                        walletAddressDiv.textContent = `${walletAddress.substring(0, 4)}...${walletAddress.substring(walletAddress.length - 4)}`;
+                        playBtn.style.display = 'block';
+                        createBtn.style.display = 'block';
+                        // Store wallet address for game.js
+                        window.userWalletAddress = walletAddress;
+                    } else {
+                        connectBtn.style.display = 'block';
+                        walletInfo.style.display = 'none';
+                        playBtn.style.display = 'none';
+                        createBtn.style.display = 'none';
+                        window.userWalletAddress = null;
+                    }
+                }
+                
+                function showEmailWalletInput() {
+                    // For email users, show input to enter wallet address
+                    const walletInfo = document.getElementById('wallet-info');
+                    const walletAddressDiv = document.getElementById('wallet-address');
+                    walletInfo.style.display = 'block';
+                    walletAddressDiv.innerHTML = '<input type="text" id="email-wallet-input" placeholder="Enter your Solana wallet address" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc; width: 100%; max-width: 300px; margin: 5px auto; display: block;"><button id="save-wallet-btn" style="margin-top: 5px; padding: 5px 15px; background: #9945FF; border: none; border-radius: 5px; color: #fff; cursor: pointer;">Save Wallet</button>';
+                    
+                    document.getElementById('save-wallet-btn').addEventListener('click', function() {
+                        const input = document.getElementById('email-wallet-input');
+                        const address = input.value.trim();
+                        if (address && address.length > 0) {
+                            walletAddress = address;
+                            window.userWalletAddress = address;
+                            // Save to Privy user metadata or localStorage
+                            if (privy) {
+                                privy.updateUserMetadata({ walletAddress: address });
+                            }
+                            localStorage.setItem('userWalletAddress', address);
+                            updateWalletUI(true);
+                        }
+                    });
+                }
+                
+                // Connect button handler
+                document.getElementById('privy-connect-button').addEventListener('click', async function() {
+                    if (!privy) {
+                        console.error('Privy not initialized');
+                        return;
+                    }
+                    
+                    try {
+                        await privy.login();
+                        const user = privy.getUser();
+                        if (user && user.wallet) {
+                            walletAddress = user.wallet.address;
+                            updateWalletUI(true);
+                        } else if (user && user.email) {
+                            // Check if wallet address was previously saved
+                            const savedAddress = localStorage.getItem('userWalletAddress');
+                            if (savedAddress) {
+                                walletAddress = savedAddress;
+                                updateWalletUI(true);
+                            } else {
+                                showEmailWalletInput();
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error connecting wallet:', error);
+                    }
+                });
+                
+                // Disconnect button handler
+                document.getElementById('privy-disconnect-button').addEventListener('click', async function() {
+                    if (privy) {
+                        await privy.logout();
+                    }
+                    walletAddress = null;
+                    window.userWalletAddress = null;
+                    localStorage.removeItem('userWalletAddress');
+                    updateWalletUI(false);
+                });
+                
+                // Initialize when Privy SDK loads
+                if (typeof Privy !== 'undefined') {
+                    initPrivy();
+                } else {
+                    window.addEventListener('load', function() {
+                        setTimeout(initPrivy, 1000);
+                    });
+                }
+            })();
+        </script>
         <script src="js/game.js"></script>
     </body>
 </html>

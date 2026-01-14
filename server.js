@@ -148,7 +148,8 @@ const PACKET = {
   SPAM: 31,
   ERROR: 32,
   KICK: 3,
-  BAN: 4
+  BAN: 4,
+  PRIZE_POOL_UPDATE: 33
 };
 
 function generateRoomId() {
@@ -234,7 +235,10 @@ function initializePublicRooms() {
         owner: null,
         startTime: null,
         timerInterval: null,
-        isPublic: true
+        isPublic: true,
+        prizePool: 0, // Prize pool in SOL (lamports)
+        prizePoolFrozen: false, // True when game ends, freezing the prize pool
+        gameStarted: false // Track if game has actually started (not just in lobby)
       };
       publicRooms.set(roomId, room);
       rooms.set(roomId, room);
@@ -319,7 +323,10 @@ app.post('/api/play', (req, res) => {
         owner: null,
         startTime: null,
         timerInterval: null,
-        isPublic: false
+        isPublic: false,
+        prizePool: 0, // Prize pool in SOL (lamports)
+        prizePoolFrozen: false, // True when game ends, freezing the prize pool
+        gameStarted: false // Track if game has actually started (not just in lobby)
       };
       rooms.set(roomId, room);
       
@@ -369,7 +376,10 @@ app.post('/api/play', (req, res) => {
           hintInterval: null,
           hintIndex: 0,
           isPublic: true,
-          autoStartTimer: null // Timer for auto-starting when exactly 8 players
+          autoStartTimer: null, // Timer for auto-starting when exactly 8 players
+          prizePool: 0, // Prize pool in SOL (lamports)
+          prizePoolFrozen: false, // True when game ends, freezing the prize pool
+          gameStarted: false // Track if game has actually started (not just in lobby)
         };
         rooms.set(roomId, availableRoom);
         console.log('✅ Created new public lobby:', roomId);
@@ -708,15 +718,22 @@ io.on('connection', (socket) => {
   
   socket.on('login', (data) => {
     try {
-    const { join, create, name, code, avatar } = data;
+    const { join, create, name, code, avatar, walletAddress } = data;
     // Force English only (lang = 0)
     const lang = 0;
     let roomId = join || code;
     
+    // Require wallet address to play
+    if (!walletAddress || typeof walletAddress !== 'string' || walletAddress.trim().length === 0) {
+      console.log('⚠️ Login rejected - no wallet address provided');
+      socket.emit('joinerr', 3); // Wallet required error
+      return;
+    }
+    
     // Limit name to 16 characters
     const playerName = (name || 'Player').trim().substring(0, 16);
     
-    console.log('🔐 Socket.IO login:', { join, create, name: playerName, lang, code, roomId });
+    console.log('🔐 Socket.IO login:', { join, create, name: playerName, lang, code, roomId, walletAddress: walletAddress.substring(0, 8) + '...' });
     
     // IMPORTANT: If create=1, this is a private room create request
     // The API might have returned a public room ID, but we need to create a private room
@@ -747,7 +764,10 @@ io.on('connection', (socket) => {
           hintInterval: null,
           hintIndex: 0,
           wordChoiceTimer: null,
-          isPublic: false
+          isPublic: false,
+          prizePool: 0, // Prize pool in SOL (lamports)
+          prizePoolFrozen: false, // True when game ends, freezing the prize pool
+          gameStarted: false // Track if game has actually started (not just in lobby)
         };
         rooms.set(roomId, room);
         roomCodes.set(roomCode, roomId);
@@ -792,9 +812,12 @@ io.on('connection', (socket) => {
         startTime: null,
         timerInterval: null,
         hintInterval: null,
-        hintIndex: 0,
-        wordChoiceTimer: null,
-        isPublic: create !== 1 && create !== '1'
+          hintIndex: 0,
+          wordChoiceTimer: null,
+          isPublic: create !== 1 && create !== '1',
+          prizePool: 0, // Prize pool in SOL (lamports)
+          prizePoolFrozen: false, // True when game ends, freezing the prize pool
+          gameStarted: false // Track if game has actually started (not just in lobby)
       };
       rooms.set(roomId, room);
       console.log('✅ Created room:', roomId, 'isPublic:', room.isPublic);
@@ -841,7 +864,10 @@ io.on('connection', (socket) => {
           hintInterval: null,
           hintIndex: 0,
           isPublic: true,
-          autoStartTimer: null
+          autoStartTimer: null,
+          prizePool: 0, // Prize pool in SOL (lamports)
+          prizePoolFrozen: false, // True when game ends, freezing the prize pool
+          gameStarted: false // Track if game has actually started (not just in lobby)
         };
         rooms.set(newLobbyId, newLobby);
         console.log('✅ Created new waiting lobby for player trying to join running game:', newLobbyId);
@@ -870,7 +896,8 @@ io.on('connection', (socket) => {
       score: 0,
       guessed: false,
       flags: 0,
-      roomId: roomId
+      roomId: roomId,
+      walletAddress: walletAddress.trim() // Store wallet address for prize claims
     };
     
     players.set(socket.id, player);
@@ -1905,6 +1932,8 @@ io.on('connection', (socket) => {
     });
     // Initialize pending scores map
     room.pendingScores = new Map();
+    // Mark game as started (active lobby for prize pool distribution)
+    room.gameStarted = true;
     console.log(`🎮 Starting game in room ${room.id}, currentRound reset to 0`);
     startRound(room);
   }
@@ -2305,6 +2334,9 @@ io.on('connection', (socket) => {
   
   function endGame(room) {
     room.state = GAME_STATE.GAME_END;
+    // Freeze prize pool when game ends - this is the claimable amount for winners
+    room.prizePoolFrozen = true;
+    console.log(`💰 Prize pool frozen for room ${room.id}: ${room.prizePool} SOL`);
     
     const rankings = room.players
       .map(p => [p.id, 0, ''])
@@ -2600,6 +2632,114 @@ io.engine.on('connection_error', (err) => {
 server.on('error', (error) => {
   console.error('❌ Server error:', error);
 });
+
+// ============================================
+// PRIZE POOL & FEE DISTRIBUTION SYSTEM
+// ============================================
+
+// Configuration
+const FEE_DISTRIBUTION_CONFIG = {
+  CREATOR_SHARE: 0.2, // 20% stays in creator wallet
+  PRIZE_POOL_SHARE: 0.8, // 80% goes to prize pools
+  CLAIM_INTERVAL_MS: 30000, // Claim fees every 30 seconds
+  PUMPFUN_TOKEN_ADDRESS: process.env.PUMPFUN_TOKEN_ADDRESS || '', // TODO: Set your token address
+  CREATOR_WALLET: process.env.CREATOR_WALLET || '', // TODO: Set your wallet address
+  SOLANA_RPC_URL: process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
+};
+
+// Prize pool distribution service
+async function claimAndDistributeFees() {
+  try {
+    console.log('💰 Starting fee claim and distribution cycle...');
+    
+    // TODO: Implement actual Pumpfun fee claiming
+    // This is a placeholder - you'll need to integrate with:
+    // 1. Solana Web3.js or @solana/web3.js
+    // 2. Pumpfun API or contract interaction
+    // 3. Your wallet/keypair for claiming
+    
+    // Example structure (replace with actual implementation):
+    /*
+    const { Connection, PublicKey, Keypair } = require('@solana/web3.js');
+    const connection = new Connection(FEE_DISTRIBUTION_CONFIG.SOLANA_RPC_URL);
+    
+    // Claim fees from Pumpfun token
+    const tokenMint = new PublicKey(FEE_DISTRIBUTION_CONFIG.PUMPFUN_TOKEN_ADDRESS);
+    const creatorKeypair = Keypair.fromSecretKey(/* your secret key */);
+    
+    // Calculate claimable fees (this depends on Pumpfun's fee structure)
+    const claimableFees = await getClaimableFees(tokenMint, creatorKeypair.publicKey);
+    */
+    
+    // For now, using a mock amount - replace with actual fee claiming
+    const totalClaimedFees = 0.1; // SOL (replace with actual claimed amount)
+    
+    if (totalClaimedFees <= 0) {
+      console.log('💰 No fees to distribute');
+      return;
+    }
+    
+    // Split fees: 80% to prize pools, 20% to creator
+    const prizePoolAmount = totalClaimedFees * FEE_DISTRIBUTION_CONFIG.PRIZE_POOL_SHARE;
+    const creatorAmount = totalClaimedFees * FEE_DISTRIBUTION_CONFIG.CREATOR_SHARE;
+    
+    console.log(`💰 Total fees claimed: ${totalClaimedFees} SOL`);
+    console.log(`💰 Prize pool share: ${prizePoolAmount} SOL (80%)`);
+    console.log(`💰 Creator share: ${creatorAmount} SOL (20%)`);
+    
+    // Find all active lobbies (game has started, prize pool not frozen)
+    const activeLobbies = [];
+    for (const [roomId, room] of rooms.entries()) {
+      if (room.gameStarted && !room.prizePoolFrozen) {
+        activeLobbies.push(room);
+      }
+    }
+    
+    if (activeLobbies.length === 0) {
+      console.log('💰 No active lobbies to distribute to');
+      // TODO: Store unclaimed fees or send to creator wallet
+      return;
+    }
+    
+    // Distribute prize pool amount equally across all active lobbies
+    const amountPerLobby = prizePoolAmount / activeLobbies.length;
+    
+    console.log(`💰 Distributing ${amountPerLobby} SOL to ${activeLobbies.length} active lobby/lobbies`);
+    
+    activeLobbies.forEach(room => {
+      room.prizePool += amountPerLobby;
+      console.log(`💰 Room ${room.id} prize pool: ${room.prizePool} SOL (+${amountPerLobby})`);
+      
+      // Broadcast updated prize pool to all players in the room
+      io.to(room.id).emit('data', {
+        id: PACKET.PRIZE_POOL_UPDATE,
+        data: {
+          prizePool: room.prizePool,
+          prizePoolFrozen: room.prizePoolFrozen
+        }
+      });
+    });
+    
+    // TODO: Send creator share to creator wallet
+    // await sendSolToWallet(creatorKeypair, FEE_DISTRIBUTION_CONFIG.CREATOR_WALLET, creatorAmount);
+    
+    console.log('✅ Fee distribution cycle complete');
+  } catch (error) {
+    console.error('❌ Error in fee claim and distribution:', error);
+  }
+}
+
+// Start fee claiming/distribution service (runs every 30 seconds)
+if (FEE_DISTRIBUTION_CONFIG.PUMPFUN_TOKEN_ADDRESS) {
+  console.log('💰 Prize pool system initialized');
+  // Run immediately on startup, then every 30 seconds
+  claimAndDistributeFees();
+  setInterval(claimAndDistributeFees, FEE_DISTRIBUTION_CONFIG.CLAIM_INTERVAL_MS);
+} else {
+  console.log('⚠️ Prize pool system disabled - PUMPFUN_TOKEN_ADDRESS not set');
+}
+
+// ============================================
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

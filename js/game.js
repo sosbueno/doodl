@@ -1825,8 +1825,14 @@
                 name: e[0],
                 lang: Fn.value,
                 code: e[1],
-                avatar: l.avatar
+                avatar: l.avatar,
+                walletAddress: h.userWalletAddress || "" // Get wallet address from window (set by Privy)
             };
+            // Check if wallet is connected before allowing login
+            if (!h.userWalletAddress) {
+                y(E("Please connect your wallet to play!"), "", f(Ee), !0);
+                return;
+            }
             S.emit("login", e)
         }),
         S.on("reason", function(e) {
