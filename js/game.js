@@ -1502,13 +1502,15 @@
             break;
         case V:
             // DEBUG: Log WORD_CHOICE state
-            console.log("[WORD_CHOICE] Received state, e.data:", e.data, "has words:", !!(e.data && e.data.words), "has id:", !!(e.data && e.data.id), "x (me):", x);
-            // CRITICAL: If x is undefined, we haven't received GAME_DATA yet - queue this packet
+            console.log("[WORD_CHOICE] Received state, e.data:", e.data, "has words:", !!(e.data && e.data.words), "has id:", !!(e.data && e.data.id), "x (me):", x, "typeof x:", typeof x);
+            // CRITICAL: If x is undefined or 0, we haven't received GAME_DATA yet - queue this packet
             // This can happen in the first round if WORD_CHOICE arrives before GAME_DATA
-            if (x === undefined || x === null) {
-                console.warn("[WORD_CHOICE] Queuing - player ID (x) not set yet, will process after GAME_DATA");
+            // Note: x is initialized to 0, so we check for both undefined and 0
+            if (x === undefined || x === null || x === 0) {
+                console.warn("[WORD_CHOICE] Queuing - player ID (x) not set yet (value:", x, "), will process after GAME_DATA");
                 // Store the state to process later
                 _pendingWordChoice.push(e);
+                console.log("[WORD_CHOICE] Queue now has", _pendingWordChoice.length, "items");
                 return; // Don't process WORD_CHOICE until we know who we are
             }
             // Set current drawer during word choice (for green chat messages)
@@ -1882,20 +1884,40 @@
         console.log("[GAME_DATA] Set x to:", x),
         // CRITICAL: Process any pending WORD_CHOICE states that arrived before GAME_DATA
         (function() {
-            if (_pendingWordChoice && _pendingWordChoice.length > 0) {
-                console.log("[GAME_DATA] Processing", _pendingWordChoice.length, "pending WORD_CHOICE state(s)");
-                var pendingStates = _pendingWordChoice.slice(); // Copy the array
-                _pendingWordChoice.length = 0; // Clear the queue
-                // Process each pending WORD_CHOICE state after a small delay to ensure GAME_DATA is fully processed
-                setTimeout(function() {
-                    console.log("[GAME_DATA] setTimeout callback - processing", pendingStates.length, "pending states");
-                    for (var i = 0; i < pendingStates.length; i++) {
-                        console.log("[GAME_DATA] Processing pending WORD_CHOICE:", pendingStates[i], "x is now:", x);
-                        sa(pendingStates[i], !0); // Use sa() to ensure overlay animation happens
+            // Also set up a periodic check to process any WORD_CHOICE that arrives after GAME_DATA
+            // This handles the case where WORD_CHOICE arrives after GAME_DATA but x wasn't set yet
+            if (x && x !== 0) {
+                // x is now set, check for pending states immediately and also set up periodic check
+                var processPending = function() {
+                    if (_pendingWordChoice && _pendingWordChoice.length > 0 && x && x !== 0) {
+                        console.log("[GAME_DATA] Processing", _pendingWordChoice.length, "pending WORD_CHOICE state(s), x is:", x);
+                        var pendingStates = _pendingWordChoice.slice(); // Copy the array
+                        _pendingWordChoice.length = 0; // Clear the queue
+                        setTimeout(function() {
+                            console.log("[GAME_DATA] setTimeout callback - processing", pendingStates.length, "pending states, x is:", x);
+                            for (var i = 0; i < pendingStates.length; i++) {
+                                console.log("[GAME_DATA] Processing pending WORD_CHOICE:", pendingStates[i], "x is now:", x);
+                                sa(pendingStates[i], !0); // Use sa() to ensure overlay animation happens
+                            }
+                        }, 100);
+                        return true; // Found and processing states
                     }
-                }, 50);
+                    return false; // No states to process
+                };
+                
+                // Process immediately if there are pending states
+                if (!processPending()) {
+                    console.log("[GAME_DATA] No pending WORD_CHOICE states to process, queue length:", _pendingWordChoice ? _pendingWordChoice.length : 0);
+                    // Set up periodic check for states that arrive after this GAME_DATA
+                    setTimeout(function() {
+                        if (_pendingWordChoice && _pendingWordChoice.length > 0) {
+                            console.log("[GAME_DATA] Periodic check found", _pendingWordChoice.length, "pending states, processing now");
+                            processPending();
+                        }
+                    }, 200);
+                }
             } else {
-                console.log("[GAME_DATA] No pending WORD_CHOICE states to process");
+                console.log("[GAME_DATA] x not set yet (value:", x, "), will check queue later");
             }
         })(),
         // CRITICAL: Set In based on isPublic or type

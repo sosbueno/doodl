@@ -1977,7 +1977,8 @@ io.on('connection', (socket) => {
     
     // Send word choice to DRAWER (V = 3, WORD_CHOICE with words and timer)
     console.log(`📤 Sending WORD_CHOICE to DRAWER ${room.currentDrawer} with ${words.length} words:`, words);
-    io.to(room.currentDrawer).emit('data', {
+    console.log(`📤 Drawer socket exists:`, io.sockets.sockets.has(room.currentDrawer));
+    const drawerPacket = {
       id: PACKET.STATE,
       data: {
         id: GAME_STATE.WORD_CHOICE, // V = 3
@@ -1986,7 +1987,9 @@ io.on('connection', (socket) => {
           words: words
         }
       }
-    });
+    };
+    console.log(`📤 Drawer packet structure:`, JSON.stringify(drawerPacket, null, 2));
+    io.to(room.currentDrawer).emit('data', drawerPacket);
     
     // Send "choosing word" message to OTHER players (V = 3, WORD_CHOICE without words, with timer)
     // Also send drawer's name and avatar to ensure correct display
@@ -2019,6 +2022,7 @@ io.on('connection', (socket) => {
           }
         };
         console.log(`📤 Sending WORD_CHOICE to ${player.id} (non-drawer) with drawer ID:`, room.currentDrawer);
+        console.log(`📤 Non-drawer packet structure:`, JSON.stringify(wordChoiceData, null, 2));
         io.to(player.id).emit('data', wordChoiceData);
       }
     });
