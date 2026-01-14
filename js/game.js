@@ -1503,15 +1503,26 @@
         case V:
             // DEBUG: Log WORD_CHOICE state
             console.log("[WORD_CHOICE] Received state, e.data:", e.data, "has words:", !!(e.data && e.data.words), "has id:", !!(e.data && e.data.id), "x (me):", x, "typeof x:", typeof x);
-            // CRITICAL: If x is undefined or 0, we haven't received GAME_DATA yet - queue this packet
-            // This can happen in the first round if WORD_CHOICE arrives before GAME_DATA
-            // Note: x is initialized to 0, so we check for both undefined and 0
-            if (x === undefined || x === null || x === 0) {
+            // CRITICAL: Check if this is the drawer's packet (has words) - process immediately if x is set
+            // If it's the non-drawer packet and x is not set, queue it
+            var isDrawerPacket = e.data && e.data.words && Array.isArray(e.data.words) && e.data.words.length > 0;
+            if (isDrawerPacket && x && x !== 0 && x !== undefined && x !== null) {
+                // Drawer packet and x is set - process immediately
+                console.log("[WORD_CHOICE] Drawer packet received, x is set, processing immediately");
+                // Continue to process below
+            } else if (x === undefined || x === null || x === 0) {
+                // x not set yet - queue this packet
                 console.warn("[WORD_CHOICE] Queuing - player ID (x) not set yet (value:", x, "), will process after GAME_DATA");
-                // Store the state to process later
                 _pendingWordChoice.push(e);
                 console.log("[WORD_CHOICE] Queue now has", _pendingWordChoice.length, "items");
                 return; // Don't process WORD_CHOICE until we know who we are
+            } else if (!isDrawerPacket && e.data && e.data.id) {
+                // Non-drawer packet and x is set - process normally
+                console.log("[WORD_CHOICE] Non-drawer packet received, x is set, processing normally");
+                // Continue to process below
+            } else {
+                console.warn("[WORD_CHOICE] Unexpected state - isDrawerPacket:", isDrawerPacket, "x:", x, "e.data:", e.data);
+                return;
             }
             // Set current drawer during word choice (for green chat messages)
             if (e.data && e.data.words && Array.isArray(e.data.words) && e.data.words.length > 0) {
@@ -1908,14 +1919,23 @@
                 // Process immediately if there are pending states
                 if (!processPending()) {
                     console.log("[GAME_DATA] No pending WORD_CHOICE states to process, queue length:", _pendingWordChoice ? _pendingWordChoice.length : 0);
-                    // Set up periodic check for states that arrive after this GAME_DATA
-                    setTimeout(function() {
-                        if (_pendingWordChoice && _pendingWordChoice.length > 0) {
-                            console.log("[GAME_DATA] Periodic check found", _pendingWordChoice.length, "pending states, processing now");
-                            processPending();
-                        }
-                    }, 200);
                 }
+                // Set up periodic check for states that arrive after this GAME_DATA
+                // Check multiple times to catch WORD_CHOICE that arrives late
+                var checkCount = 0;
+                var maxChecks = 10; // Check 10 times over 2 seconds
+                var checkInterval = setInterval(function() {
+                    checkCount++;
+                    if (_pendingWordChoice && _pendingWordChoice.length > 0 && x && x !== 0) {
+                        console.log("[GAME_DATA] Periodic check #" + checkCount + " found", _pendingWordChoice.length, "pending states, processing now, x is:", x);
+                        if (processPending()) {
+                            clearInterval(checkInterval); // Stop checking once we process
+                        }
+                    } else if (checkCount >= maxChecks) {
+                        console.log("[GAME_DATA] Stopping periodic check after", maxChecks, "attempts");
+                        clearInterval(checkInterval);
+                    }
+                }, 200);
             } else {
                 console.log("[GAME_DATA] x not set yet (value:", x, "), will check queue later");
             }
