@@ -1501,45 +1501,57 @@
                 I.querySelector(".winner-text").textContent = E("Nobody won!");
             break;
         case V:
-            // DEBUG: Log WORD_CHOICE state
-            console.log("[WORD_CHOICE] Received state, e.data:", e.data, "has words:", !!(e.data && e.data.words), "has id:", !!(e.data && e.data.id), "x (me):", x, "typeof x:", typeof x);
+            // DEBUG: Log WORD_CHOICE state - check x value directly
+            // CRITICAL: x might be undefined due to closure/timing, so check it fresh each time
+            var currentX = x; // Capture x value at this moment
+            console.log("[WORD_CHOICE] Received state, e.data:", e.data, "has words:", !!(e.data && e.data.words), "has id:", !!(e.data && e.data.id), "x (me):", currentX, "typeof x:", typeof currentX);
             // CRITICAL: Check if this is the drawer's packet (has words) - process immediately if x is set
             // If it's the non-drawer packet and x is not set, queue it
             var isDrawerPacket = e.data && e.data.words && Array.isArray(e.data.words) && e.data.words.length > 0;
-            if (isDrawerPacket && x && x !== 0 && x !== undefined && x !== null) {
+            if (isDrawerPacket && currentX && currentX !== 0 && currentX !== undefined && currentX !== null) {
                 // Drawer packet and x is set - process immediately
                 console.log("[WORD_CHOICE] Drawer packet received, x is set, processing immediately");
                 // Continue to process below
-            } else if (x === undefined || x === null || x === 0) {
+            } else if (currentX === undefined || currentX === null || currentX === 0) {
                 // x not set yet - queue this packet
-                console.warn("[WORD_CHOICE] Queuing - player ID (x) not set yet (value:", x, "), will process after GAME_DATA");
+                console.warn("[WORD_CHOICE] Queuing - player ID (x) not set yet (value:", currentX, "), will process after GAME_DATA");
                 _pendingWordChoice.push(e);
                 console.log("[WORD_CHOICE] Queue now has", _pendingWordChoice.length, "items");
                 // Also set up a check to process this after a delay in case GAME_DATA already arrived
-                setTimeout(function() {
-                    if (x && x !== 0 && x !== undefined && _pendingWordChoice && _pendingWordChoice.length > 0) {
-                        console.log("[WORD_CHOICE] Delayed check - x is now set to:", x, "processing queued states");
+                // Check multiple times to catch when x gets set
+                var checkAttempts = 0;
+                var maxAttempts = 20; // Check for 4 seconds (20 * 200ms)
+                var checkInterval = setInterval(function() {
+                    checkAttempts++;
+                    var checkX = x; // Check x fresh each time
+                    if (checkX && checkX !== 0 && checkX !== undefined && _pendingWordChoice && _pendingWordChoice.length > 0) {
+                        console.log("[WORD_CHOICE] Delayed check #" + checkAttempts + " - x is now set to:", checkX, "processing queued states");
                         var pendingStates = _pendingWordChoice.slice();
                         _pendingWordChoice.length = 0;
+                        clearInterval(checkInterval); // Stop checking
                         for (var i = 0; i < pendingStates.length; i++) {
-                            console.log("[WORD_CHOICE] Processing delayed WORD_CHOICE:", pendingStates[i], "x is:", x);
+                            console.log("[WORD_CHOICE] Processing delayed WORD_CHOICE:", pendingStates[i], "x is:", checkX);
                             sa(pendingStates[i], !0); // Use sa() to ensure overlay animation happens
                         }
+                    } else if (checkAttempts >= maxAttempts) {
+                        console.warn("[WORD_CHOICE] Stopped checking after", maxAttempts, "attempts, x is still:", checkX);
+                        clearInterval(checkInterval);
                     }
-                }, 300);
+                }, 200);
                 return; // Don't process WORD_CHOICE until we know who we are
             } else if (!isDrawerPacket && e.data && e.data.id) {
                 // Non-drawer packet and x is set - process normally
                 console.log("[WORD_CHOICE] Non-drawer packet received, x is set, processing normally");
                 // Continue to process below
             } else {
-                console.warn("[WORD_CHOICE] Unexpected state - isDrawerPacket:", isDrawerPacket, "x:", x, "e.data:", e.data);
+                console.warn("[WORD_CHOICE] Unexpected state - isDrawerPacket:", isDrawerPacket, "x:", currentX, "e.data:", e.data);
                 return;
             }
             // Set current drawer during word choice (for green chat messages)
+            // CRITICAL: Use currentX (captured earlier) instead of x to avoid shadowing issues
             if (e.data && e.data.words && Array.isArray(e.data.words) && e.data.words.length > 0) {
-                M = x; // We're the drawer
-                console.log("[WORD_CHOICE] We are the drawer, showing word choices");
+                M = currentX; // We're the drawer - use captured x value
+                console.log("[WORD_CHOICE] We are the drawer, showing word choices, M set to:", M);
             } else if (e.data && e.data.id) {
                 M = e.data.id; // Set M to the drawer's ID
                 console.log("[WORD_CHOICE] We are NOT the drawer, drawer ID:", e.data.id);
@@ -1577,13 +1589,13 @@
                     A.textContent = E("Choose the first word");
                     for (var S = e.data.words.length / 2, k = [], w = [], C = 0, o = 0; o < S; o++) {
                         var q = $("word", e.data.words[o])
-                          , x = (q.index = o,
-                        $("word", e.data.words[o + S]));
-                        x.index = o,
-                        x.style.display = "none",
-                        x.style.animationDelay = .03 * o + "s",
+                          , x2 = (q.index = o,
+                        $("word", e.data.words[o + S])); // Use x2 to avoid shadowing module-level x (player ID)
+                        x2.index = o,
+                        x2.style.display = "none",
+                        x2.style.animationDelay = .03 * o + "s",
                         k.push(q),
-                        w.push(x),
+                        w.push(x2),
                         D(q, "click", function() {
                             C = this.index;
                             for (var e = 0; e < S; e++)
