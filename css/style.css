@@ -3855,7 +3855,7 @@ form.chat-form input {
     align-items: center;
     text-align: center;
     background-color: rgba(40, 40, 40, 0.98) !important; /* Much darker background for better visibility */
-    padding-bottom: 20px; /* Add padding at bottom for button spacing */
+    padding: 30px 25px 25px 25px; /* Increased padding on all sides */
     box-shadow: 0 0 50px 0 rgba(0, 0, 0, 0.5) !important; /* Stronger shadow for better visibility */
 }
 
@@ -3869,7 +3869,8 @@ form.chat-form input {
 #modal .modal-container-player {
     width: 350px;
     display: flex;
-    justify-content: space-between
+    justify-content: space-between;
+    padding: 25px 20px 20px 20px; /* Add padding on all sides */
 }
 
 #modal .modal-container-player button {
@@ -4035,6 +4036,7 @@ form.chat-form input {
 #modal .modal-container-info {
     background-color: rgba(40, 40, 40, 0.98) !important;
     box-shadow: 0 0 50px 0 rgba(0, 0, 0, 0.5) !important;
+    padding: 30px 25px 25px 25px !important; /* Ensure padding is applied */
 }
 
 #modal .modal-container .modal-title {
@@ -4070,8 +4072,7 @@ form.chat-form input {
 
 #modal .modal-container .modal-content {
     flex: 1 1 auto;
-    padding: 0;
-    padding-top: 0;
+    padding: 20px 20px 15px 20px; /* Add padding on all sides */
     white-space: pre-line;
     color: #fff;
     line-height: 1;
