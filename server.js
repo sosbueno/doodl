@@ -222,7 +222,7 @@ function initializePublicRooms() {
       const room = {
         id: roomId,
         players: [],
-        settings: [0, 8, 80, 3, 3, 2, 0, 0], // Default settings (English only) - 3 words per round, 2 hints
+        settings: [0, 8, 80, 8, 3, 2, 0, 0], // Default settings (English only) - 8 rounds, 3 words per round, 2 hints
         state: GAME_STATE.LOBBY,
         currentRound: 0,
         currentDrawer: -1,
@@ -307,7 +307,7 @@ app.post('/api/play', (req, res) => {
         id: roomId,
         code: roomCode, // Store code in room object
         players: [],
-        settings: [0, 8, 80, 3, 3, 0, 0, 0], // Force English (lang = 0)
+        settings: [0, 8, 80, 8, 3, 0, 0, 0], // Force English (lang = 0), 8 rounds
         state: GAME_STATE.LOBBY,
         currentRound: 0,
         currentDrawer: -1,
@@ -332,7 +332,7 @@ app.post('/api/play', (req, res) => {
       // 1. Public room join (Play button) - find available lobby or create new one
       // Public rooms: fixed settings, auto-start at exactly 8 players, max 8 players
       // Settings: [LANG, SLOTS, DRAWTIME, ROUNDS, WORDCOUNT, HINTCOUNT, WORDMODE, CUSTOMWORDSONLY]
-      // Fixed: [0, 8, 80, 3, 3, 2, 0, 0] = English, 8 max, 80s draw, 3 rounds, 3 words per round, 2 hints
+      // Fixed: [0, 8, 80, 8, 3, 2, 0, 0] = English, 8 max, 80s draw, 8 rounds, 3 words per round, 2 hints
       
       // Find an available public lobby (in LOBBY state with < 8 players)
       // IMPORTANT: Only join LOBBY state rooms, never join running games
@@ -354,7 +354,7 @@ app.post('/api/play', (req, res) => {
         availableRoom = {
           id: roomId,
           players: [],
-          settings: [0, 8, 80, 3, 3, 2, 0, 0], // Fixed settings: English, 8 max, 80s, 3 rounds, 3 words per round, 2 hints
+          settings: [0, 8, 80, 8, 3, 2, 0, 0], // Fixed settings: English, 8 max, 80s, 8 rounds, 3 words per round, 2 hints
           state: GAME_STATE.LOBBY,
           currentRound: 0,
           currentDrawer: -1,
@@ -732,7 +732,7 @@ io.on('connection', (socket) => {
           id: roomId,
           code: roomCode,
           players: [],
-          settings: [0, 8, 80, 3, 3, 0, 0, 0], // Force English (lang = 0)
+          settings: [0, 8, 80, 8, 3, 0, 0, 0], // Force English (lang = 0), 8 rounds
           state: GAME_STATE.LOBBY,
           currentRound: 0,
           currentDrawer: -1,
@@ -779,7 +779,7 @@ io.on('connection', (socket) => {
       const room = {
         id: roomId,
         players: [],
-          settings: [0, 8, 80, 3, 3, 0, 0, 0], // Force English (lang = 0)
+          settings: [0, 8, 80, 8, 3, 0, 0, 0], // Force English (lang = 0), 8 rounds
         state: GAME_STATE.LOBBY,
         currentRound: 0,
         currentDrawer: -1,
@@ -826,7 +826,7 @@ io.on('connection', (socket) => {
         const newLobby = {
           id: newLobbyId,
           players: [],
-          settings: [0, 8, 80, 3, 3, 2, 0, 0],
+          settings: [0, 8, 80, 8, 3, 2, 0, 0],
           state: GAME_STATE.LOBBY,
           currentRound: 0,
           currentDrawer: -1,
@@ -1032,7 +1032,7 @@ io.on('connection', (socket) => {
         const newLobby = {
           id: newLobbyId,
           players: [],
-          settings: [0, 8, 80, 3, 3, 2, 0, 0], // Fixed settings: English, 8 max, 80s, 3 rounds, 3 words per round, 2 hints
+          settings: [0, 8, 80, 8, 3, 2, 0, 0], // Fixed settings: English, 8 max, 80s, 8 rounds, 3 words per round, 2 hints
           state: GAME_STATE.LOBBY,
           currentRound: 0,
           currentDrawer: -1,
