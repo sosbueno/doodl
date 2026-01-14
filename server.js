@@ -1922,6 +1922,8 @@ io.on('connection', (socket) => {
     const drawerIndex = (room.currentRound - 1) % room.players.length;
     room.currentDrawer = room.players[drawerIndex].id;
     console.log(`🎨 Drawer for round ${room.currentRound}: ${room.currentDrawer} (index ${drawerIndex})`);
+    console.log(`🎨 All players in room:`, room.players.map(p => ({ id: p.id, name: p.name })));
+    console.log(`🎨 Drawer player:`, room.players[drawerIndex] ? { id: room.players[drawerIndex].id, name: room.players[drawerIndex].name } : 'NOT FOUND');
     // Store scores at round start to calculate round score later
     room.players.forEach(p => {
       p.guessed = false;

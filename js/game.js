@@ -1515,6 +1515,18 @@
                 console.warn("[WORD_CHOICE] Queuing - player ID (x) not set yet (value:", x, "), will process after GAME_DATA");
                 _pendingWordChoice.push(e);
                 console.log("[WORD_CHOICE] Queue now has", _pendingWordChoice.length, "items");
+                // Also set up a check to process this after a delay in case GAME_DATA already arrived
+                setTimeout(function() {
+                    if (x && x !== 0 && x !== undefined && _pendingWordChoice && _pendingWordChoice.length > 0) {
+                        console.log("[WORD_CHOICE] Delayed check - x is now set to:", x, "processing queued states");
+                        var pendingStates = _pendingWordChoice.slice();
+                        _pendingWordChoice.length = 0;
+                        for (var i = 0; i < pendingStates.length; i++) {
+                            console.log("[WORD_CHOICE] Processing delayed WORD_CHOICE:", pendingStates[i], "x is:", x);
+                            sa(pendingStates[i], !0); // Use sa() to ensure overlay animation happens
+                        }
+                    }
+                }, 300);
                 return; // Don't process WORD_CHOICE until we know who we are
             } else if (!isDrawerPacket && e.data && e.data.id) {
                 // Non-drawer packet and x is set - process normally
