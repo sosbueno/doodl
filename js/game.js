@@ -1868,6 +1868,7 @@
         })
     }
     function aa(e) {
+        console.log("[GAME_DATA] Received, me:", e.me, "pending WORD_CHOICE count:", _pendingWordChoice ? _pendingWordChoice.length : 0);
         R.playSound(Cn),
         Tt(Xe, !0),
         At(12),
@@ -1878,6 +1879,7 @@
         c.querySelector("#home").style.display = "none",
         c.querySelector("#game").style.display = "flex",
         x = e.me,
+        console.log("[GAME_DATA] Set x to:", x),
         // CRITICAL: Process any pending WORD_CHOICE states that arrived before GAME_DATA
         (function() {
             if (_pendingWordChoice && _pendingWordChoice.length > 0) {
@@ -1886,11 +1888,14 @@
                 _pendingWordChoice.length = 0; // Clear the queue
                 // Process each pending WORD_CHOICE state after a small delay to ensure GAME_DATA is fully processed
                 setTimeout(function() {
+                    console.log("[GAME_DATA] setTimeout callback - processing", pendingStates.length, "pending states");
                     for (var i = 0; i < pendingStates.length; i++) {
-                        console.log("[GAME_DATA] Processing pending WORD_CHOICE:", pendingStates[i]);
+                        console.log("[GAME_DATA] Processing pending WORD_CHOICE:", pendingStates[i], "x is now:", x);
                         sa(pendingStates[i], !0); // Use sa() to ensure overlay animation happens
                     }
                 }, 50);
+            } else {
+                console.log("[GAME_DATA] No pending WORD_CHOICE states to process");
             }
         })(),
         // CRITICAL: Set In based on isPublic or type
