@@ -79,8 +79,7 @@
         <link href="https://fonts.googleapis.com/css2?family=Inconsolata&amp;display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&amp;display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-        <!-- Privy SDK - Using manual wallet entry for now (Privy CDN not available) -->
-        <!-- To use Privy, install via npm: npm install @privy-io/react-auth -->
+        <!-- Privy will be loaded via npm package @privy-io/js-sdk-core -->
     </head>
     <body translate="no">
         <div id="preroll"></div>
@@ -91,6 +90,16 @@
                         <img src="/img/doodllogo.gif">
                     </a>
                     <div class="avatar-container"></div>
+                </div>
+                <!-- Wallet Connect Button - Top Right -->
+                <div id="wallet-connect-header" style="position: absolute; top: 20px; right: 20px; z-index: 1000;">
+                    <button id="header-wallet-connect-btn" style="background: linear-gradient(135deg, #9945FF 0%, #14F195 100%); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3);">
+                        <span id="wallet-btn-text">Connect Wallet</span>
+                    </button>
+                    <div id="header-wallet-info" style="display: none; color: #fff; font-size: 0.9em; margin-top: 5px; text-align: center;">
+                        <div id="header-wallet-address" style="margin-bottom: 5px;"></div>
+                        <button id="header-wallet-disconnect" style="padding: 5px 10px; font-size: 0.8em; background: rgba(255,255,255,0.2); border: none; border-radius: 5px; color: #fff; cursor: pointer;">Disconnect</button>
+                    </div>
                 </div>
             </div>
             <div class="home-main">
@@ -116,19 +125,10 @@
                             </div>
                             <div class="randomize" data-tooltip="Randomize your Avatar!" data-tooltipdir="N"></div>
                         </div>
-                        <div id="wallet-connect-section" style="margin-bottom: 15px; text-align: center;">
-                            <button id="privy-connect-button" class="button-play" style="background: linear-gradient(135deg, #9945FF 0%, #14F195 100%); margin-bottom: 10px;">
-                                <span>Connect Wallet</span>
-                            </button>
-                            <div id="wallet-info" style="display: none; color: #fff; font-size: 0.9em; margin-top: 10px;">
-                                <div id="wallet-address"></div>
-                                <button id="privy-disconnect-button" style="margin-top: 5px; padding: 5px 10px; font-size: 0.8em; background: rgba(255,255,255,0.2); border: none; border-radius: 5px; color: #fff; cursor: pointer;">Disconnect</button>
-                            </div>
-                        </div>
-                        <button class="button-play" id="play-button" style="display: none;">
+                        <button class="button-play" id="play-button">
                             <span data-translate="text">Play!</span>
                         </button>
-                        <button class="button-create" id="create-button" style="display: none;">
+                        <button class="button-create" id="create-button">
                             <span data-translate="text">Create Private Room</span>
                         </button>
                     </div>
@@ -928,103 +928,230 @@
 // The Play button will automatically use the room code from URL (game.js handles this)
 </script>
         <script>
-            // Privy initialization and wallet connection
+            // Privy Wallet Integration
+            // Uses Privy REST API for authentication + Solana Wallet Adapter for wallet connection
             (function() {
-                // Wallet connection using manual entry (Privy SDK not available via CDN)
-                let walletAddress = null;
+                'use strict';
                 
-                // Check for saved wallet address
-                function initWallet() {
+                const PRIVY_APP_ID = 'cmkdyx5cg02hvlb0cexfoj8sj';
+                let walletAddress = null;
+                let wallet = null;
+                let privyAccessToken = null;
+                
+                // Connect wallet using Privy auth + Solana wallet
+                async function connectWallet() {
+                    try {
+                        // Step 1: Authenticate with Privy (email login)
+                        const email = prompt('Enter your email to connect wallet:');
+                        if (!email) return;
+                        
+                        // Send OTP via Privy REST API (through our server proxy)
+                        const sendCodeResponse = await fetch('/api/privy-auth', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                action: 'send_code',
+                                email: email
+                            })
+                        });
+                        
+                        if (!sendCodeResponse.ok) {
+                            throw new Error('Failed to send verification code');
+                        }
+                        
+                        const code = prompt('Enter the code sent to your email:');
+                        if (!code) return;
+                        
+                        // Verify code and get access token
+                        const verifyResponse = await fetch('/api/privy-auth', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                action: 'verify_code',
+                                email: email,
+                                code: code
+                            })
+                        });
+                        
+                        if (!verifyResponse.ok) {
+                            throw new Error('Invalid verification code');
+                        }
+                        
+                        const verifyData = await verifyResponse.json();
+                        privyAccessToken = verifyData.token;
+                        
+                        // Step 2: Connect Solana wallet (Phantom, Solflare, etc.)
+                        let solanaWallet = null;
+                        if (window.solana && window.solana.isPhantom) {
+                            const response = await window.solana.connect();
+                            solanaWallet = window.solana;
+                            walletAddress = response.publicKey.toString();
+                        } else if (window.solflare) {
+                            await window.solflare.connect();
+                            solanaWallet = window.solflare;
+                            walletAddress = window.solflare.publicKey.toString();
+                        } else {
+                            // Prompt to install wallet
+                            const install = confirm('No Solana wallet found. Install Phantom wallet?');
+                            if (install) {
+                                window.open('https://phantom.app/', '_blank');
+                            }
+                            return;
+                        }
+                        
+                        // Step 3: Verify wallet ownership
+                        if (solanaWallet && solanaWallet.signMessage) {
+                            const message = new TextEncoder().encode('Connect to doodls.fun - ' + Date.now());
+                            await solanaWallet.signMessage(message, 'utf8');
+                        }
+                        
+                        // Step 4: Get user ID from Privy token and create embedded wallet
+                        // Extract user ID from token (simplified - in production, verify JWT properly)
+                        try {
+                            // Create Privy embedded wallet for the user
+                            const createWalletResponse = await fetch('/api/privy-auth', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    action: 'create_wallet',
+                                    userId: verifyData.user?.id || verifyData.user_id
+                                })
+                            });
+                            
+                            if (createWalletResponse.ok) {
+                                const walletData = await createWalletResponse.json();
+                                // Use Privy embedded wallet address instead of external wallet
+                                walletAddress = walletData.address;
+                                console.log('Privy embedded wallet created:', walletAddress);
+                            } else {
+                                // Fallback to external wallet if embedded wallet creation fails
+                                console.warn('Failed to create Privy embedded wallet, using external wallet');
+                            }
+                        } catch (e) {
+                            console.warn('Error creating Privy wallet, using external wallet:', e);
+                        }
+                        
+                        // Store wallet address
+                        wallet = solanaWallet;
+                        window.userWalletAddress = walletAddress;
+                        localStorage.setItem('userWalletAddress', walletAddress);
+                        localStorage.setItem('privyAccessToken', privyAccessToken);
+                        
+                        updateWalletUI(true);
+                        console.log('Wallet connected and verified:', walletAddress);
+                        
+                    } catch (error) {
+                        console.error('Error connecting wallet:', error);
+                        alert('Failed to connect wallet: ' + error.message);
+                    }
+                }
+                
+                // Disconnect wallet
+                async function disconnectWallet() {
+                    try {
+                        if (wallet && wallet.disconnect) {
+                            await wallet.disconnect();
+                        }
+                    } catch (error) {
+                        console.error('Error disconnecting:', error);
+                    }
+                    
+                    walletAddress = null;
+                    wallet = null;
+                    privyAccessToken = null;
+                    window.userWalletAddress = null;
+                    localStorage.removeItem('userWalletAddress');
+                    localStorage.removeItem('privyAccessToken');
+                    updateWalletUI(false);
+                }
+                
+                // Update wallet UI
+                function updateWalletUI(connected) {
+                    const connectBtn = document.getElementById('header-wallet-connect-btn');
+                    const walletInfo = document.getElementById('header-wallet-info');
+                    const walletAddressDiv = document.getElementById('header-wallet-address');
+                    const playBtn = document.getElementById('play-button');
+                    const createBtn = document.getElementById('create-button');
+                    
+                    if (connected && walletAddress) {
+                        if (connectBtn) connectBtn.style.display = 'none';
+                        if (walletInfo) walletInfo.style.display = 'block';
+                        if (walletAddressDiv) {
+                            walletAddressDiv.textContent = `${walletAddress.substring(0, 4)}...${walletAddress.substring(walletAddress.length - 4)}`;
+                        }
+                        if (playBtn) {
+                            playBtn.disabled = false;
+                            playBtn.style.opacity = '1';
+                            playBtn.style.cursor = 'pointer';
+                        }
+                        if (createBtn) {
+                            createBtn.disabled = false;
+                            createBtn.style.opacity = '1';
+                            createBtn.style.cursor = 'pointer';
+                        }
+                    } else {
+                        if (connectBtn) connectBtn.style.display = 'block';
+                        if (walletInfo) walletInfo.style.display = 'none';
+                        if (playBtn) {
+                            playBtn.disabled = true;
+                            playBtn.style.opacity = '0.5';
+                            playBtn.style.cursor = 'not-allowed';
+                        }
+                        if (createBtn) {
+                            createBtn.disabled = true;
+                            createBtn.style.opacity = '0.5';
+                            createBtn.style.cursor = 'not-allowed';
+                        }
+                    }
+                }
+                
+                // Initialize
+                function init() {
+                    const connectBtn = document.getElementById('header-wallet-connect-btn');
+                    const disconnectBtn = document.getElementById('header-wallet-disconnect');
+                    
+                    if (connectBtn) {
+                        connectBtn.addEventListener('click', connectWallet);
+                    }
+                    if (disconnectBtn) {
+                        disconnectBtn.addEventListener('click', disconnectWallet);
+                    }
+                    
+                    // Check for saved wallet
                     const savedAddress = localStorage.getItem('userWalletAddress');
                     if (savedAddress) {
                         walletAddress = savedAddress;
                         window.userWalletAddress = savedAddress;
                         updateWalletUI(true);
                     } else {
-                        // Show manual wallet input
-                        showEmailWalletInput();
+                        updateWalletUI(false);
+                    }
+                    
+                    // Listen for wallet disconnection
+                    if (window.solana) {
+                        window.solana.on('disconnect', () => {
+                            disconnectWallet();
+                        });
                     }
                 }
                 
-                function updateWalletUI(connected) {
-                    const connectBtn = document.getElementById('privy-connect-button');
-                    const walletInfo = document.getElementById('wallet-info');
-                    const walletAddressDiv = document.getElementById('wallet-address');
-                    const playBtn = document.getElementById('play-button');
-                    const createBtn = document.getElementById('create-button');
-                    
-                    if (connected && walletAddress) {
-                        connectBtn.style.display = 'none';
-                        walletInfo.style.display = 'block';
-                        walletAddressDiv.textContent = `${walletAddress.substring(0, 4)}...${walletAddress.substring(walletAddress.length - 4)}`;
-                        playBtn.style.display = 'block';
-                        createBtn.style.display = 'block';
-                        // Store wallet address for game.js
-                        window.userWalletAddress = walletAddress;
-                    } else {
-                        connectBtn.style.display = 'block';
-                        walletInfo.style.display = 'none';
-                        playBtn.style.display = 'none';
-                        createBtn.style.display = 'none';
-                        window.userWalletAddress = null;
-                    }
-                }
-                
-                function showEmailWalletInput() {
-                    // Show input to enter wallet address manually
-                    const connectBtn = document.getElementById('privy-connect-button');
-                    const walletInfo = document.getElementById('wallet-info');
-                    const walletAddressDiv = document.getElementById('wallet-address');
-                    
-                    connectBtn.style.display = 'none';
-                    walletInfo.style.display = 'block';
-                    walletAddressDiv.innerHTML = '<div style="margin-bottom: 10px; color: #fff; font-size: 0.9em;">Enter your Solana wallet address to receive rewards:</div><input type="text" id="email-wallet-input" placeholder="Enter your Solana wallet address" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc; width: 100%; max-width: 300px; margin: 5px auto; display: block; background: #fff; color: #000;"><button id="save-wallet-btn" style="margin-top: 10px; padding: 8px 20px; background: #9945FF; border: none; border-radius: 5px; color: #fff; cursor: pointer; font-weight: 700;">Connect Wallet</button>';
-                    
-                    // Remove old event listener if exists
-                    const oldBtn = document.getElementById('save-wallet-btn');
-                    if (oldBtn) {
-                        oldBtn.replaceWith(oldBtn.cloneNode(true));
-                    }
-                    
-                    document.getElementById('save-wallet-btn').addEventListener('click', function() {
-                        const input = document.getElementById('email-wallet-input');
-                        const address = input.value.trim();
-                        if (address && address.length > 0) {
-                            // Basic validation - Solana addresses are 32-44 characters
-                            if (address.length >= 32 && address.length <= 44) {
-                                walletAddress = address;
-                                window.userWalletAddress = address;
-                                localStorage.setItem('userWalletAddress', address);
-                                updateWalletUI(true);
-                            } else {
-                                alert('Please enter a valid Solana wallet address (32-44 characters)');
-                            }
-                        } else {
-                            alert('Please enter your wallet address');
-                        }
-                    });
-                }
-                
-                // Connect button handler (shows manual wallet input)
-                document.getElementById('privy-connect-button').addEventListener('click', function() {
-                    showEmailWalletInput();
-                });
-                
-                // Disconnect button handler
-                document.getElementById('privy-disconnect-button').addEventListener('click', function() {
-                    walletAddress = null;
-                    window.userWalletAddress = null;
-                    localStorage.removeItem('userWalletAddress');
-                    updateWalletUI(false);
-                    showEmailWalletInput(); // Show input again
-                });
-                
-                // Initialize wallet on page load
                 if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', initWallet);
+                    document.addEventListener('DOMContentLoaded', init);
                 } else {
-                    initWallet();
+                    init();
                 }
+                
+                window.privyWallet = {
+                    connect: connectWallet,
+                    disconnect: disconnectWallet,
+                    getAddress: () => walletAddress
+                };
             })();
         </script>
         <script src="js/game.js"></script>

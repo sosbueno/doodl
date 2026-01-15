@@ -1877,6 +1877,8 @@
             // Check if wallet is connected before allowing login
             if (!h.userWalletAddress) {
                 y(E("Please connect your wallet to play!"), "", f(Ee), !0);
+                // Scroll to top to show wallet connect button
+                h.scrollTo(0, 0);
                 return;
             }
             S.emit("login", e)

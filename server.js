@@ -91,6 +91,80 @@ app.get('/api/privy-config', (req, res) => {
   });
 });
 
+// Proxy endpoint for Privy API calls (to keep API secret server-side)
+app.post('/api/privy-auth', async (req, res) => {
+  try {
+    const { action, email, code, userId } = req.body;
+    const PRIVY_APP_ID = process.env.PRIVY_APP_ID || 'cmkdyx5cg02hvlb0cexfoj8sj';
+    const PRIVY_APP_SECRET = process.env.PRIVY_APP_SECRET || 'privy_app_secret_aqUDeJsrkVjFdwAz9XtcBvhLWjiSwnDpzojW1JVqBzrKBAfri4pJQbVXTs5Nq6m3xT5hq1BKi7kuFuT1vpgLFuo';
+    
+    // Create Basic Auth header
+    const authString = Buffer.from(`${PRIVY_APP_ID}:${PRIVY_APP_SECRET}`).toString('base64');
+    
+    if (action === 'send_code') {
+      const response = await fetch('https://auth.privy.io/api/v1/passwordless/send_code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'privy-app-id': PRIVY_APP_ID,
+          'Authorization': `Basic ${authString}`
+        },
+        body: JSON.stringify({
+          email: email,
+          strategy: 'email'
+        })
+      });
+      
+      const data = await response.json();
+      res.json(data);
+      
+    } else if (action === 'verify_code') {
+      const response = await fetch('https://auth.privy.io/api/v1/passwordless/verify_code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'privy-app-id': PRIVY_APP_ID,
+          'Authorization': `Basic ${authString}`
+        },
+        body: JSON.stringify({
+          email: email,
+          code: code,
+          strategy: 'email'
+        })
+      });
+      
+      const data = await response.json();
+      res.json(data);
+      
+    } else if (action === 'create_wallet') {
+      // Create Solana wallet for authenticated user
+      const response = await fetch('https://api.privy.io/v1/wallets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'privy-app-id': PRIVY_APP_ID,
+          'Authorization': `Basic ${authString}`
+        },
+        body: JSON.stringify({
+          chain_type: 'solana',
+          owner: {
+            user_id: userId
+          }
+        })
+      });
+      
+      const data = await response.json();
+      res.json(data);
+      
+    } else {
+      res.status(400).json({ error: 'Invalid action' });
+    }
+  } catch (error) {
+    console.error('Privy API error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Word lists for different languages (loaded from private data file)
 const wordLists = require('./data/words.js');
 
