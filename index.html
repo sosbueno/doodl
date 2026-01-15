@@ -79,8 +79,20 @@
         <link href="https://fonts.googleapis.com/css2?family=Inconsolata&amp;display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&amp;display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-        <!-- Privy SDK - Load from official CDN -->
-        <script async src="https://sdk.privy.io/v1/privy.js"></script>
+        <!-- Privy SDK - Load from official CDN (optional, will work without it) -->
+        <script>
+            // Try to load Privy SDK, but don't fail if it doesn't load
+            (function() {
+                var script = document.createElement('script');
+                script.src = 'https://sdk.privy.io/v1/privy.js';
+                script.async = true;
+                script.onerror = function() {
+                    console.warn('Privy SDK failed to load. Wallet features will be limited.');
+                    window.Privy = null; // Mark as unavailable
+                };
+                document.head.appendChild(script);
+            })();
+        </script>
     </head>
     <body translate="no">
         <div id="preroll"></div>
@@ -1076,21 +1088,21 @@
                     updateWalletUI(false);
                 });
                 
-                // Initialize when Privy SDK loads
+                // Initialize when Privy SDK loads (or allow manual wallet entry if it doesn't)
                 var privyLoadAttempts = 0;
                 var maxPrivyLoadAttempts = 20; // 10 seconds max
                 
                 function waitForPrivy() {
                     privyLoadAttempts++;
-                    if (typeof Privy !== 'undefined') {
+                    if (typeof Privy !== 'undefined' && Privy !== null) {
                         fetchPrivyConfig();
                     } else if (privyLoadAttempts < maxPrivyLoadAttempts) {
                         // Try again after a short delay
                         setTimeout(waitForPrivy, 500);
                     } else {
-                        console.error('Privy SDK failed to load after 10 seconds. Please check your internet connection or the Privy SDK URL.');
-                        // Show a message to user
-                        alert('Wallet connection unavailable. Please refresh the page.');
+                        console.warn('Privy SDK not available. Using manual wallet entry mode.');
+                        // Show manual wallet input as fallback
+                        showEmailWalletInput();
                     }
                 }
                 

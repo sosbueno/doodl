@@ -1488,7 +1488,7 @@
                         claimBtn.disabled = true;
                         claimBtn.textContent = E("Claiming...");
                         S.emit("data", {
-                            id: Ha,  // CLAIM_REWARD
+                            id: claimRewardPacket,  // CLAIM_REWARD
                             data: null
                         });
                     }
@@ -2552,7 +2552,7 @@
       , Wa = 31
       , Oa = 32
       , prizePoolUpdatePacket = 33  // PRIZE_POOL_UPDATE
-      , Ha = 34  // CLAIM_REWARD
+      , claimRewardPacket = 34  // CLAIM_REWARD
       , rewardClaimedPacket = 35; // REWARD_CLAIMED
     function Pa(e) {
         var t = e.id
