@@ -1450,12 +1450,58 @@
             vn(I);
             for (var d = [I.querySelector(".podest-1"), I.querySelector(".podest-2"), I.querySelector(".podest-3"), I.querySelector(".ranks")], o = 0; o < 4; o++)
                 ce(d[o]);
-            if (0 < e.data.length) {
-                for (var u = [[], [], [], []], o = 0; o < e.data.length; o++)
+            // Handle new game end data structure (with prize pool and rewards)
+            var gameEndData = e.data;
+            var rankings = Array.isArray(gameEndData) ? gameEndData : (gameEndData.rankings || gameEndData);
+            var prizePool = gameEndData.prizePool || 0;
+            var playerRewards = gameEndData.playerRewards || {};
+            var myReward = playerRewards[x] || 0;
+            
+            // Show prize pool info if available
+            if (prizePool > 0) {
+                var prizePoolEl = I.querySelector(".prize-pool");
+                if (!prizePoolEl) {
+                    prizePoolEl = c.createElement("div");
+                    prizePoolEl.className = "prize-pool";
+                    prizePoolEl.style.cssText = "text-align: center; margin: 20px 0; color: #fff; font-size: 1.2em; font-weight: 700;";
+                    I.querySelector(".winner-name").parentElement.insertBefore(prizePoolEl, I.querySelector(".winner-name"));
+                }
+                prizePoolEl.textContent = E("Prize Pool: $ SOL", prizePool.toFixed(4));
+            }
+            
+            // Show claim button if user has a reward
+            if (myReward > 0) {
+                var claimBtnContainer = I.querySelector(".claim-reward-container");
+                if (!claimBtnContainer) {
+                    claimBtnContainer = c.createElement("div");
+                    claimBtnContainer.className = "claim-reward-container";
+                    claimBtnContainer.style.cssText = "text-align: center; margin: 20px 0;";
+                    I.appendChild(claimBtnContainer);
+                }
+                ce(claimBtnContainer);
+                var claimBtn = c.createElement("button");
+                claimBtn.className = "claim-reward-button";
+                claimBtn.style.cssText = "background: linear-gradient(135deg, #9945FF 0%, #14F195 100%); color: #fff; border: none; padding: 15px 30px; font-size: 1.2em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3);";
+                claimBtn.textContent = E("Claim $ SOL Reward!", myReward.toFixed(4));
+                claimBtn.onclick = function() {
+                    if (S) {
+                        claimBtn.disabled = true;
+                        claimBtn.textContent = E("Claiming...");
+                        S.emit("data", {
+                            id: Ha,  // CLAIM_REWARD
+                            data: null
+                        });
+                    }
+                };
+                claimBtnContainer.appendChild(claimBtn);
+            }
+            
+            if (0 < rankings.length) {
+                for (var u = [[], [], [], []], o = 0; o < rankings.length; o++)
                     (s = {
-                        player: W(r = e.data[o][0]),
-                        rank: e.data[o][1],
-                        title: e.data[o][2]
+                        player: W(r = rankings[o][0]),
+                        rank: rankings[o][1],
+                        title: rankings[o][2]
                     }).player && u[Math.min(s.rank, 3)].push(s);
                 for (var h = 0; h < 3; h++) {
                     var p = u[h];
@@ -1606,7 +1652,7 @@
                     }
                 }
             } else {
-                vn(A);
+                        vn(A);
                 var s = W(e.data && e.data.id ? e.data.id : null);
                 var L = s ? s.name : E("User"),
                     L = (A.textContent = "", A.appendChild(se("span", void 0, E("$ is choosing a word!", L))), de(s ? s.avatar : [0, 0, 0, 0], e.data && e.data.id == En));
@@ -2504,7 +2550,10 @@
       , Ta = 21
       , Na = 30
       , Wa = 31
-      , Oa = 32;
+      , Oa = 32
+      , Ua = 33  // PRIZE_POOL_UPDATE
+      , Ha = 34  // CLAIM_REWARD
+      , rewardClaimedPacket = 35; // REWARD_CLAIMED
     function Pa(e) {
         var t = e.id
           , n = e.data;
@@ -2712,6 +2761,19 @@
         case Wa:
             // SPAM packet (id: 31) - data is null, just show spam message
             y(E("Spam detected! You're sending messages too quickly."), "", f(Ee), !0);
+            break;
+        case rewardClaimedPacket:  // REWARD_CLAIMED
+            if (n && n.amount && n.txSignature) {
+                var claimMsg = E("Successfully claimed $ SOL! Transaction: $", [n.amount.toFixed(4), "https://solscan.io/tx/" + n.txSignature]);
+                y(claimMsg, "", f($e), !0);
+                // Hide claim button
+                var claimContainer = I.querySelector(".claim-reward-container");
+                if (claimContainer) {
+                    claimContainer.style.display = "none";
+                }
+            } else if (n && n.message) {
+                y(n.message, "", f(Ee), !0);
+            }
             break;
         case Oa:
             switch (n && n.id ? n.id : (n ? n : 0)) {

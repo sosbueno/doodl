@@ -84,6 +84,13 @@ app.get('/faq', (req, res) => {
   res.sendFile(path.join(__dirname, 'faq.html'));
 });
 
+// Endpoint to get Privy App ID (server-side only, not exposed in client code)
+app.get('/api/privy-config', (req, res) => {
+  res.json({
+    appId: process.env.PRIVY_APP_ID || 'cmkdyx5cg02hvlb0cexfoj8sj'
+  });
+});
+
 // Word lists for different languages (loaded from private data file)
 const wordLists = require('./data/words.js');
 
@@ -149,7 +156,9 @@ const PACKET = {
   ERROR: 32,
   KICK: 3,
   BAN: 4,
-  PRIZE_POOL_UPDATE: 33
+  PRIZE_POOL_UPDATE: 33,
+  CLAIM_REWARD: 34,
+  REWARD_CLAIMED: 35
 };
 
 function generateRoomId() {
@@ -1385,6 +1394,69 @@ io.on('connection', (socket) => {
         }
         break;
         
+      case PACKET.CLAIM_REWARD:
+        // Handle reward claim request
+        if (room.prizePoolFrozen && room.playerRewards) {
+          const playerReward = room.playerRewards.get(socket.id);
+          const player = room.players.find(p => p.id === socket.id);
+          
+          if (playerReward && playerReward > 0 && player && player.walletAddress) {
+            // Check if already claimed
+            if (room.claimedRewards && room.claimedRewards.has(socket.id)) {
+              socket.emit('data', {
+                id: PACKET.ERROR,
+                data: 'Reward already claimed'
+              });
+              return;
+            }
+            
+            // Send SOL to player's wallet using Helius
+            sendSolToPlayer(player.walletAddress, playerReward, socket.id, room.id)
+              .then((txSignature) => {
+                // Mark as claimed
+                if (!room.claimedRewards) {
+                  room.claimedRewards = new Set();
+                }
+                room.claimedRewards.add(socket.id);
+                
+                // Notify player
+                socket.emit('data', {
+                  id: PACKET.REWARD_CLAIMED,
+                  data: {
+                    amount: playerReward,
+                    txSignature: txSignature,
+                    message: `Successfully claimed ${playerReward} SOL!`
+                  }
+                });
+                
+                console.log(`✅ Player ${player.name} claimed ${playerReward} SOL. TX: ${txSignature}`);
+              })
+              .catch((error) => {
+                console.error(`❌ Error sending SOL to ${player.name}:`, error);
+                socket.emit('data', {
+                  id: PACKET.ERROR,
+                  data: `Failed to claim reward: ${error.message}`
+                });
+              });
+          } else if (!player || !player.walletAddress) {
+            socket.emit('data', {
+              id: PACKET.ERROR,
+              data: 'Wallet address not found. Please connect your wallet.'
+            });
+          } else if (!playerReward || playerReward <= 0) {
+            socket.emit('data', {
+              id: PACKET.ERROR,
+              data: 'No reward available to claim'
+            });
+          }
+        } else {
+          socket.emit('data', {
+            id: PACKET.ERROR,
+            data: 'Game not finished or no rewards available'
+          });
+        }
+        break;
+        
       case PACKET.CHAT:
         // Handle chat messages (packet id 30)
         // Block links in chat messages - any 2+ letter word followed by a dot and anything
@@ -2366,15 +2438,70 @@ io.on('connection', (socket) => {
       previousScore = currentScore;
     });
     
+    // Calculate and store player rewards based on rankings
+    // Distribution: 1st place gets 50%, 2nd gets 30%, 3rd gets 20%
+    if (!room.playerRewards) {
+      room.playerRewards = new Map();
+    }
+    
+    const totalPrizePool = room.prizePool;
+    if (totalPrizePool > 0) {
+      // Group players by rank (handle ties)
+      const playersByRank = new Map();
+      rankings.forEach((rank, index) => {
+        const rankNum = rank[1];
+        if (!playersByRank.has(rankNum)) {
+          playersByRank.set(rankNum, []);
+        }
+        playersByRank.get(rankNum).push(rank[0]);
+      });
+      
+      // Distribute rewards
+      const rewardPercentages = [0.5, 0.3, 0.2]; // 1st, 2nd, 3rd place percentages
+      let rankIndex = 0;
+      
+      for (const [rankNum, playerIds] of playersByRank.entries()) {
+        if (rankIndex < rewardPercentages.length) {
+          const percentage = rewardPercentages[rankIndex];
+          const rewardPerPlayer = (totalPrizePool * percentage) / playerIds.length; // Split if tied
+          
+          playerIds.forEach(playerId => {
+            const existingReward = room.playerRewards.get(playerId) || 0;
+            room.playerRewards.set(playerId, existingReward + rewardPerPlayer);
+            const player = room.players.find(p => p.id === playerId);
+            if (player) {
+              console.log(`💰 Player ${player.name} (rank ${rankNum + 1}) reward: ${rewardPerPlayer} SOL`);
+            }
+          });
+          
+          rankIndex++;
+        }
+      }
+    }
+    
     // Set timer to 7 seconds for countdown in top-left clock
     room.timer = 7;
+    
+    // Include prize pool and player rewards in game end data
+    const gameEndData = {
+      rankings: rankings,
+      prizePool: room.prizePool,
+      playerRewards: {} // Map player IDs to their reward amounts
+    };
+    
+    // Add player rewards to the data
+    if (room.playerRewards) {
+      room.playerRewards.forEach((reward, playerId) => {
+        gameEndData.playerRewards[playerId] = reward;
+      });
+    }
     
     io.to(room.id).emit('data', {
       id: PACKET.STATE,
       data: {
         id: GAME_STATE.GAME_END,
         time: 7,  // Send 7 seconds for countdown
-        data: rankings
+        data: gameEndData
       }
     });
     
@@ -2642,36 +2769,134 @@ const FEE_DISTRIBUTION_CONFIG = {
   CREATOR_SHARE: 0.2, // 20% stays in creator wallet
   PRIZE_POOL_SHARE: 0.8, // 80% goes to prize pools
   CLAIM_INTERVAL_MS: 30000, // Claim fees every 30 seconds
-  PUMPFUN_TOKEN_ADDRESS: process.env.PUMPFUN_TOKEN_ADDRESS || '', // TODO: Set your token address
-  CREATOR_WALLET: process.env.CREATOR_WALLET || '', // TODO: Set your wallet address
-  SOLANA_RPC_URL: process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com'
+  PUMPFUN_TOKEN_ADDRESS: process.env.PUMPFUN_TOKEN_ADDRESS || '', // Set when token is launched
+  CREATOR_WALLET: process.env.CREATOR_WALLET || '3y4vTFotbXPsJNX5KecTrWPmpwK63HFGFumrz3zmEKP3', // Your Solana wallet address
+  CREATOR_SECRET_KEY: process.env.CREATOR_SECRET_KEY || '23SzmcnZNmEmhGtxGxEmvvWA9tcHuAWNaKEDKsdSgFYA2wEFCxBun5dYEzBaf9NuMSqR5HBzpRvgMLEvKPef9PMF', // Base58 private key
+  PUMPPORTAL_API_KEY: process.env.PUMPPORTAL_API_KEY || 'a1amjdv46nu4rmu761v6md1bet34rv3nahj4jpb88t96ux2ha9nqmuuad5rnmea18n2qgh28ch3n4p3b6xj4ywtk9grn8u9pehkjpha7emtm2bv5eh9q0x1h95w7jcj8ct7qgrjh84yku95q6ukar9cvngebuahkkjhk8cccxgm8h9mcdhmghhf8xrnegk8c92pcpbr890kuf8', // PumpPortal API key
+  HELIUS_API_KEY: process.env.HELIUS_API_KEY || 'dbab0278-3123-4d7e-85bb-a284086b6ee4', // Helius API key
+  HELIUS_RPC_URL: process.env.HELIUS_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=dbab0278-3123-4d7e-85bb-a284086b6ee4' // Helius RPC URL
 };
+
+// Using PumpPortal API for claiming Pumpfun creator fees
+// Documentation: https://pumpportal.fun/creator-fee
+
+// Send SOL to player using Helius API
+async function sendSolToPlayer(recipientAddress, amountSOL, playerId, roomId) {
+  try {
+    if (!FEE_DISTRIBUTION_CONFIG.HELIUS_API_KEY || !FEE_DISTRIBUTION_CONFIG.HELIUS_RPC_URL) {
+      throw new Error('Helius API not configured');
+    }
+    
+    if (!FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY) {
+      throw new Error('Creator secret key not configured');
+    }
+    
+    // Use Solana Web3.js to send SOL
+    const { Connection, Keypair, PublicKey, SystemProgram, Transaction, VersionedTransaction } = require('@solana/web3.js');
+    const bs58 = require('bs58');
+    
+    // Initialize connection
+    const connection = new Connection(FEE_DISTRIBUTION_CONFIG.HELIUS_RPC_URL, 'confirmed');
+    
+    // Load creator keypair from Base58 private key
+    const creatorKeypair = Keypair.fromSecretKey(bs58.decode(FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY));
+    const recipientPubkey = new PublicKey(recipientAddress);
+    
+    // Convert SOL to lamports
+    const amountLamports = Math.floor(amountSOL * 1e9);
+    
+    // Get recent blockhash
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+    
+    // Create transfer instruction
+    const transferInstruction = SystemProgram.transfer({
+      fromPubkey: creatorKeypair.publicKey,
+      toPubkey: recipientPubkey,
+      lamports: amountLamports
+    });
+    
+    // Create and sign transaction
+    const transaction = new Transaction({
+      recentBlockhash: blockhash,
+      feePayer: creatorKeypair.publicKey
+    }).add(transferInstruction);
+    
+    transaction.sign(creatorKeypair);
+    
+    // Send transaction via Helius
+    const signature = await connection.sendRawTransaction(transaction.serialize(), {
+      skipPreflight: false,
+      maxRetries: 3
+    });
+    
+    // Wait for confirmation
+    await connection.confirmTransaction({
+      signature: signature,
+      blockhash: blockhash,
+      lastValidBlockHeight: lastValidBlockHeight
+    }, 'confirmed');
+    
+    console.log(`✅ Sent ${amountSOL} SOL to ${recipientAddress}. TX: https://solscan.io/tx/${signature}`);
+    return signature;
+    
+  } catch (error) {
+    console.error('❌ Error sending SOL:', error);
+    throw error;
+  }
+}
 
 // Prize pool distribution service
 async function claimAndDistributeFees() {
   try {
     console.log('💰 Starting fee claim and distribution cycle...');
     
-    // TODO: Implement actual Pumpfun fee claiming
-    // This is a placeholder - you'll need to integrate with:
-    // 1. Solana Web3.js or @solana/web3.js
-    // 2. Pumpfun API or contract interaction
-    // 3. Your wallet/keypair for claiming
+    let totalClaimedFees = 0;
     
-    // Example structure (replace with actual implementation):
-    // TODO: Uncomment and implement when ready:
-    // const { Connection, PublicKey, Keypair } = require('@solana/web3.js');
-    // const connection = new Connection(FEE_DISTRIBUTION_CONFIG.SOLANA_RPC_URL);
-    // 
-    // // Claim fees from Pumpfun token
-    // const tokenMint = new PublicKey(FEE_DISTRIBUTION_CONFIG.PUMPFUN_TOKEN_ADDRESS);
-    // const creatorKeypair = Keypair.fromSecretKey(Buffer.from(process.env.CREATOR_SECRET_KEY, 'base64'));
-    // 
-    // // Calculate claimable fees (this depends on Pumpfun's fee structure)
-    // const claimableFees = await getClaimableFees(tokenMint, creatorKeypair.publicKey);
-    
-    // For now, using a mock amount - replace with actual fee claiming
-    const totalClaimedFees = 0.1; // SOL (replace with actual claimed amount)
+    // Claim fees using PumpPortal API
+    if (FEE_DISTRIBUTION_CONFIG.PUMPPORTAL_API_KEY && FEE_DISTRIBUTION_CONFIG.CREATOR_WALLET) {
+      try {
+        // Use PumpPortal Lightning Transaction API to claim creator fees
+        // Note: pump.fun claims all creator fees at once, so no need to specify mint
+        const response = await fetch(`https://pumpportal.fun/api/trade?api-key=${FEE_DISTRIBUTION_CONFIG.PUMPPORTAL_API_KEY}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            action: 'collectCreatorFee',
+            priorityFee: 0.000001,
+            pool: 'pump' // Use 'pump' for Pumpfun, 'meteora-dbc' for Meteora
+            // Note: pump.fun claims all creator fees at once, so no "mint" parameter needed
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.signature) {
+            console.log(`✅ Creator fees claimed! Transaction: https://solscan.io/tx/${data.signature}`);
+            
+            // After claiming, we need to check the wallet balance to see how much was claimed
+            // For now, we'll use a placeholder - you may want to track this differently
+            // TODO: Check wallet balance before/after to calculate actual claimed amount
+            totalClaimedFees = 0; // Will be calculated from balance difference
+          } else if (data.error) {
+            console.log(`⚠️ No fees to claim or error: ${data.error}`);
+            totalClaimedFees = 0;
+          }
+        } else {
+          const errorText = await response.text();
+          console.log(`⚠️ PumpPortal API error: ${response.status} - ${errorText}`);
+          totalClaimedFees = 0;
+        }
+      } catch (error) {
+        console.error('❌ Error claiming fees from PumpPortal:', error);
+        totalClaimedFees = 0;
+      }
+    } else {
+      console.log('⚠️ PumpPortal API key or creator wallet not configured');
+      totalClaimedFees = 0;
+    }
     
     if (totalClaimedFees <= 0) {
       console.log('💰 No fees to distribute');

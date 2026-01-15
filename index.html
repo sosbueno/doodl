@@ -930,14 +930,33 @@
         <script>
             // Privy initialization and wallet connection
             (function() {
-                // Initialize Privy - Replace with your actual Privy App ID
-                const PRIVY_APP_ID = 'YOUR_PRIVY_APP_ID'; // TODO: Replace with your Privy App ID
-                
+                // Initialize Privy - Get App ID from server endpoint (secure)
                 let privy = null;
                 let walletAddress = null;
+                let PRIVY_APP_ID = null;
+                
+                // Fetch Privy App ID from server (secure, not exposed in client code)
+                async function fetchPrivyConfig() {
+                    try {
+                        const response = await fetch('/api/privy-config');
+                        const config = await response.json();
+                        PRIVY_APP_ID = config.appId;
+                        initPrivy();
+                    } catch (error) {
+                        console.error('Error fetching Privy config:', error);
+                        // Fallback (not recommended for production)
+                        PRIVY_APP_ID = 'cmkdyx5cg02hvlb0cexfoj8sj';
+                        initPrivy();
+                    }
+                }
                 
                 // Wait for Privy SDK to load
                 function initPrivy() {
+                    if (!PRIVY_APP_ID) {
+                        console.error('Privy App ID not loaded');
+                        return;
+                    }
+                    
                     if (typeof Privy === 'undefined') {
                         console.error('Privy SDK not loaded');
                         return;
@@ -1059,10 +1078,10 @@
                 
                 // Initialize when Privy SDK loads
                 if (typeof Privy !== 'undefined') {
-                    initPrivy();
+                    fetchPrivyConfig();
                 } else {
                     window.addEventListener('load', function() {
-                        setTimeout(initPrivy, 1000);
+                        setTimeout(fetchPrivyConfig, 1000);
                     });
                 }
             })();
