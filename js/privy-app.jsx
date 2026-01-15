@@ -52,12 +52,35 @@ function WalletConnectButton() {
       });
       
       // Set wallet address if we have one, even if authentication session failed
+      // This allows users to play even if Privy's authentication session has errors
       if (window.userWalletAddress !== solanaWallet.address) {
         window.userWalletAddress = solanaWallet.address;
         console.log('✅ Setting wallet address:', solanaWallet.address);
-        window.dispatchEvent(new CustomEvent('privy-wallet-connected', {
+        console.log('✅ Dispatching privy-wallet-connected event');
+        
+        // Dispatch the event to enable play buttons
+        const event = new CustomEvent('privy-wallet-connected', {
           detail: { address: solanaWallet.address }
-        }));
+        });
+        window.dispatchEvent(event);
+        
+        // Also manually enable buttons in case event listener isn't working
+        setTimeout(() => {
+          const playBtn = document.getElementById('play-button');
+          const createBtn = document.getElementById('create-button');
+          if (playBtn) {
+            playBtn.disabled = false;
+            playBtn.style.opacity = '1';
+            playBtn.style.cursor = 'pointer';
+            console.log('✅ Enabled play button');
+          }
+          if (createBtn) {
+            createBtn.disabled = false;
+            createBtn.style.opacity = '1';
+            createBtn.style.cursor = 'pointer';
+            console.log('✅ Enabled create button');
+          }
+        }, 100);
       }
     } else if (ready && authenticated && wallets.length > 0) {
       // User authenticated but no Solana wallet found
