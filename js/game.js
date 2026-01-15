@@ -1876,9 +1876,8 @@
             };
             // Check if wallet is connected before allowing login
             if (!h.userWalletAddress) {
-                y(E("Please connect your wallet to play!"), "", f(Ee), !0);
-                // Scroll to top to show wallet connect button
-                h.scrollTo(0, 0);
+                // Show red popup notification in bottom right
+                showWalletRequiredNotification();
                 return;
             }
             S.emit("login", e)
@@ -3491,5 +3490,65 @@
         })
     }
     Xn && (c.documentElement.dataset.halloween = "")
+    
+    // Wallet required notification function
+    function showWalletRequiredNotification() {
+        // Remove existing notification if any
+        var existing = c.getElementById("wallet-required-notification");
+        if (existing) {
+            existing.remove();
+        }
+        
+        // Create notification element
+        var notification = c.createElement("div");
+        notification.id = "wallet-required-notification";
+        notification.style.cssText = "position: fixed; bottom: 20px; right: 20px; background: #dc3545; color: #fff; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; max-width: 300px; font-family: 'Nunito', sans-serif; font-weight: 600; animation: slideInRight 0.3s ease-out;";
+        
+        // Create close button
+        var closeBtn = c.createElement("button");
+        closeBtn.innerHTML = "×";
+        closeBtn.style.cssText = "position: absolute; top: 5px; right: 5px; background: transparent; border: 1px solid rgba(255,255,255,0.5); color: #fff; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center; padding: 0;";
+        closeBtn.onclick = function() {
+            notification.style.animation = "slideOutRight 0.3s ease-out";
+            setTimeout(function() {
+                notification.remove();
+            }, 300);
+        };
+        
+        // Create content
+        var title = c.createElement("div");
+        title.textContent = E("Wallet Required");
+        title.style.cssText = "font-size: 16px; font-weight: 700; margin-bottom: 5px;";
+        
+        var message = c.createElement("div");
+        message.textContent = E("Please connect a wallet to play");
+        message.style.cssText = "font-size: 14px; font-weight: 400;";
+        
+        notification.appendChild(closeBtn);
+        notification.appendChild(title);
+        notification.appendChild(message);
+        c.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(function() {
+            if (notification.parentNode) {
+                notification.style.animation = "slideOutRight 0.3s ease-out";
+                setTimeout(function() {
+                    notification.remove();
+                }, 300);
+            }
+        }, 5000);
+    }
+    
+    // Add CSS animations if not already in style
+    if (!c.getElementById("wallet-notification-styles")) {
+        var style = c.createElement("style");
+        style.id = "wallet-notification-styles";
+        style.textContent = "@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } } @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }";
+        c.head.appendChild(style);
+    }
+    
+    // Export function globally
+    h.showWalletRequiredNotification = showWalletRequiredNotification;
 }
 )(window, document, localStorage, io);

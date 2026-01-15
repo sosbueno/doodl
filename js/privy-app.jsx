@@ -39,7 +39,20 @@ function WalletConnectButton() {
   }, [ready, authenticated, wallets]);
   
   const handleConnect = () => {
-    login();
+    try {
+      login();
+    } catch (error) {
+      console.error('Error connecting wallet:', error);
+      // Show error notification
+      if (window.showWalletRequiredNotification) {
+        // Temporarily show error message
+        const notification = document.createElement('div');
+        notification.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #dc3545; color: #fff; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; max-width: 300px; font-family: Nunito, sans-serif; font-weight: 600;';
+        notification.innerHTML = '<div style="font-size: 16px; font-weight: 700; margin-bottom: 5px;">Connection Error</div><div style="font-size: 14px;">Please try again or use email login</div>';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 5000);
+      }
+    }
   };
   
   const handleDisconnect = () => {
