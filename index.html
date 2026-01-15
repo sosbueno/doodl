@@ -941,13 +941,12 @@
 // NO AUTO-JOIN - User should go to home screen and click Play button
 // The Play button will automatically use the room code from URL (game.js handles this)
 </script>
-        <!-- Simple Direct Solana Wallet Connection (No Privy) -->
-        <script src="/js/wallet-connect.js"></script>
-        <!-- Privy React App - Load bundled version (for email login only) -->
-        <!-- <script src="/dist/privy-app.js"></script> -->
+        <!-- Privy React App - Load bundled version -->
+        <script src="/dist/privy-app.js"></script>
+        <!-- Note: Privy app auto-initializes in privy-app.js, no need to call initPrivyApp here -->
             
-            // Listen for wallet connection events (direct Solana wallet connection)
-            window.addEventListener('wallet-connected', function(e) {
+            // Listen for wallet connection events (Privy)
+            window.addEventListener('privy-wallet-connected', function(e) {
                 const address = e.detail.address;
                 window.userWalletAddress = address;
                 
@@ -968,7 +967,7 @@
                 }
             });
             
-            window.addEventListener('wallet-disconnected', function() {
+            window.addEventListener('privy-wallet-disconnected', function() {
                 window.userWalletAddress = null;
                 
                 console.log('🔌 Wallet disconnected event received');

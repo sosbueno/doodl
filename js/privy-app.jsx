@@ -297,31 +297,74 @@ function WalletConnectButton() {
 function PrivyApp() {
   // Add error handler for Privy errors
   React.useEffect(() => {
-    // Function to hide Privy's error modal
+    // Function to hide Privy's error modal - very aggressive approach
     const hidePrivyErrorModal = () => {
-      // Look for Privy's error modal and hide it
-      const errorModals = document.querySelectorAll('[data-privy-modal], [class*="privy"], [id*="privy"]');
-      errorModals.forEach(modal => {
-        const modalText = modal.textContent || '';
-        if (modalText.includes('Could not log in') || 
-            modalText.includes('Error authenticating') ||
-            modalText.includes('Please try connecting again')) {
-          console.log('🔇 Hiding Privy error modal');
-          modal.style.display = 'none';
-          modal.remove();
+      // Look for Privy's error modal with multiple selectors
+      const selectors = [
+        '[data-privy-modal]',
+        '[class*="privy"]',
+        '[id*="privy"]',
+        '[class*="modal"]',
+        '[class*="overlay"]',
+        '[class*="backdrop"]',
+        'div[role="dialog"]',
+        '[class*="error"]',
+        'div[style*="position: fixed"]',
+        'div[style*="position:absolute"]'
+      ];
+      
+      selectors.forEach(selector => {
+        try {
+          const elements = document.querySelectorAll(selector);
+          elements.forEach(element => {
+            const text = (element.textContent || '').toLowerCase();
+            const style = window.getComputedStyle(element);
+            
+            // Check if this looks like Privy's error modal
+            if ((text.includes('could not log in') || 
+                 text.includes('error authenticating') ||
+                 text.includes('please try connecting again') ||
+                 text.includes('retry')) &&
+                (style.position === 'fixed' || style.position === 'absolute' || 
+                 parseInt(style.zIndex) > 1000 || element.classList.toString().includes('privy'))) {
+              console.log('🔇 Hiding Privy error modal:', element);
+              element.style.display = 'none';
+              element.style.visibility = 'hidden';
+              element.style.opacity = '0';
+              element.style.pointerEvents = 'none';
+              try {
+                element.remove();
+              } catch (e) {
+                // Ignore removal errors
+              }
+            }
+          });
+        } catch (e) {
+          // Ignore selector errors
         }
       });
       
-      // Also check for overlay/backdrop
-      const overlays = document.querySelectorAll('[class*="overlay"], [class*="backdrop"], [class*="modal"]');
-      overlays.forEach(overlay => {
-        const text = overlay.textContent || '';
-        if (text.includes('Could not log in') || text.includes('privy')) {
-          const style = window.getComputedStyle(overlay);
-          if (style.position === 'fixed' || style.position === 'absolute') {
-            overlay.style.display = 'none';
-            overlay.remove();
+      // Also remove any backdrop/overlay elements
+      document.querySelectorAll('body > div').forEach(div => {
+        try {
+          const style = window.getComputedStyle(div);
+          if (style.position === 'fixed' && 
+              (parseInt(style.zIndex) > 1000 || style.backgroundColor.includes('rgba') || style.backgroundColor.includes('rgb'))) {
+            const text = (div.textContent || '').toLowerCase();
+            if (text.includes('could not log in') || text.includes('privy') || text.includes('retry') || text.includes('error authenticating')) {
+              console.log('🔇 Hiding Privy backdrop/overlay');
+              div.style.display = 'none';
+              div.style.visibility = 'hidden';
+              div.style.opacity = '0';
+              try {
+                div.remove();
+              } catch (e) {
+                // Ignore removal errors
+              }
+            }
           }
+        } catch (e) {
+          // Ignore errors
         }
       });
     };
