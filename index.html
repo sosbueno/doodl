@@ -79,8 +79,8 @@
         <link href="https://fonts.googleapis.com/css2?family=Inconsolata&amp;display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&amp;display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-        <!-- Privy SDK -->
-        <script src="https://sdk.privy.io/js/v1.privy.js"></script>
+        <!-- Privy SDK - Load from official CDN -->
+        <script async src="https://sdk.privy.io/v1/privy.js"></script>
     </head>
     <body translate="no">
         <div id="preroll"></div>
@@ -1077,12 +1077,28 @@
                 });
                 
                 // Initialize when Privy SDK loads
-                if (typeof Privy !== 'undefined') {
-                    fetchPrivyConfig();
+                var privyLoadAttempts = 0;
+                var maxPrivyLoadAttempts = 20; // 10 seconds max
+                
+                function waitForPrivy() {
+                    privyLoadAttempts++;
+                    if (typeof Privy !== 'undefined') {
+                        fetchPrivyConfig();
+                    } else if (privyLoadAttempts < maxPrivyLoadAttempts) {
+                        // Try again after a short delay
+                        setTimeout(waitForPrivy, 500);
+                    } else {
+                        console.error('Privy SDK failed to load after 10 seconds. Please check your internet connection or the Privy SDK URL.');
+                        // Show a message to user
+                        alert('Wallet connection unavailable. Please refresh the page.');
+                    }
+                }
+                
+                // Start waiting for Privy SDK
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', waitForPrivy);
                 } else {
-                    window.addEventListener('load', function() {
-                        setTimeout(fetchPrivyConfig, 1000);
-                    });
+                    waitForPrivy();
                 }
             })();
         </script>

@@ -2551,7 +2551,7 @@
       , Na = 30
       , Wa = 31
       , Oa = 32
-      , Ua = 33  // PRIZE_POOL_UPDATE
+      , prizePoolUpdatePacket = 33  // PRIZE_POOL_UPDATE
       , Ha = 34  // CLAIM_REWARD
       , rewardClaimedPacket = 35; // REWARD_CLAIMED
     function Pa(e) {
