@@ -112,37 +112,50 @@ function WalletConnectButton() {
       const hasPhantom = window.solana && window.solana.isPhantom;
       const hasSolflare = window.solana && window.solana.isSolflare;
       
+      console.log('🔍 Wallet detection:', { 
+        hasPhantom, 
+        hasSolflare, 
+        hasConnectSolanaWallet: !!connectSolanaWallet,
+        solanaWalletsCount: solanaWallets.length 
+      });
+      
       // WORKAROUND for Privy SIWS issue:
       // Privy's login() tries to do connect + signMessage in one flow (SIWS).
       // Chrome blocks the second navigation (signMessage) because it lacks a user gesture.
       // By connecting the wallet FIRST using connectSolanaWallet, we separate the steps
       // and avoid the "Error authenticating session" issue.
-      if ((hasPhantom || hasSolflare) && connectSolanaWallet) {
-        console.log('🔍 Detected external Solana wallet, attempting direct connection to bypass SIWS issue...');
-        try {
-          // Step 1: Connect wallet only (no signMessage yet)
-          // This works because it has a user gesture (button click)
-          console.log('📱 Step 1: Connecting Solana wallet directly (bypassing SIWS)...');
-          await connectSolanaWallet();
-          console.log('✅ Direct wallet connection successful');
-          
-          // Wait for wallet to be detected
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          
-          // Check if wallet is now connected
-          const solanaWallet = solanaWallets[0] || wallets.find(w => w.chainType === 'solana');
-          if (solanaWallet && solanaWallet.address) {
-            console.log('✅ Solana wallet connected successfully:', solanaWallet.address);
-            // Wallet is connected! Even if full authentication fails, we have the wallet address
-            // The wallet will be usable for the game
-            return;
-          } else {
-            console.warn('⚠️ Wallet connection completed but wallet not detected yet, falling back to login modal');
+      if (hasPhantom || hasSolflare) {
+        if (connectSolanaWallet) {
+          console.log('🔍 Detected external Solana wallet, attempting direct connection to bypass SIWS issue...');
+          try {
+            // Step 1: Connect wallet only (no signMessage yet)
+            // This works because it has a user gesture (button click)
+            console.log('📱 Step 1: Connecting Solana wallet directly (bypassing SIWS)...');
+            await connectSolanaWallet();
+            console.log('✅ Direct wallet connection successful');
+            
+            // Wait for wallet to be detected
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Check if wallet is now connected
+            const solanaWallet = solanaWallets[0] || wallets.find(w => w.chainType === 'solana');
+            if (solanaWallet && solanaWallet.address) {
+              console.log('✅ Solana wallet connected successfully:', solanaWallet.address);
+              // Wallet is connected! Even if full authentication fails, we have the wallet address
+              // The wallet will be usable for the game
+              return;
+            } else {
+              console.warn('⚠️ Wallet connection completed but wallet not detected yet, falling back to login modal');
+            }
+          } catch (directConnectError) {
+            console.warn('⚠️ Direct wallet connection failed, falling back to login modal:', directConnectError);
+            // Fall through to login modal
           }
-        } catch (directConnectError) {
-          console.warn('⚠️ Direct wallet connection failed, falling back to login modal:', directConnectError);
-          // Fall through to login modal
+        } else {
+          console.warn('⚠️ connectSolanaWallet not available, will use login modal');
         }
+      } else {
+        console.log('ℹ️ No external Solana wallet detected, using login modal');
       }
       
       // If already authenticated, logout first to clear any stale sessions
@@ -329,10 +342,14 @@ function PrivyApp() {
           errorMessage.includes('authenticating session')) {
         console.warn('⚠️ Caught Privy authentication session error. Suppressing error modal.');
         
-        // Hide the error modal immediately
+        // Hide the error modal immediately and repeatedly
+        hidePrivyErrorModal(); // Immediate
+        setTimeout(hidePrivyErrorModal, 50);
         setTimeout(hidePrivyErrorModal, 100);
+        setTimeout(hidePrivyErrorModal, 300);
         setTimeout(hidePrivyErrorModal, 500);
         setTimeout(hidePrivyErrorModal, 1000);
+        setTimeout(hidePrivyErrorModal, 2000);
         
         // Check if wallet is still connected despite the error
         setTimeout(() => {
