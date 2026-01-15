@@ -217,8 +217,6 @@ function PrivyApp() {
             connectors: toSolanaWalletConnectors(['phantom', 'solflare'])
           }
         },
-        // Ensure Solana wallets are prioritized
-        defaultChain: 'solana',
         // Add error handling
         onError: (error) => {
           console.error('Privy Provider Error:', error);
