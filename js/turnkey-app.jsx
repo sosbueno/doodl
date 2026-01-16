@@ -3,6 +3,22 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { TurnkeyProvider, useTurnkey } from '@turnkey/react-wallet-kit';
 
+// IMPORTANT: Import AsyncStorage polyfill FIRST to ensure it's available globally
+// This must happen before Turnkey tries to detect it
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Make AsyncStorage available globally for Turnkey's runtime detection
+if (typeof window !== 'undefined') {
+  window.AsyncStorage = AsyncStorage;
+  if (typeof globalThis !== 'undefined') {
+    globalThis.AsyncStorage = AsyncStorage;
+  }
+  // Also set on global for CommonJS-style requires
+  if (typeof global !== 'undefined') {
+    global.AsyncStorage = AsyncStorage;
+  }
+}
+
 // Ensure we're in a browser environment
 // Note: navigator is read-only, so we don't try to set it
 
