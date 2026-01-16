@@ -1,12 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      // Prevent React Native dependencies from being bundled for web
-      '@react-native-async-storage/async-storage': false,
+      // Map React Native async storage to our polyfill
+      '@react-native-async-storage/async-storage': path.resolve(__dirname, 'js/turnkey-async-storage.js'),
       'react-native': 'react-native-web'
     }
   },

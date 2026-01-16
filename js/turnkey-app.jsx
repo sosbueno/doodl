@@ -467,12 +467,25 @@ function TurnkeyApp() {
   
   try {
     return (
-      <TurnkeyProvider config={turnkeyConfig}>
+      <TurnkeyProvider 
+        config={turnkeyConfig}
+        callbacks={{
+          onError: (error) => {
+            console.error('🚨 Turnkey Provider Error:', error);
+            console.error('Error details:', {
+              message: error?.message,
+              name: error?.name,
+              stack: error?.stack,
+              cause: error?.cause
+            });
+          }
+        }}
+      >
         <WalletConnectButton />
       </TurnkeyProvider>
     );
   } catch (error) {
-    console.error('TurnkeyProvider error:', error);
+    console.error('TurnkeyProvider initialization error:', error);
     return (
       <button 
         disabled
