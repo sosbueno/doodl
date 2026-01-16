@@ -7,12 +7,12 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       input: {
-        privy: './js/privy-app.jsx'
+        turnkey: './js/turnkey-app.jsx'
       },
       output: {
-        entryFileNames: 'privy-app.js',
+        entryFileNames: 'turnkey-app.js',
         format: 'iife',
-        name: 'PrivyApp'
+        name: 'TurnkeyApp'
       }
     }
   }
