@@ -412,31 +412,70 @@ function TurnkeyApp() {
     );
   }
   
-  return (
-    <TurnkeyProvider
-      organizationId={TURNKEY_ORG_ID}
-      authProxyConfigId={TURNKEY_AUTH_PROXY_CONFIG_ID}
-      walletConfig={{
-        chains: {
-          solana: {
-            native: true, // Enable native Solana wallets (Phantom, Solflare, etc.)
-            walletConnectNamespaces: TURNKEY_WALLETCONNECT_PROJECT_ID ? ['solana:mainnet'] : undefined
-          }
-        },
-        walletConnect: TURNKEY_WALLETCONNECT_PROJECT_ID ? {
-          projectId: TURNKEY_WALLETCONNECT_PROJECT_ID,
-          appMetadata: {
-            name: 'doodls.fun',
-            description: 'Free multiplayer drawing and guessing game',
-            url: window.location.origin,
-            icons: [`${window.location.origin}/img/doodllogo.gif`]
-          }
-        } : undefined
-      }}
-    >
-      <WalletConnectButton />
-    </TurnkeyProvider>
-  );
+  // Build config object - ensure all required fields are present
+  if (!TURNKEY_ORG_ID || !TURNKEY_AUTH_PROXY_CONFIG_ID) {
+    return (
+      <button 
+        disabled
+        style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '700', cursor: 'not-allowed', opacity: 0.5 }}
+      >
+        Config Loading...
+      </button>
+    );
+  }
+  
+  const turnkeyConfig = {
+    organizationId: TURNKEY_ORG_ID,
+    authProxyConfigId: TURNKEY_AUTH_PROXY_CONFIG_ID,
+    auth: {
+      methods: {
+        passkeyAuthEnabled: false, // Disabled as requested
+        walletAuthEnabled: true, // Enable external wallets
+        emailOtpEnabled: true, // Enable email OTP
+      }
+    },
+    walletConfig: {
+      chains: {
+        solana: {
+          native: true, // Enable native Solana wallets (Phantom, Solflare, etc.)
+          walletConnectNamespaces: TURNKEY_WALLETCONNECT_PROJECT_ID ? ['solana:mainnet'] : undefined
+        }
+      },
+      walletConnect: TURNKEY_WALLETCONNECT_PROJECT_ID ? {
+        projectId: TURNKEY_WALLETCONNECT_PROJECT_ID,
+        appMetadata: {
+          name: 'doodls.fun',
+          description: 'Free multiplayer drawing and guessing game',
+          url: window.location.origin,
+          icons: [`${window.location.origin}/img/doodllogo.gif`]
+        }
+      } : undefined
+    },
+    ui: {
+      darkMode: true,
+      renderModalInProvider: true,
+      borderRadius: '8px',
+      backdropBlur: '10px'
+    }
+  };
+  
+  try {
+    return (
+      <TurnkeyProvider config={turnkeyConfig}>
+        <WalletConnectButton />
+      </TurnkeyProvider>
+    );
+  } catch (error) {
+    console.error('TurnkeyProvider error:', error);
+    return (
+      <button 
+        disabled
+        style={{ background: 'rgba(255,0,0,0.2)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '700', cursor: 'not-allowed', opacity: 0.5 }}
+      >
+        Wallet Error
+      </button>
+    );
+  }
 }
 
 // Initialize React app (only once)
