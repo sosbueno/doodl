@@ -8,6 +8,7 @@ import { TurnkeyProvider, useTurnkey } from '@turnkey/react-wallet-kit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Make AsyncStorage available globally for Turnkey's runtime detection
+// This must happen synchronously before any Turnkey code runs
 if (typeof window !== 'undefined') {
   window.AsyncStorage = AsyncStorage;
   if (typeof globalThis !== 'undefined') {
@@ -16,6 +17,26 @@ if (typeof window !== 'undefined') {
   // Also set on global for CommonJS-style requires
   if (typeof global !== 'undefined') {
     global.AsyncStorage = AsyncStorage;
+  }
+  
+  // Mock require.resolve for dynamic requires
+  const originalRequire = typeof require !== 'undefined' ? require : null;
+  if (originalRequire && typeof originalRequire.resolve === 'function') {
+    const originalResolve = originalRequire.resolve;
+    originalRequire.resolve = function(id) {
+      if (id === '@react-native-async-storage/async-storage') {
+        return '@react-native-async-storage/async-storage';
+      }
+      return originalResolve.apply(this, arguments);
+    };
+  }
+  
+  // Pre-populate require cache if available
+  if (originalRequire && originalRequire.cache) {
+    originalRequire.cache['@react-native-async-storage/async-storage'] = {
+      exports: AsyncStorage,
+      loaded: true
+    };
   }
 }
 

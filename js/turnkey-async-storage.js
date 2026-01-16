@@ -78,6 +78,12 @@ const AsyncStorage = {
   }
 };
 
+// CommonJS export (for dynamic requires)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = AsyncStorage;
+  module.exports.default = AsyncStorage;
+}
+
 // ES Module export (for Vite bundling)
 export default AsyncStorage;
 export { AsyncStorage };
@@ -87,5 +93,11 @@ if (typeof window !== 'undefined') {
   window.AsyncStorage = AsyncStorage;
   if (typeof globalThis !== 'undefined') {
     globalThis.AsyncStorage = AsyncStorage;
+  }
+  // Mock require for dynamic imports
+  if (typeof require !== 'undefined' && typeof require.cache !== 'undefined') {
+    require.cache['@react-native-async-storage/async-storage'] = {
+      exports: AsyncStorage
+    };
   }
 }

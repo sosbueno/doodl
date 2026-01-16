@@ -977,8 +977,9 @@
 // NO AUTO-JOIN - User should go to home screen and click Play button
 // The Play button will automatically use the room code from URL (game.js handles this)
 </script>
+        <!-- Turnkey AsyncStorage Preload - Must load BEFORE Turnkey app -->
+        <script src="/js/turnkey-async-storage-preload.js"></script>
         <!-- Turnkey React App - Load bundled version -->
-        <!-- Note: AsyncStorage polyfill is handled via Vite alias, no need to load separately -->
         <script src="/dist/turnkey-app.js"></script>
         <!-- Note: Turnkey app auto-initializes in turnkey-app.js, no need to call initTurnkeyApp here -->
             
