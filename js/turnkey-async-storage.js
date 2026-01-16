@@ -92,7 +92,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports.default = AsyncStorage;
 }
 
-// ES module export
+// Make available globally for Turnkey (when loaded as script tag)
 if (typeof window !== 'undefined') {
   // Make available globally for Turnkey
   window.AsyncStorage = AsyncStorage;
@@ -104,8 +104,5 @@ if (typeof window !== 'undefined') {
     globalThis.AsyncStorage = AsyncStorage;
   }
 }
-
-// ES module export
-export default AsyncStorage;
 
 })();

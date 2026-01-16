@@ -4,10 +4,7 @@ import ReactDOM from 'react-dom/client';
 import { TurnkeyProvider, useTurnkey } from '@turnkey/react-wallet-kit';
 
 // Ensure we're in a browser environment
-if (typeof window !== 'undefined') {
-  // Polyfill for React Native storage detection
-  window.navigator = window.navigator || {};
-}
+// Note: navigator is read-only, so we don't try to set it
 
 // Get Turnkey config from server
 let TURNKEY_ORG_ID = '';
