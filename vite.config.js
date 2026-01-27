@@ -13,20 +13,6 @@ export default defineConfig({
     }
   },
   build: {
-    commonjsOptions: {
-      transformMixedEsModules: true
-    },
-    rollupOptions: {
-      external: (id) => {
-        // Don't bundle Node.js crypto modules - they're browser-only
-        if (id.includes('nodecrypto') || id === 'crypto' || id === 'stream') {
-          return false; // Let Vite handle it
-        }
-        return false;
-      }
-    }
-  },
-  build: {
     outDir: 'dist',
     commonjsOptions: {
       transformMixedEsModules: true
@@ -46,6 +32,10 @@ export default defineConfig({
       onwarn(warning, warn) {
         // Suppress warnings about Node.js crypto modules - they're handled by Turnkey
         if (warning.code === 'UNRESOLVED_IMPORT' && warning.source?.includes('nodecrypto')) {
+          return;
+        }
+        // Suppress AsyncStorage warnings since we're using a polyfill
+        if (warning.code === 'UNRESOLVED_IMPORT' && warning.source?.includes('async-storage')) {
           return;
         }
         warn(warning);

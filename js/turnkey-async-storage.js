@@ -94,10 +94,31 @@ if (typeof window !== 'undefined') {
   if (typeof globalThis !== 'undefined') {
     globalThis.AsyncStorage = AsyncStorage;
   }
-  // Mock require for dynamic imports
-  if (typeof require !== 'undefined' && typeof require.cache !== 'undefined') {
+  if (typeof global !== 'undefined') {
+    global.AsyncStorage = AsyncStorage;
+  }
+  
+  // Mock require for dynamic imports (CommonJS)
+  if (typeof require !== 'undefined') {
+    if (!require.cache) {
+      require.cache = {};
+    }
     require.cache['@react-native-async-storage/async-storage'] = {
-      exports: AsyncStorage
+      exports: AsyncStorage,
+      loaded: true,
+      id: '@react-native-async-storage/async-storage'
+    };
+    
+    // Mock require.resolve
+    const originalResolve = require.resolve;
+    require.resolve = function(id) {
+      if (id === '@react-native-async-storage/async-storage') {
+        return '@react-native-async-storage/async-storage';
+      }
+      if (typeof originalResolve === 'function') {
+        return originalResolve.apply(this, arguments);
+      }
+      return id;
     };
   }
 }

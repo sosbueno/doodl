@@ -3,42 +3,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { TurnkeyProvider, useTurnkey } from '@turnkey/react-wallet-kit';
 
-// IMPORTANT: Import AsyncStorage polyfill FIRST to ensure it's available globally
-// This must happen before Turnkey tries to detect it
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Make AsyncStorage available globally for Turnkey's runtime detection
-// This must happen synchronously before any Turnkey code runs
-if (typeof window !== 'undefined') {
-  window.AsyncStorage = AsyncStorage;
-  if (typeof globalThis !== 'undefined') {
-    globalThis.AsyncStorage = AsyncStorage;
-  }
-  // Also set on global for CommonJS-style requires
-  if (typeof global !== 'undefined') {
-    global.AsyncStorage = AsyncStorage;
-  }
-  
-  // Mock require.resolve for dynamic requires
-  const originalRequire = typeof require !== 'undefined' ? require : null;
-  if (originalRequire && typeof originalRequire.resolve === 'function') {
-    const originalResolve = originalRequire.resolve;
-    originalRequire.resolve = function(id) {
-      if (id === '@react-native-async-storage/async-storage') {
-        return '@react-native-async-storage/async-storage';
-      }
-      return originalResolve.apply(this, arguments);
-    };
-  }
-  
-  // Pre-populate require cache if available
-  if (originalRequire && originalRequire.cache) {
-    originalRequire.cache['@react-native-async-storage/async-storage'] = {
-      exports: AsyncStorage,
-      loaded: true
-    };
-  }
-}
+// IMPORTANT: AsyncStorage polyfill is loaded via turnkey-async-storage-preload.js
+// which runs BEFORE this script. We rely on the global AsyncStorage that's already set up.
+// No need to import it here - the polyfill handles everything.
 
 // Ensure we're in a browser environment
 // Note: navigator is read-only, so we don't try to set it
