@@ -4,8 +4,27 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const cors = require('cors');
+const mongoose = require('mongoose');
 
 const app = express();
+
+// Optional MongoDB for leaderboard persistence
+const MONGO_URI = (process.env.MONGO_URI || '').trim();
+let LeaderboardModel = null;
+if (MONGO_URI) {
+  mongoose.connect(MONGO_URI).then(() => {
+    console.log('✅ MongoDB connected (leaderboard persistence enabled)');
+  }).catch((err) => {
+    console.error('❌ MongoDB connection failed:', err.message);
+  });
+  const leaderboardSchema = new mongoose.Schema({
+    wallet: { type: String, required: true, unique: true },
+    name: { type: String, default: 'Player' },
+    points: { type: Number, default: 0 },
+    sol: { type: Number, default: 0 }
+  }, { collection: 'leaderboard' });
+  LeaderboardModel = mongoose.model('Leaderboard', leaderboardSchema);
+}
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -352,43 +371,95 @@ function initializePublicRooms() {
   }
 }
 
-// In-memory leaderboard (points + SOL earned). Replace with DB later.
-const leaderboardPoints = new Map(); // name or wallet -> total points
-const leaderboardSol = new Map();    // name or wallet -> total SOL earned
-const LEADERBOARD_SEED = [
-  { name: 'DoodleKing', points: 28470, sol: 0.42 },
-  { name: 'SketchMaster', points: 26120, sol: 0.38 },
-  { name: 'DrawQueen', points: 23980, sol: 0.35 },
-  { name: 'PencilWizard', points: 21840, sol: 0.29 },
-  { name: 'InkSlinger', points: 19560, sol: 0.24 },
-  { name: 'CanvasPro', points: 17230, sol: 0.19 },
-  { name: 'BrushNinja', points: 14900, sol: 0.15 },
-  { name: 'ArtVibes', points: 12570, sol: 0.12 },
-  { name: 'GuessGenius', points: 10240, sol: 0.09 },
-  { name: 'WordHunter', points: 8910, sol: 0.06 }
-];
-LEADERBOARD_SEED.forEach((e, i) => {
-  leaderboardPoints.set(e.name, { name: e.name, points: e.points, sol: e.sol, rank: i + 1 });
-  leaderboardSol.set(e.name, { name: e.name, points: e.points, sol: e.sol, rank: i + 1 });
-});
+// Leaderboard: real data only, from public lobbies. Persists to MongoDB when MONGO_URI is set.
+const leaderboardByWallet = new Map(); // in-memory fallback when no DB
 
-function getLeaderboardByPoints() {
-  return Array.from(leaderboardPoints.values())
+function leaderboardWalletKey(wallet) {
+  return (wallet || '').trim().toLowerCase();
+}
+
+function leaderboardUpdateFromPublicGame(room) {
+  if (!room || !room.isPublic) return;
+  const useDb = !!LeaderboardModel;
+  room.players.forEach((p) => {
+    const wallet = p.walletAddress;
+    if (!wallet || typeof wallet !== 'string') return;
+    const key = leaderboardWalletKey(wallet);
+    const name = (p.name && p.name.trim()) ? p.name.trim() : 'Player';
+    const score = p.score || 0;
+    if (useDb) {
+      LeaderboardModel.findOneAndUpdate(
+        { wallet: key },
+        { $setOnInsert: { points: 0, sol: 0 }, $inc: { points: score }, $set: { name } },
+        { upsert: true, new: true }
+      ).catch((err) => console.error('Leaderboard DB update error:', err.message));
+      return;
+    }
+    const current = leaderboardByWallet.get(key) || { name: 'Player', points: 0, sol: 0 };
+    leaderboardByWallet.set(key, {
+      name: name || current.name,
+      points: current.points + score,
+      sol: current.sol
+    });
+  });
+}
+
+function leaderboardAddSolEarned(walletAddress, amount, displayName) {
+  if (!walletAddress || amount <= 0) return;
+  const key = leaderboardWalletKey(walletAddress);
+  const name = (displayName && displayName.trim()) ? displayName.trim() : null;
+  if (LeaderboardModel) {
+    const update = { $setOnInsert: { points: 0, sol: 0 }, $inc: { sol: amount } };
+    if (name) update.$set = { name };
+    LeaderboardModel.findOneAndUpdate(
+      { wallet: key },
+      update,
+      { upsert: true, new: true }
+    ).catch((err) => console.error('Leaderboard DB sol update error:', err.message));
+    return;
+  }
+  const current = leaderboardByWallet.get(key) || { name: 'Player', points: 0, sol: 0 };
+  leaderboardByWallet.set(key, {
+    name: name || current.name,
+    points: current.points,
+    sol: current.sol + amount
+  });
+}
+
+async function getLeaderboardByPoints() {
+  if (LeaderboardModel) {
+    const docs = await LeaderboardModel.find({ $or: [{ points: { $gt: 0 } }, { sol: { $gt: 0 } }] })
+      .sort({ points: -1 })
+      .limit(20)
+      .lean();
+    return docs.map((e, i) => ({ name: e.name, points: e.points || 0, sol: e.sol || 0, rank: i + 1 }));
+  }
+  return Array.from(leaderboardByWallet.values())
+    .filter((e) => e.points > 0 || e.sol > 0)
     .sort((a, b) => b.points - a.points)
     .slice(0, 20)
     .map((e, i) => ({ ...e, rank: i + 1 }));
 }
-function getLeaderboardBySol() {
-  return Array.from(leaderboardSol.values())
+
+async function getLeaderboardBySol() {
+  if (LeaderboardModel) {
+    const docs = await LeaderboardModel.find({ sol: { $gt: 0 } })
+      .sort({ sol: -1 })
+      .limit(20)
+      .lean();
+    return docs.map((e, i) => ({ name: e.name, points: e.points || 0, sol: e.sol || 0, rank: i + 1 }));
+  }
+  return Array.from(leaderboardByWallet.values())
+    .filter((e) => e.sol > 0)
     .sort((a, b) => b.sol - a.sol)
     .slice(0, 20)
     .map((e, i) => ({ ...e, rank: i + 1 }));
 }
 
-app.get('/api/leaderboard', (req, res) => {
+app.get('/api/leaderboard', async (req, res) => {
   try {
     const by = (req.query.by || 'points').toLowerCase();
-    const list = by === 'sol' ? getLeaderboardBySol() : getLeaderboardByPoints();
+    const list = by === 'sol' ? await getLeaderboardBySol() : await getLeaderboardByPoints();
     res.json({ by: by === 'sol' ? 'sol' : 'points', list });
   } catch (err) {
     console.error('Leaderboard error:', err);
@@ -1577,6 +1648,11 @@ io.on('connection', (socket) => {
                 }
                 room.claimedRewards.add(socket.id);
                 
+                // Update leaderboard: SOL earned (public lobby only)
+                if (room.isPublic) {
+                  leaderboardAddSolEarned(player.walletAddress, playerReward, player.name);
+                }
+                
                 // Notify player
                 socket.emit('data', {
                   id: PACKET.REWARD_CLAIMED,
@@ -2717,6 +2793,9 @@ io.on('connection', (socket) => {
         gameEndData.playerRewards[playerId] = reward;
       });
     }
+    
+    // Update global leaderboard from this public game only (all-time points + latest name)
+    leaderboardUpdateFromPublicGame(room);
     
     io.to(room.id).emit('data', {
       id: PACKET.STATE,

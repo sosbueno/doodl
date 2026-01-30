@@ -7,5 +7,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Optional: add MONGO_URI (MongoDB Atlas) for persistent leaderboard
+      # - key: MONGO_URI
+      #   sync: false
     healthCheckPath: /
 
