@@ -3211,28 +3211,37 @@ async function executeBuybackWithPumpPortal(amountSOL, playerId, roomId) {
   return signature;
 }
 
-// Prize pool distribution service
+// Prize pool distribution service: claim creator fees via PumpPortal, then split 80% to public lobbies
 async function claimAndDistributeFees() {
   try {
     console.log('💰 Starting fee claim and distribution cycle...');
     
     let totalClaimedFees = 0;
+    const creatorWallet = (FEE_DISTRIBUTION_CONFIG.CREATOR_WALLET || '').trim();
+    const rpcUrl = (FEE_DISTRIBUTION_CONFIG.HELIUS_RPC_URL || '').trim();
     
-    // Claim fees using PumpPortal API
-    if (FEE_DISTRIBUTION_CONFIG.PUMPPORTAL_API_KEY && FEE_DISTRIBUTION_CONFIG.CREATOR_WALLET) {
+    // Get creator wallet balance BEFORE claim (so we can compute how much was claimed)
+    let balanceBeforeLamports = 0;
+    if (creatorWallet && rpcUrl) {
       try {
-        // Use PumpPortal Lightning Transaction API to claim creator fees
-        // Note: pump.fun claims all creator fees at once, so no need to specify mint
+        const { Connection, PublicKey } = require('@solana/web3.js');
+        const conn = new Connection(rpcUrl, 'confirmed');
+        balanceBeforeLamports = await conn.getBalance(new PublicKey(creatorWallet));
+      } catch (e) {
+        console.warn('⚠️ Could not get creator balance before claim:', e.message);
+      }
+    }
+    
+    // Claim fees using PumpPortal Lightning API (fees go to the wallet linked to your API key)
+    if (FEE_DISTRIBUTION_CONFIG.PUMPPORTAL_API_KEY && creatorWallet) {
+      try {
         const response = await fetch(`https://pumpportal.fun/api/trade?api-key=${FEE_DISTRIBUTION_CONFIG.PUMPPORTAL_API_KEY}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'collectCreatorFee',
             priorityFee: 0.000001,
-            pool: 'pump' // Use 'pump' for Pumpfun, 'meteora-dbc' for Meteora
-            // Note: pump.fun claims all creator fees at once, so no "mint" parameter needed
+            pool: 'pump'
           })
         });
         
@@ -3241,27 +3250,32 @@ async function claimAndDistributeFees() {
           
           if (data.signature) {
             console.log(`✅ Creator fees claimed! Transaction: https://solscan.io/tx/${data.signature}`);
-            
-            // After claiming, we need to check the wallet balance to see how much was claimed
-            // For now, we'll use a placeholder - you may want to track this differently
-            // TODO: Check wallet balance before/after to calculate actual claimed amount
-            totalClaimedFees = 0; // Will be calculated from balance difference
+            // Wait for chain to confirm so balance updates (Solana ~400ms/block, allow a few blocks)
+            await new Promise(r => setTimeout(r, 8000));
+            if (rpcUrl) {
+              try {
+                const { Connection, PublicKey } = require('@solana/web3.js');
+                const conn = new Connection(rpcUrl, 'confirmed');
+                const balanceAfterLamports = await conn.getBalance(new PublicKey(creatorWallet));
+                const diffLamports = Math.max(0, balanceAfterLamports - balanceBeforeLamports);
+                totalClaimedFees = diffLamports / 1e9;
+                if (totalClaimedFees > 0) console.log(`💰 Claimed amount (from balance diff): ${totalClaimedFees.toFixed(6)} SOL`);
+              } catch (e) {
+                console.warn('⚠️ Could not get creator balance after claim:', e.message);
+              }
+            }
           } else if (data.error) {
             console.log(`⚠️ No fees to claim or error: ${data.error}`);
-            totalClaimedFees = 0;
           }
         } else {
           const errorText = await response.text();
           console.log(`⚠️ PumpPortal API error: ${response.status} - ${errorText}`);
-          totalClaimedFees = 0;
         }
       } catch (error) {
         console.error('❌ Error claiming fees from PumpPortal:', error);
-        totalClaimedFees = 0;
       }
     } else {
       console.log('⚠️ PumpPortal API key or creator wallet not configured');
-      totalClaimedFees = 0;
     }
     
     if (totalClaimedFees <= 0) {
@@ -3269,38 +3283,33 @@ async function claimAndDistributeFees() {
       return;
     }
     
-    // Split fees: 80% to prize pools, 20% to creator
+    // Split: 80% to prize pools (in-memory), 20% stays with creator (already in wallet)
     const prizePoolAmount = totalClaimedFees * FEE_DISTRIBUTION_CONFIG.PRIZE_POOL_SHARE;
     const creatorAmount = totalClaimedFees * FEE_DISTRIBUTION_CONFIG.CREATOR_SHARE;
     
-    console.log(`💰 Total fees claimed: ${totalClaimedFees} SOL`);
-    console.log(`💰 Prize pool share: ${prizePoolAmount} SOL (80%)`);
-    console.log(`💰 Creator share: ${creatorAmount} SOL (20%)`);
+    console.log(`💰 Total fees claimed: ${totalClaimedFees.toFixed(6)} SOL`);
+    console.log(`💰 Prize pool share: ${prizePoolAmount.toFixed(6)} SOL (80%)`);
+    console.log(`💰 Creator share: ${creatorAmount.toFixed(6)} SOL (20%)`);
     
-    // Find all active lobbies (game has started, prize pool not frozen)
-    const activeLobbies = [];
+    // Only public lobbies: game started and prize pool not yet frozen
+    const activePublicLobbies = [];
     for (const [roomId, room] of rooms.entries()) {
-      if (room.gameStarted && !room.prizePoolFrozen) {
-        activeLobbies.push(room);
+      if (room.isPublic && room.gameStarted && !room.prizePoolFrozen) {
+        activePublicLobbies.push(room);
       }
     }
     
-    if (activeLobbies.length === 0) {
-      console.log('💰 No active lobbies to distribute to');
-      // TODO: Store unclaimed fees or send to creator wallet
+    if (activePublicLobbies.length === 0) {
+      console.log('💰 No active public lobbies to distribute to (fees stay in creator wallet)');
       return;
     }
     
-    // Distribute prize pool amount equally across all active lobbies
-    const amountPerLobby = prizePoolAmount / activeLobbies.length;
+    const amountPerLobby = prizePoolAmount / activePublicLobbies.length;
+    console.log(`💰 Distributing ${amountPerLobby.toFixed(6)} SOL to ${activePublicLobbies.length} active public lobby/lobbies`);
     
-    console.log(`💰 Distributing ${amountPerLobby} SOL to ${activeLobbies.length} active lobby/lobbies`);
-    
-    activeLobbies.forEach(room => {
+    activePublicLobbies.forEach(room => {
       room.prizePool += amountPerLobby;
-      console.log(`💰 Room ${room.id} prize pool: ${room.prizePool} SOL (+${amountPerLobby})`);
-      
-      // Broadcast updated prize pool to all players in the room
+      console.log(`💰 Room ${room.id} prize pool: ${room.prizePool.toFixed(6)} SOL (+${amountPerLobby.toFixed(6)})`);
       io.to(room.id).emit('data', {
         id: PACKET.PRIZE_POOL_UPDATE,
         data: {
@@ -3309,9 +3318,6 @@ async function claimAndDistributeFees() {
         }
       });
     });
-    
-    // TODO: Send creator share to creator wallet
-    // await sendSolToWallet(creatorKeypair, FEE_DISTRIBUTION_CONFIG.CREATOR_WALLET, creatorAmount);
     
     console.log('✅ Fee distribution cycle complete');
   } catch (error) {
