@@ -1406,7 +1406,13 @@
     function bn(e) {
         for (var t = 0; t < dn.children.length; t++)
             dn.children[t].classList.remove("show");
-        if (_lobbyPrizePoolEl) _lobbyPrizePoolEl.style.display = "none";
+        if (_lobbyPrizePoolEl) {
+            if (In) {
+                _lobbyPrizePoolEl.style.display = "";
+                _lobbyPrizePoolEl.textContent = E("Prize pool: $ SOL", (_prizePool || 0).toFixed(4));
+            } else
+                _lobbyPrizePoolEl.style.display = "none";
+        }
         switch (e.id) {
         case J:
             vn(pn);
@@ -1428,22 +1434,10 @@
         case G:
             vn(A),
             A.textContent = E("Waiting for players...");
-            if (!_lobbyPrizePoolEl) {
-                _lobbyPrizePoolEl = c.createElement("div");
-                _lobbyPrizePoolEl.id = "lobby-prize-pool";
-                _lobbyPrizePoolEl.style.cssText = "position:fixed;top:10px;left:10px;z-index:9999;background:rgba(0,0,0,0.6);color:#14F195;padding:8px 12px;border-radius:8px;font-size:14px;font-weight:700;border:1px solid rgba(20,241,149,0.4);";
-                c.querySelector("#game-canvas").appendChild(_lobbyPrizePoolEl);
-            }
-            _lobbyPrizePoolEl.style.display = "";
-            _lobbyPrizePoolEl.textContent = E("Prize pool: $ SOL", (_prizePool || 0).toFixed(4));
             break;
         case K:
             vn(A),
             A.textContent = E("Game starting in a few seconds...");
-            if (_lobbyPrizePoolEl) {
-                _lobbyPrizePoolEl.style.display = "";
-                _lobbyPrizePoolEl.textContent = E("Prize pool: $ SOL", (_prizePool || 0).toFixed(4));
-            }
             break;
         case Z:
             vn(hn),
@@ -2080,6 +2074,17 @@
         In = e.isPublic !== void 0 ? e.isPublic : (e.type !== void 0 ? (e.type === 0 ? true : false) : true),  // Store isPublic flag (backwards compat with type)
         _prizePool = (e.prizePool != null && typeof e.prizePool === "number") ? e.prizePool : 0,
         Tn = e.code || e.id,  // Use room code if available (for private rooms), otherwise use room ID
+        (function() {
+            if (!In) { if (_lobbyPrizePoolEl) _lobbyPrizePoolEl.style.display = "none"; return; }
+            if (!_lobbyPrizePoolEl) {
+                _lobbyPrizePoolEl = c.createElement("div");
+                _lobbyPrizePoolEl.id = "lobby-prize-pool";
+                _lobbyPrizePoolEl.style.cssText = "position:fixed;top:10px;right:10px;left:auto;z-index:9999;background:rgba(0,0,0,0.6);color:#14F195;padding:8px 12px;border-radius:8px;font-size:14px;font-weight:700;border:1px solid rgba(20,241,149,0.4);";
+                c.querySelector("#game-canvas").appendChild(_lobbyPrizePoolEl);
+            }
+            _lobbyPrizePoolEl.style.display = "";
+            _lobbyPrizePoolEl.textContent = E("Prize pool: $ SOL", (_prizePool || 0).toFixed(4));
+        })(),
         c.querySelector("#input-invite").value = h.location.origin + "/?" + (e.code || e.id),
         An = e.settings,
         oa(),
