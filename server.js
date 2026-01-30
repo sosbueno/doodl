@@ -1660,12 +1660,13 @@ io.on('connection', (socket) => {
         break;
         
       case PACKET.USE_REWARD_BUYBACK:
-        // Use reward as buyback: send SOL to buyback wallet (or creator wallet if same)
+        // Use reward as buyback: either buy token via PumpPortal (if PUMPFUN_TOKEN_ADDRESS set) or send SOL to buyback wallet
         if (room.prizePoolFrozen && room.playerRewards) {
           const playerReward = room.playerRewards.get(socket.id);
           const player = room.players.find(p => p.id === socket.id);
+          const tokenMint = (FEE_DISTRIBUTION_CONFIG.PUMPFUN_TOKEN_ADDRESS || '').trim();
           const buybackWallet = (FEE_DISTRIBUTION_CONFIG.BUYBACK_WALLET_ADDRESS || FEE_DISTRIBUTION_CONFIG.CREATOR_WALLET || '').trim();
-          if (!buybackWallet) {
+          if (!tokenMint && !buybackWallet) {
             socket.emit('data', { id: PACKET.ERROR, data: 'Buyback is not configured.' });
             return;
           }
@@ -1674,7 +1675,10 @@ io.on('connection', (socket) => {
               socket.emit('data', { id: PACKET.ERROR, data: 'Reward already claimed' });
               return;
             }
-            sendSolToPlayer(buybackWallet, playerReward, socket.id, room.id)
+            const doBuyback = tokenMint
+              ? () => executeBuybackWithPumpPortal(playerReward, socket.id, room.id)
+              : () => sendSolToPlayer(buybackWallet, playerReward, socket.id, room.id);
+            doBuyback()
               .then((txSignature) => {
                 if (!room.claimedRewards) room.claimedRewards = new Set();
                 room.claimedRewards.add(socket.id);
@@ -1683,7 +1687,7 @@ io.on('connection', (socket) => {
                   data: {
                     amount: playerReward,
                     txSignature: txSignature,
-                    message: `Sent ${playerReward} SOL to buyback!`,
+                    message: tokenMint ? `Bought token with ${playerReward} SOL!` : `Sent ${playerReward} SOL to buyback!`,
                     buyback: true
                   }
                 });
@@ -1691,7 +1695,7 @@ io.on('connection', (socket) => {
               })
               .catch((error) => {
                 console.error(`❌ Buyback error for ${player.name}:`, error);
-                socket.emit('data', { id: PACKET.ERROR, data: `Failed to send to buyback: ${error.message}` });
+                socket.emit('data', { id: PACKET.ERROR, data: `Failed buyback: ${error.message}` });
               });
           } else if (!playerReward || playerReward <= 0) {
             socket.emit('data', { id: PACKET.ERROR, data: 'No reward available' });
@@ -3156,6 +3160,55 @@ async function sendSolToPlayer(recipientAddress, amountSOL, playerId, roomId) {
     console.error('❌ Error sending SOL:', error);
     throw error;
   }
+}
+
+/**
+ * Execute real buyback: use reward SOL to buy the creator's token via PumpPortal trade API.
+ * Uses trade-local so the buy is signed by the creator wallet and tokens go to the creator.
+ */
+async function executeBuybackWithPumpPortal(amountSOL, playerId, roomId) {
+  const mint = (FEE_DISTRIBUTION_CONFIG.PUMPFUN_TOKEN_ADDRESS || '').trim();
+  if (!mint) throw new Error('PUMPFUN_TOKEN_ADDRESS not set');
+  if (!FEE_DISTRIBUTION_CONFIG.CREATOR_WALLET || !FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY) {
+    throw new Error('Creator wallet not configured');
+  }
+  if (!FEE_DISTRIBUTION_CONFIG.HELIUS_RPC_URL) throw new Error('RPC not configured');
+  const apiKey = (FEE_DISTRIBUTION_CONFIG.PUMPPORTAL_API_KEY || '').trim();
+  if (!apiKey) throw new Error('PumpPortal API key not set');
+
+  const { Connection, Keypair, VersionedTransaction } = require('@solana/web3.js');
+  const bs58 = require('bs58');
+
+  const url = `https://pumpportal.fun/api/trade-local?api-key=${encodeURIComponent(apiKey)}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      publicKey: FEE_DISTRIBUTION_CONFIG.CREATOR_WALLET,
+      action: 'buy',
+      mint: mint,
+      amount: amountSOL,
+      denominatedInSol: true,
+      slippage: 15,
+      priorityFee: 0.00001,
+      pool: 'pump'
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`PumpPortal trade-local: ${response.status} ${errText}`);
+  }
+
+  const buf = await response.arrayBuffer();
+  const tx = VersionedTransaction.deserialize(new Uint8Array(buf));
+  const creatorKeypair = Keypair.fromSecretKey(bs58.decode(FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY));
+  tx.sign([creatorKeypair]);
+
+  const connection = new Connection(FEE_DISTRIBUTION_CONFIG.HELIUS_RPC_URL, 'confirmed');
+  const signature = await connection.sendTransaction(tx, { skipPreflight: false, maxRetries: 3 });
+  console.log(`✅ Buyback: bought token with ${amountSOL} SOL. TX: https://solscan.io/tx/${signature}`);
+  return signature;
 }
 
 // Prize pool distribution service

@@ -2968,16 +2968,16 @@ form.chat-form input {
     justify-content: center
 }
 
-/* Tagline under logo – tight to logo, web-style */
+/* Tagline under logo – same font as body, brought up, bigger, with shadow */
 #home .home-tagline {
-    font-family: 'Nunito', sans-serif;
-    font-size: 1.05rem;
+    font-family: Nunito, sans-serif;
+    font-size: 1.5rem;
     font-weight: 700;
     color: #fff;
-    margin: 4px 0 18px;
+    margin: -8px 0 18px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    text-shadow: 0 1px 3px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.2)
+    text-shadow: 0 2px 4px rgba(0,0,0,.5), 0 4px 12px rgba(0,0,0,.3);
 }
 
 
