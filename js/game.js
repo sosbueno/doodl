@@ -693,6 +693,10 @@
         "Prize pool: $ SOL": "Preisgeld: $ SOL",
         "Back to home": "Zurück zur Startseite",
         "Use as buyback to chart": "Als Buyback in die Chart",
+        "Claim to connected wallet": "An verbundene Wallet senden",
+        "Claim to this address": "An diese Adresse senden",
+        "Enter your Solana wallet address": "Solana-Wallet-Adresse eingeben",
+        "Please connect your wallet or enter a valid Solana wallet address.": "Bitte verbinde deine Wallet oder gib eine gültige Solana-Wallet-Adresse ein.",
         "Sent to buyback!": "An Buyback gesendet!",
         "Sending...": "Wird gesendet...",
         "Sent $ SOL to buyback! Transaction: $": "$ SOL an Buyback gesendet! Transaktion: $",
@@ -1524,23 +1528,50 @@
                 yourPrizeHeadline.style.cssText = "color: #14F195; font-size: 1.2em; font-weight: 700; margin-bottom: 10px;";
                 yourPrizeHeadline.textContent = E("Your prize: $ SOL", myReward.toFixed(4));
                 claimBtnContainer.appendChild(yourPrizeHeadline);
-                var claimBtn = document.createElement("button");
-                claimBtn.className = "claim-reward-button";
-                claimBtn.setAttribute("data-claim-sol", myReward.toFixed(4));
-                claimBtn.style.cssText = "background: linear-gradient(135deg, #9945FF 0%, #14F195 100%); color: #fff; border: none; padding: 12px 24px; font-size: 1.1em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3); margin: 4px;";
-                claimBtn.textContent = E("Claim $ SOL", myReward.toFixed(4));
-                claimBtn.onclick = function() {
-                    if (S) { claimBtn.disabled = true; claimBtn.textContent = E("Claiming..."); S.emit("data", { id: claimRewardPacket, data: null }); }
-                };
-                claimBtnContainer.appendChild(claimBtn);
+                var walletConnected = !!(h.userWalletAddress && String(h.userWalletAddress).trim());
+                if (walletConnected) {
+                    var claimBtn = document.createElement("button");
+                    claimBtn.className = "claim-reward-button";
+                    claimBtn.setAttribute("data-claim-sol", myReward.toFixed(4));
+                    claimBtn.style.cssText = "background: linear-gradient(135deg, #9945FF 0%, #14F195 100%); color: #fff; border: none; padding: 12px 24px; font-size: 1.1em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3); margin: 4px;";
+                    claimBtn.textContent = E("Claim $ SOL", myReward.toFixed(4));
+                    claimBtn.onclick = function() {
+                        if (S) { claimBtn.disabled = true; claimBtn.textContent = E("Claiming..."); S.emit("data", { id: claimRewardPacket, data: null }); }
+                    };
+                    claimBtnContainer.appendChild(claimBtn);
+                } else {
+                    var claimAddressInput = document.createElement("input");
+                    claimAddressInput.type = "text";
+                    claimAddressInput.placeholder = E("Enter your Solana wallet address");
+                    claimAddressInput.className = "claim-address-input";
+                    claimAddressInput.style.cssText = "width: 100%; max-width: 400px; padding: 10px 12px; margin: 8px 0; font-size: 0.95em; border-radius: 8px; border: 1px solid rgba(20, 241, 149, 0.4); background: rgba(0,0,0,0.2); color: #fff; box-sizing: border-box;";
+                    claimBtnContainer.appendChild(claimAddressInput);
+                    var claimToAddressBtn = document.createElement("button");
+                    claimToAddressBtn.className = "claim-reward-button";
+                    claimToAddressBtn.setAttribute("data-claim-sol", myReward.toFixed(4));
+                    claimToAddressBtn.style.cssText = "background: linear-gradient(135deg, #9945FF 0%, #14F195 100%); color: #fff; border: none; padding: 12px 24px; font-size: 1.1em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3); margin: 4px;";
+                    claimToAddressBtn.textContent = E("Claim to this address");
+                    claimToAddressBtn.onclick = function() {
+                        if (!S) return;
+                        var addr = (claimAddressInput.value || "").trim();
+                        if (!addr) { claimAddressInput.style.borderColor = "#e74c3c"; return; }
+                        claimAddressInput.style.borderColor = "";
+                        claimToAddressBtn.disabled = true;
+                        claimToAddressBtn.textContent = E("Claiming...");
+                        S.emit("data", { id: claimRewardPacket, data: { address: addr } });
+                    };
+                    claimBtnContainer.appendChild(claimToAddressBtn);
+                }
                 var buybackBtn = document.createElement("button");
                 buybackBtn.className = "claim-buyback-button";
                 buybackBtn.setAttribute("data-claim-sol", myReward.toFixed(4));
                 buybackBtn.style.cssText = "background: linear-gradient(135deg, #14F195 0%, #9945FF 100%); color: #fff; border: none; padding: 12px 24px; font-size: 1em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3); margin: 4px;";
                 buybackBtn.textContent = E("Use as buyback to chart");
+                var claimBtnEl = claimBtnContainer.querySelector(".claim-reward-button");
                 buybackBtn.onclick = function() {
                     if (S && !buybackBtn.disabled) {
-                        buybackBtn.disabled = true; claimBtn.disabled = true;
+                        buybackBtn.disabled = true;
+                        if (claimBtnEl) claimBtnEl.disabled = true;
                         buybackBtn.textContent = E("Sending...");
                         S.emit("data", { id: useRewardBuybackPacket, data: null });
                     }
@@ -1951,14 +1982,8 @@
                 lang: Fn.value,
                 code: e[1],
                 avatar: l.avatar,
-                walletAddress: h.userWalletAddress || "" // Get wallet address from window (set by Privy)
+                walletAddress: h.userWalletAddress || "" // Optional: set when connected, empty when not
             };
-            // Check if wallet is connected before allowing login
-            if (!h.userWalletAddress) {
-                // Show red popup notification in bottom right
-                showWalletRequiredNotification();
-                return;
-            }
             S.emit("login", e)
         }),
         S.on("reason", function(e) {
@@ -3256,11 +3281,6 @@
         }))
     }),
     D(jn, "click", function() {
-        // Check wallet BEFORE showing loading screen
-        if (!h.userWalletAddress) {
-            showWalletRequiredNotification();
-            return;
-        }
         Nn || (xe(),
         Jn(!0),
         ta(function() {

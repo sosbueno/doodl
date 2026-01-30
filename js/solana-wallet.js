@@ -126,11 +126,8 @@
     clearProvenOwnership();
     window.userWalletAddress = null;
     window.dispatchEvent(new CustomEvent('turnkey-wallet-disconnected'));
-    var playBtn = document.getElementById('play-button');
-    var createBtn = document.getElementById('create-button');
-    if (playBtn) { playBtn.disabled = true; playBtn.style.opacity = '0.5'; playBtn.style.cursor = 'not-allowed'; }
-    if (createBtn) { createBtn.disabled = true; createBtn.style.opacity = '0.5'; createBtn.style.cursor = 'not-allowed'; }
     renderConnect();
+    enableButtons();
   }
 
   function enableButtons() {
@@ -156,6 +153,7 @@
     } else {
       clearProvenOwnership();
       renderConnect();
+      enableButtons();
     }
     if (provider && provider.on) {
       provider.on('accountChanged', function () {

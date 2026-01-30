@@ -944,17 +944,13 @@ io.on('connection', (socket) => {
     const lang = 0;
     let roomId = join || code;
     
-    // Require wallet address to play
-    if (!walletAddress || typeof walletAddress !== 'string' || walletAddress.trim().length === 0) {
-      console.log('⚠️ Login rejected - no wallet address provided');
-      socket.emit('joinerr', 3); // Wallet required error
-      return;
-    }
+    // Wallet is optional for play; required only when claiming SOL (can connect then or enter address at claim)
+    const walletTrimmed = (walletAddress && typeof walletAddress === 'string') ? walletAddress.trim() : '';
     
     // Limit name to 16 characters
     const playerName = (name || 'Player').trim().substring(0, 16);
     
-    console.log('🔐 Socket.IO login:', { join, create, name: playerName, lang, code, roomId, walletAddress: walletAddress.substring(0, 8) + '...' });
+    console.log('🔐 Socket.IO login:', { join, create, name: playerName, lang, code, roomId, wallet: walletTrimmed ? walletTrimmed.substring(0, 8) + '...' : '(none)' });
     
     // IMPORTANT: If create=1, this is a private room create request
     // The API might have returned a public room ID, but we need to create a private room
@@ -1109,18 +1105,19 @@ io.on('connection', (socket) => {
       return;
     }
     
-    // One wallet per session: reject if this wallet is already in use by another connected socket
-    const walletKey = walletAddress.trim();
-    for (const [sid, s] of io.sockets.sockets) {
-      if (sid === socket.id) continue;
-      const otherPlayer = players.get(sid);
-      if (otherPlayer && otherPlayer.walletAddress && otherPlayer.walletAddress.trim() === walletKey) {
-        console.log('⚠️ Login rejected - wallet already in use:', walletKey.substring(0, 8) + '...', 'by socket', sid);
-        socket.emit('joinerr', 6); // Wallet already in use (another tab)
-        return;
+    // One wallet per session (only when wallet provided): reject if this wallet is already in use by another connected socket
+    if (walletTrimmed) {
+      for (const [sid, s] of io.sockets.sockets) {
+        if (sid === socket.id) continue;
+        const otherPlayer = players.get(sid);
+        if (otherPlayer && otherPlayer.walletAddress && otherPlayer.walletAddress.trim() === walletTrimmed) {
+          console.log('⚠️ Login rejected - wallet already in use:', walletTrimmed.substring(0, 8) + '...', 'by socket', sid);
+          socket.emit('joinerr', 6); // Wallet already in use (another tab)
+          return;
+        }
       }
+      walletToSocketId.set(walletTrimmed, socket.id);
     }
-    walletToSocketId.set(walletKey, socket.id);
     
     // Create player
     player = {
@@ -1131,7 +1128,7 @@ io.on('connection', (socket) => {
       guessed: false,
       flags: 0,
       roomId: roomId,
-      walletAddress: walletAddress.trim() // Store wallet address for prize claims
+      walletAddress: walletTrimmed // Store wallet address for prize claims (empty if not connected)
     };
     
     players.set(socket.id, player);
@@ -1624,79 +1621,50 @@ io.on('connection', (socket) => {
         break;
         
       case PACKET.CLAIM_REWARD:
-        // Handle reward claim request
+        // Handle reward claim request. Address from: connected wallet (player.walletAddress) or user-entered (data.address)
         if (room.prizePoolFrozen && room.playerRewards) {
           const playerReward = room.playerRewards.get(socket.id);
           const player = room.players.find(p => p.id === socket.id);
+          const userAddress = (data.data && typeof data.data === 'object' && data.data.address && typeof data.data.address === 'string') ? data.data.address.trim() : '';
+          const claimAddress = (userAddress && userAddress.length > 0) ? userAddress : (player && player.walletAddress && player.walletAddress.trim()) ? player.walletAddress.trim() : null;
+          const isValidSolanaAddress = (addr) => addr && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
           
-          if (playerReward && playerReward > 0 && player && player.walletAddress) {
-            // Check if already claimed
+          if (playerReward && playerReward > 0 && player && claimAddress && isValidSolanaAddress(claimAddress)) {
             if (room.claimedRewards && room.claimedRewards.has(socket.id)) {
-              socket.emit('data', {
-                id: PACKET.ERROR,
-                data: 'Reward already claimed'
-              });
+              socket.emit('data', { id: PACKET.ERROR, data: 'Reward already claimed' });
               return;
             }
-            
-            // Send SOL to player's wallet using Helius
-            sendSolToPlayer(player.walletAddress, playerReward, socket.id, room.id)
+            sendSolToPlayer(claimAddress, playerReward, socket.id, room.id)
               .then((txSignature) => {
-                // Mark as claimed
-                if (!room.claimedRewards) {
-                  room.claimedRewards = new Set();
-                }
+                if (!room.claimedRewards) room.claimedRewards = new Set();
                 room.claimedRewards.add(socket.id);
-                
-                // Update leaderboard: SOL earned (public lobby only)
-                if (room.isPublic) {
-                  leaderboardAddSolEarned(player.walletAddress, playerReward, player.name);
-                }
-                
-                // Notify player
+                if (room.isPublic) leaderboardAddSolEarned(claimAddress, playerReward, player.name);
                 socket.emit('data', {
                   id: PACKET.REWARD_CLAIMED,
-                  data: {
-                    amount: playerReward,
-                    txSignature: txSignature,
-                    message: `Successfully claimed ${playerReward} SOL!`
-                  }
+                  data: { amount: playerReward, txSignature: txSignature, message: `Successfully claimed ${playerReward} SOL!` }
                 });
-                
-                console.log(`✅ Player ${player.name} claimed ${playerReward} SOL. TX: ${txSignature}`);
+                console.log(`✅ Player ${player.name} claimed ${playerReward} SOL to ${claimAddress.substring(0, 8)}... TX: ${txSignature}`);
               })
               .catch((error) => {
                 console.error(`❌ Error sending SOL to ${player.name}:`, error);
-                socket.emit('data', {
-                  id: PACKET.ERROR,
-                  data: `Failed to claim reward: ${error.message}`
-                });
+                socket.emit('data', { id: PACKET.ERROR, data: `Failed to claim reward: ${error.message}` });
               });
-          } else if (!player || !player.walletAddress) {
-            socket.emit('data', {
-              id: PACKET.ERROR,
-              data: 'Wallet address not found. Please connect your wallet.'
-            });
-          } else if (!playerReward || playerReward <= 0) {
-            socket.emit('data', {
-              id: PACKET.ERROR,
-              data: 'No reward available to claim'
-            });
+          } else if (!player || !playerReward || playerReward <= 0) {
+            socket.emit('data', { id: PACKET.ERROR, data: 'No reward available to claim' });
+          } else if (!claimAddress || !isValidSolanaAddress(claimAddress)) {
+            socket.emit('data', { id: PACKET.ERROR, data: 'Please connect your wallet or enter a valid Solana wallet address.' });
           }
         } else {
-          socket.emit('data', {
-            id: PACKET.ERROR,
-            data: 'Game not finished or no rewards available'
-          });
+          socket.emit('data', { id: PACKET.ERROR, data: 'Game not finished or no rewards available' });
         }
         break;
         
       case PACKET.USE_REWARD_BUYBACK:
-        // Use reward as buyback: send SOL to buyback wallet instead of player
+        // Use reward as buyback: send SOL to buyback wallet (or creator wallet if same)
         if (room.prizePoolFrozen && room.playerRewards) {
           const playerReward = room.playerRewards.get(socket.id);
           const player = room.players.find(p => p.id === socket.id);
-          const buybackWallet = (FEE_DISTRIBUTION_CONFIG.BUYBACK_WALLET_ADDRESS || '').trim();
+          const buybackWallet = (FEE_DISTRIBUTION_CONFIG.BUYBACK_WALLET_ADDRESS || FEE_DISTRIBUTION_CONFIG.CREATOR_WALLET || '').trim();
           if (!buybackWallet) {
             socket.emit('data', { id: PACKET.ERROR, data: 'Buyback is not configured.' });
             return;
