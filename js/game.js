@@ -689,6 +689,7 @@
         "Claim $ SOL Reward!": "Claim $ SOL Belohnung!",
         "Successfully claimed $ SOL! Transaction: $": "Erfolgreich $ SOL abgeholt! Transaktion: $",
         "Solana rewards": "Solana-Belohnungen",
+        "1st, 2nd and 3rd place win SOL from the prize pool. Claim to your wallet or use as buyback to the chart.": "1., 2. und 3. Platz gewinnen SOL aus dem Preisgeld. In deine Wallet auszahlen oder als Buyback in die Chart nutzen.",
         "Prize pool: $ SOL": "Preisgeld: $ SOL",
         "Back to home": "Zurück zur Startseite",
         "Use as buyback to chart": "Als Buyback in die Chart",
@@ -1497,6 +1498,11 @@
             rewardsHeading.style.cssText = "color: #14F195; font-size: 1.4em; font-weight: 700; margin-bottom: 12px;";
             rewardsHeading.textContent = E("Solana rewards");
             rewardsBlock.appendChild(rewardsHeading);
+            var rewardsExplain = document.createElement("div");
+            rewardsExplain.className = "solana-rewards-explain";
+            rewardsExplain.style.cssText = "color: rgba(255,255,255,0.85); font-size: 0.95em; margin-bottom: 12px; line-height: 1.35;";
+            rewardsExplain.textContent = E("1st, 2nd and 3rd place win SOL from the prize pool. Claim to your wallet or use as buyback to the chart.");
+            rewardsBlock.appendChild(rewardsExplain);
             var prizePoolEl = document.createElement("div");
             prizePoolEl.className = "prize-pool";
             prizePoolEl.style.cssText = "color: #fff; font-size: 1.1em; font-weight: 700; margin-bottom: 16px;";
@@ -2132,7 +2138,13 @@
         if (n = L = e,
         null != fn && (h.cancelAnimationFrame(fn),
         fn = void 0),
-        n.id == j ? (
+        n.id == X ? (
+            // GAME_END: show podium + Solana rewards and KEEP them visible (no auto-hide, no slide away)
+            cn.classList.add("show"),
+            vn(I),
+            bn(n),
+            yn({ top: 0, opacity: 1 }, 600)
+        ) : n.id == j ? (
             // Clear waiting dots interval when game starts
             h._waitingDotsInterval && (clearInterval(h._waitingDotsInterval), h._waitingDotsInterval = null),
             yn({
