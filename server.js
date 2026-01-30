@@ -923,6 +923,17 @@ function checkSpam(socketId, message, room) {
   return { isSpam: false };
 }
 
+/** Get client IP (for one-per-IP-per-room). Uses x-forwarded-for when behind proxy (e.g. Render). */
+function getClientIp(socket) {
+  const forwarded = socket.handshake.headers && socket.handshake.headers['x-forwarded-for'];
+  if (forwarded && typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
+  }
+  const addr = socket.handshake.address;
+  if (!addr) return '';
+  return addr.replace(/^::ffff:/i, '');
+}
+
 io.on('connection', (socket) => {
   let player = null;
   let currentRoomId = null;
@@ -1117,6 +1128,19 @@ io.on('connection', (socket) => {
         }
       }
       walletToSocketId.set(walletTrimmed, socket.id);
+    }
+    
+    // One connection per IP per room: same person can't join the same game from multiple tabs
+    const clientIp = getClientIp(socket);
+    if (clientIp) {
+      for (const p of room.players) {
+        const otherSocket = io.sockets.sockets.get(p.id);
+        if (otherSocket && getClientIp(otherSocket) === clientIp) {
+          console.log('⚠️ Login rejected - same IP already in room:', clientIp, 'room:', roomId);
+          socket.emit('joinerr', 7); // Same IP already in this room (multiple tabs)
+          return;
+        }
+      }
     }
     
     // Create player

@@ -626,6 +626,7 @@
         "You are banned from this room!": "Du bist von diesem Raum gebannt!",
         "Wallet required. Please connect your wallet to play.": "Wallet erforderlich. Bitte verbinde deine Wallet zum Spielen.",
         "This wallet is already in use in another tab. Close the other tab or disconnect there first.": "Diese Wallet wird bereits in einem anderen Tab verwendet. Schließe den anderen Tab oder trenne die Verbindung dort zuerst.",
+        "You already have this game open in another tab. Close the other tab to join here.": "Du hast dieses Spiel bereits in einem anderen Tab geöffnet. Schließe den anderen Tab, um hier beizutreten.",
         "You need at least 2 players to start the game!": "Du brauchst mind. 2 Spieler um das Spiel zu starten!",
         "Server restarting in about $ seconds!": "Server Neustart in ungefähr $ Sekunden!",
         "Spam detected! You're sending messages too quickly.": "Spam erkannt! Du sendest Nachrichten zu schnell.",
@@ -1959,6 +1960,9 @@
                     break;
                 case 6:
                     errorMsg = E("This wallet is already in use in another tab. Close the other tab or disconnect there first.");
+                    break;
+                case 7:
+                    errorMsg = E("You already have this game open in another tab. Close the other tab to join here.");
                     break;
                 case 5:
                     errorMsg = E("Invalid room code! Please check the room code and try again.");
