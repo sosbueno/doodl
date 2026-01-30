@@ -1463,10 +1463,10 @@
             for (o = 0; o < Math.min(a.length, 12); o++) {
                 var l = $("player")
                   , s = a[o]
-                  , c = (l.appendChild($("name", s.name)),
+                  , scoreEl = (l.appendChild($("name", s.name)),
                 $("score", (0 < s.score ? "+" : "") + s.score));
-                s.score <= 0 && c.classList.add("zero"),
-                l.appendChild(c),
+                s.score <= 0 && scoreEl.classList.add("zero"),
+                l.appendChild(scoreEl),
                 n.appendChild(l)
             }
             break;
@@ -1475,17 +1475,17 @@
             for (var d = [I.querySelector(".podest-1"), I.querySelector(".podest-2"), I.querySelector(".podest-3"), I.querySelector(".ranks")], o = 0; o < 4; o++)
                 ce(d[o]);
             // Handle new game end data structure (with prize pool and rewards)
+            // Use document explicitly: another case in bn() reassigns c to a score element, so c may not be document here
             var gameEndData = e.data;
             var rankings = Array.isArray(gameEndData) ? gameEndData : (gameEndData.rankings || gameEndData);
             var prizePool = gameEndData.prizePool || 0;
             var playerRewards = gameEndData.playerRewards || {};
             var myReward = playerRewards[x] || 0;
             
-            // Show prize pool info if available
             if (prizePool > 0) {
                 var prizePoolEl = I.querySelector(".prize-pool");
                 if (!prizePoolEl) {
-                    prizePoolEl = c.createElement("div");
+                    prizePoolEl = document.createElement("div");
                     prizePoolEl.className = "prize-pool";
                     prizePoolEl.style.cssText = "text-align: center; margin: 20px 0; color: #fff; font-size: 1.2em; font-weight: 700;";
                     I.querySelector(".winner-name").parentElement.insertBefore(prizePoolEl, I.querySelector(".winner-name"));
@@ -1495,11 +1495,10 @@
             
             var existingClaimContainer = I.querySelector(".claim-reward-container");
             if (existingClaimContainer && myReward <= 0) existingClaimContainer.style.display = "none";
-            // Show claim section if user has a reward (1st, 2nd or 3rd prize)
             if (myReward > 0) {
                 var claimBtnContainer = I.querySelector(".claim-reward-container");
                 if (!claimBtnContainer) {
-                    claimBtnContainer = c.createElement("div");
+                    claimBtnContainer = document.createElement("div");
                     claimBtnContainer.className = "claim-reward-container";
                     claimBtnContainer.style.cssText = "text-align: center; margin: 24px 0; padding: 20px; background: rgba(20, 241, 149, 0.12); border-radius: 12px; border: 2px solid rgba(20, 241, 149, 0.4);";
                     var insertBeforeEl = I.querySelector(".podest-1") || I.querySelector(".ranks");
@@ -1508,12 +1507,12 @@
                 }
                 claimBtnContainer.style.display = "";
                 ce(claimBtnContainer);
-                var yourPrizeHeadline = c.createElement("div");
+                var yourPrizeHeadline = document.createElement("div");
                 yourPrizeHeadline.className = "your-prize-headline";
                 yourPrizeHeadline.style.cssText = "color: #14F195; font-size: 1.3em; font-weight: 700; margin-bottom: 12px;";
                 yourPrizeHeadline.textContent = E("Your prize: $ SOL", myReward.toFixed(4));
                 claimBtnContainer.appendChild(yourPrizeHeadline);
-                var claimBtn = c.createElement("button");
+                var claimBtn = document.createElement("button");
                 claimBtn.className = "claim-reward-button";
                 claimBtn.setAttribute("data-claim-sol", myReward.toFixed(4));
                 claimBtn.style.cssText = "background: linear-gradient(135deg, #9945FF 0%, #14F195 100%); color: #fff; border: none; padding: 15px 30px; font-size: 1.2em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3);";
@@ -1526,7 +1525,7 @@
                     }
                 };
                 claimBtnContainer.appendChild(claimBtn);
-                var buybackBtn = c.createElement("button");
+                var buybackBtn = document.createElement("button");
                 buybackBtn.className = "claim-buyback-button";
                 buybackBtn.setAttribute("data-claim-sol", myReward.toFixed(4));
                 buybackBtn.style.cssText = "background: linear-gradient(135deg, #14F195 0%, #9945FF 100%); color: #fff; border: none; padding: 15px 30px; font-size: 1.1em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3); margin-left: 12px;";
@@ -1541,16 +1540,15 @@
                 };
                 claimBtnContainer.appendChild(buybackBtn);
             }
-            // Back to home button (everyone, after game end)
             var backToHomeContainer = I.querySelector(".back-to-home-container");
             if (!backToHomeContainer) {
-                backToHomeContainer = c.createElement("div");
+                backToHomeContainer = document.createElement("div");
                 backToHomeContainer.className = "back-to-home-container";
                 backToHomeContainer.style.cssText = "text-align: center; margin: 24px 0;";
                 I.appendChild(backToHomeContainer);
             }
             ce(backToHomeContainer);
-            var backToHomeBtn = c.createElement("button");
+            var backToHomeBtn = document.createElement("button");
             backToHomeBtn.className = "back-to-home-button";
             backToHomeBtn.style.cssText = "background: linear-gradient(180deg, #6e6e6e 0%, #5a5a5a 100%); color: #fff; border: none; padding: 14px 28px; font-size: 1.1em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 0 #4a4a4a;";
             backToHomeBtn.textContent = E("Back to home");
@@ -1583,7 +1581,7 @@
                         var totalRewardForSlot = 0;
                         for (var zi = 0; zi < p.length; zi++) totalRewardForSlot += playerRewards[p[zi].id] || 0;
                         if (totalRewardForSlot > 0) {
-                            var solLine = c.createElement("div");
+                            var solLine = document.createElement("div");
                             solLine.className = "rank-sol";
                             solLine.style.cssText = "color: #14F195; font-size: 0.95em; font-weight: 700; margin-top: 4px;";
                             solLine.textContent = p.length > 1 ? E("$ SOL each", (totalRewardForSlot / p.length).toFixed(4)) : (totalRewardForSlot.toFixed(4) + " SOL");
