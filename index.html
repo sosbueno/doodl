@@ -120,19 +120,20 @@
     <body translate="no">
         <div id="preroll"></div>
         <div id="home">
-            <div class="home-header">
-                <div class="logo-big">
-                    <a href="/" class="logo-link">
-                        <img src="/img/doodllogo.gif">
+            <!-- Wallet Connect Button - Top Right -->
+            <div id="wallet-connect-header" class="wallet-connect-header"></div>
+            <!-- Hero: split layout (tagline left, play card right) -->
+            <section class="home-hero">
+                <div class="hero-left logo-big">
+                    <a href="/" class="logo-link hero-logo">
+                        <img src="/img/doodllogo.gif" alt="doodls.fun">
                     </a>
-                    <div class="avatar-container"></div>
+                    <p class="hero-tagline" data-translate="text">Draw. Guess. Win SOL.</p>
+                    <p class="hero-desc" data-translate="text">Free multiplayer pictionary with real Solana prizes. 100% of creator fees go to prize pools.</p>
+                    <div class="avatar-container hero-avatar"></div>
                 </div>
-                <!-- Wallet Connect Button - Top Right (Privy React App will render here) -->
-                <div id="wallet-connect-header" style="position: absolute; top: 20px; right: 20px; z-index: 1000;"></div>
-            </div>
-            <div class="home-main">
-                <div class="game-panel-wrapper">
-                    <div class="panel game-panel">
+                <div class="hero-right">
+                    <div class="panel game-panel card-play">
                         <div class="container-name-lang">
                             <input class="input-name" type="text" spellcheck="false" autocomplete="off" placeholder="Enter your name" maxlength="16" data-translate="placeholder">
                             <select disabled>
@@ -161,7 +162,27 @@
                         </button>
                     </div>
                 </div>
-            </div>
+            </section>
+            <!-- 3D Leaderboard section (scroll down) -->
+            <section class="home-leaderboard" id="leaderboard-section">
+                <h2 class="leaderboard-title">
+                    <img src="/img/trophy.gif" alt="" class="leaderboard-title-icon">
+                    <span data-translate="text">Top players</span>
+                </h2>
+                <div class="leaderboard-tabs">
+                    <button type="button" class="leaderboard-tab active" data-tab="points" data-translate="text">Most points</button>
+                    <button type="button" class="leaderboard-tab" data-tab="sol" data-translate="text">Most SOL earned</button>
+                </div>
+                <div class="leaderboard-3d-wrap">
+                    <div class="leaderboard-3d-scene">
+                        <div class="leaderboard-3d-board" id="leaderboard-3d-board">
+                            <div class="leaderboard-list leaderboard-list-points" id="leaderboard-list-points"></div>
+                            <div class="leaderboard-list leaderboard-list-sol hidden" id="leaderboard-list-sol"></div>
+                        </div>
+                    </div>
+                </div>
+                <p class="leaderboard-note" data-translate="text">Updates live as players earn points and claim prizes.</p>
+            </section>
             <div class="bottom">
                 <svg viewBox="0 0 1 1" preserveAspectRatio="none">
                     <polygon points="0,0 1,1 0,1"></polygon>
@@ -998,6 +1019,60 @@
                 if (playBtn) { playBtn.disabled = true; playBtn.style.opacity = '0.5'; playBtn.style.cursor = 'not-allowed'; }
                 if (createBtn) { createBtn.disabled = true; createBtn.style.opacity = '0.5'; createBtn.style.cursor = 'not-allowed'; }
             });
+        </script>
+        <script>
+            // 3D Leaderboard: fetch, render, auto-update
+            (function() {
+                var listPoints = document.getElementById('leaderboard-list-points');
+                var listSol = document.getElementById('leaderboard-list-sol');
+                var board = document.getElementById('leaderboard-3d-board');
+                var tabs = document.querySelectorAll('.leaderboard-tab');
+                if (!listPoints || !listSol) return;
+
+                function formatPoints(n) { return Number(n).toLocaleString(); }
+                function formatSol(n) { return Number(n).toFixed(4); }
+
+                function renderList(container, list, by) {
+                    container.innerHTML = '';
+                    (list || []).forEach(function(row, i) {
+                        var r = document.createElement('div');
+                        r.className = 'leaderboard-row';
+                        r.setAttribute('data-rank', row.rank);
+                        var rankClass = row.rank <= 3 ? ' rank-' + row.rank : '';
+                        r.innerHTML =
+                            '<span class="leaderboard-rank' + rankClass + '">#' + row.rank + '</span>' +
+                            '<span class="leaderboard-name">' + (row.name || '—') + '</span>' +
+                            (by === 'sol'
+                                ? '<span class="leaderboard-value leaderboard-sol">' + formatSol(row.sol) + ' SOL</span>'
+                                : '<span class="leaderboard-value leaderboard-pts">' + formatPoints(row.points) + ' pts</span>');
+                        container.appendChild(r);
+                    });
+                }
+
+                function fetchAndRender() {
+                    fetch('/api/leaderboard?by=points').then(function(res) { return res.json(); }).then(function(data) {
+                        if (data.list) renderList(listPoints, data.list, 'points');
+                    }).catch(function() {});
+                    fetch('/api/leaderboard?by=sol').then(function(res) { return res.json(); }).then(function(data) {
+                        if (data.list) renderList(listSol, data.list, 'sol');
+                    }).catch(function() {});
+                }
+
+                tabs.forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var tab = this.getAttribute('data-tab');
+                        tabs.forEach(function(b) { b.classList.remove('active'); });
+                        this.classList.add('active');
+                        listPoints.classList.toggle('hidden', tab !== 'points');
+                        listSol.classList.toggle('hidden', tab !== 'sol');
+                        board.classList.remove('leaderboard-flip');
+                        requestAnimationFrame(function() { board.classList.add('leaderboard-flip'); });
+                    });
+                });
+
+                fetchAndRender();
+                setInterval(fetchAndRender, 15000);
+            })();
         </script>
         <script src="js/game.js"></script>
     </body>

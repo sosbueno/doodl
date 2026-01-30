@@ -352,6 +352,50 @@ function initializePublicRooms() {
   }
 }
 
+// In-memory leaderboard (points + SOL earned). Replace with DB later.
+const leaderboardPoints = new Map(); // name or wallet -> total points
+const leaderboardSol = new Map();    // name or wallet -> total SOL earned
+const LEADERBOARD_SEED = [
+  { name: 'DoodleKing', points: 28470, sol: 0.42 },
+  { name: 'SketchMaster', points: 26120, sol: 0.38 },
+  { name: 'DrawQueen', points: 23980, sol: 0.35 },
+  { name: 'PencilWizard', points: 21840, sol: 0.29 },
+  { name: 'InkSlinger', points: 19560, sol: 0.24 },
+  { name: 'CanvasPro', points: 17230, sol: 0.19 },
+  { name: 'BrushNinja', points: 14900, sol: 0.15 },
+  { name: 'ArtVibes', points: 12570, sol: 0.12 },
+  { name: 'GuessGenius', points: 10240, sol: 0.09 },
+  { name: 'WordHunter', points: 8910, sol: 0.06 }
+];
+LEADERBOARD_SEED.forEach((e, i) => {
+  leaderboardPoints.set(e.name, { name: e.name, points: e.points, sol: e.sol, rank: i + 1 });
+  leaderboardSol.set(e.name, { name: e.name, points: e.points, sol: e.sol, rank: i + 1 });
+});
+
+function getLeaderboardByPoints() {
+  return Array.from(leaderboardPoints.values())
+    .sort((a, b) => b.points - a.points)
+    .slice(0, 20)
+    .map((e, i) => ({ ...e, rank: i + 1 }));
+}
+function getLeaderboardBySol() {
+  return Array.from(leaderboardSol.values())
+    .sort((a, b) => b.sol - a.sol)
+    .slice(0, 20)
+    .map((e, i) => ({ ...e, rank: i + 1 }));
+}
+
+app.get('/api/leaderboard', (req, res) => {
+  try {
+    const by = (req.query.by || 'points').toLowerCase();
+    const list = by === 'sol' ? getLeaderboardBySol() : getLeaderboardByPoints();
+    res.json({ by: by === 'sol' ? 'sol' : 'points', list });
+  } catch (err) {
+    console.error('Leaderboard error:', err);
+    res.status(500).json({ error: 'Leaderboard unavailable' });
+  }
+});
+
 // API endpoint for joining/creating rooms
 app.post('/api/play', (req, res) => {
   try {
