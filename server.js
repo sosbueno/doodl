@@ -192,6 +192,7 @@ const wordLists = require('./data/words.js');
 // Game state
 const rooms = new Map();
 const players = new Map(); // socket.id -> player info
+const walletToSocketId = new Map(); // wallet address -> socket.id (one session per wallet)
 const publicRooms = new Map(); // Persistent public rooms by language
 const roomCodes = new Map(); // roomCode -> roomId mapping for invite links
 const roomCodeToId = new Map(); // roomId -> roomCode reverse mapping
@@ -253,7 +254,8 @@ const PACKET = {
   BAN: 4,
   PRIZE_POOL_UPDATE: 33,
   CLAIM_REWARD: 34,
-  REWARD_CLAIMED: 35
+  REWARD_CLAIMED: 35,
+  USE_REWARD_BUYBACK: 36
 };
 
 function generateRoomId() {
@@ -992,6 +994,19 @@ io.on('connection', (socket) => {
       return;
     }
     
+    // One wallet per session: reject if this wallet is already in use by another connected socket
+    const walletKey = walletAddress.trim();
+    for (const [sid, s] of io.sockets.sockets) {
+      if (sid === socket.id) continue;
+      const otherPlayer = players.get(sid);
+      if (otherPlayer && otherPlayer.walletAddress && otherPlayer.walletAddress.trim() === walletKey) {
+        console.log('⚠️ Login rejected - wallet already in use:', walletKey.substring(0, 8) + '...', 'by socket', sid);
+        socket.emit('joinerr', 6); // Wallet already in use (another tab)
+        return;
+      }
+    }
+    walletToSocketId.set(walletKey, socket.id);
+    
     // Create player
     player = {
       id: socket.id,
@@ -1552,6 +1567,48 @@ io.on('connection', (socket) => {
         }
         break;
         
+      case PACKET.USE_REWARD_BUYBACK:
+        // Use reward as buyback: send SOL to buyback wallet instead of player
+        if (room.prizePoolFrozen && room.playerRewards) {
+          const playerReward = room.playerRewards.get(socket.id);
+          const player = room.players.find(p => p.id === socket.id);
+          const buybackWallet = (FEE_DISTRIBUTION_CONFIG.BUYBACK_WALLET_ADDRESS || '').trim();
+          if (!buybackWallet) {
+            socket.emit('data', { id: PACKET.ERROR, data: 'Buyback is not configured.' });
+            return;
+          }
+          if (playerReward && playerReward > 0 && player) {
+            if (room.claimedRewards && room.claimedRewards.has(socket.id)) {
+              socket.emit('data', { id: PACKET.ERROR, data: 'Reward already claimed' });
+              return;
+            }
+            sendSolToPlayer(buybackWallet, playerReward, socket.id, room.id)
+              .then((txSignature) => {
+                if (!room.claimedRewards) room.claimedRewards = new Set();
+                room.claimedRewards.add(socket.id);
+                socket.emit('data', {
+                  id: PACKET.REWARD_CLAIMED,
+                  data: {
+                    amount: playerReward,
+                    txSignature: txSignature,
+                    message: `Sent ${playerReward} SOL to buyback!`,
+                    buyback: true
+                  }
+                });
+                console.log(`✅ Player ${player.name} used ${playerReward} SOL as buyback. TX: ${txSignature}`);
+              })
+              .catch((error) => {
+                console.error(`❌ Buyback error for ${player.name}:`, error);
+                socket.emit('data', { id: PACKET.ERROR, data: `Failed to send to buyback: ${error.message}` });
+              });
+          } else if (!playerReward || playerReward <= 0) {
+            socket.emit('data', { id: PACKET.ERROR, data: 'No reward available' });
+          }
+        } else {
+          socket.emit('data', { id: PACKET.ERROR, data: 'Game not finished or no rewards available' });
+        }
+        break;
+        
       case PACKET.CHAT:
         // Handle chat messages (packet id 30)
         // Block links in chat messages - any 2+ letter word followed by a dot and anything
@@ -1683,6 +1740,13 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     // Clean up spam tracker
     spamTracker.delete(socket.id);
+    // Free wallet so it can be used in another tab/session
+    if (player && player.walletAddress) {
+      const w = player.walletAddress.trim();
+      if (walletToSocketId.get(w) === socket.id) {
+        walletToSocketId.delete(w);
+      }
+    }
     
     if (player && currentRoomId) {
       const room = rooms.get(currentRoomId);
@@ -2101,8 +2165,12 @@ io.on('connection', (socket) => {
     room.pendingScores = new Map();
     // Mark game as started (active lobby for prize pool distribution)
     room.gameStarted = true;
-    console.log(`🎮 Starting game in room ${room.id}, currentRound reset to 0`);
-    startRound(room);
+    console.log('🎮 Starting game in room', room.id, 'currentRound reset to 0');
+    // Apply small point head-start for top 50 token holders (then start first round)
+    applyHolderBonuses(room).then(() => startRound(room)).catch((err) => {
+      console.warn('Holder bonus error, starting round anyway:', err.message);
+      startRound(room);
+    });
   }
   
   function startRound(room) {
@@ -2138,14 +2206,25 @@ io.on('connection', (socket) => {
       room.settings[SETTINGS.CUSTOMWORDSONLY] === 1
     );
     
-    // Send ROUND_START state to show "Round X" overlay
+    // Send ROUND_START state to show "Round X" overlay; include users so holder bonus scores show immediately
     const roundNumber = room.currentRound - 1; // Round number (0-indexed, client adds 1 to display)
+    const roundStartData = {
+      round: roundNumber,
+      users: room.players.map((p) => ({
+        id: p.id,
+        name: p.name,
+        avatar: p.avatar,
+        score: p.score,
+        guessed: p.guessed,
+        flags: p.flags || 0
+      }))
+    };
     io.to(room.id).emit('data', {
       id: PACKET.STATE,
       data: {
         id: GAME_STATE.ROUND_START, // F = 2
         time: 0,
-        data: roundNumber  // Round number (0-indexed, client will show "Round X" by adding 1)
+        data: roundStartData
       }
     });
     
@@ -2551,14 +2630,14 @@ io.on('connection', (socket) => {
         playersByRank.get(rankNum).push(rank[0]);
       });
       
-      // Distribute rewards
+      // Distribute rewards (1st 50%, 2nd 30%, 3rd 20%). Ties split that place's share equally (e.g. 2-way tie for 1st = 50/50 = 25% each).
       const rewardPercentages = [0.5, 0.3, 0.2]; // 1st, 2nd, 3rd place percentages
       let rankIndex = 0;
       
       for (const [rankNum, playerIds] of playersByRank.entries()) {
         if (rankIndex < rewardPercentages.length) {
           const percentage = rewardPercentages[rankIndex];
-          const rewardPerPlayer = (totalPrizePool * percentage) / playerIds.length; // Split if tied
+          const rewardPerPlayer = (totalPrizePool * percentage) / playerIds.length; // Split equally among tied players
           
           playerIds.forEach(playerId => {
             const existingReward = room.playerRewards.get(playerId) || 0;
@@ -2613,44 +2692,10 @@ io.on('connection', (socket) => {
         
         // For public rooms, automatically start a new game (infinite loop - restart from round 1)
         if (room.isPublic) {
-          console.log(`🔄 [PUBLIC ROOM] Game ended, restarting automatically for room ${room.id}`);
-          // Reset everything for a fresh game
-          room.currentRound = 0;
-          room.currentDrawer = -1;
-          room.currentWord = '';
-          room.currentWordIndex = -1;
-          room.timer = 0;
-          room.drawCommands = [];
-          room.guessCount = 0;
-          room.revealedIndices = null;
-          room.hintIndex = 0;
-          room.players.forEach(p => {
-            p.score = 0;
-            p.guessed = false;
-            p.roundStartScore = 0;
-          });
-          
-          // Clear any existing timers
-          if (room.timerInterval) {
-            clearInterval(room.timerInterval);
-            room.timerInterval = null;
-          }
-          if (room.hintInterval) {
-            clearInterval(room.hintInterval);
-            room.hintInterval = null;
-          }
-          if (room.wordChoiceTimer) {
-            clearInterval(room.wordChoiceTimer);
-            room.wordChoiceTimer = null;
-          }
-          
-          // Auto-start new game for public rooms (will start round 1)
-          setTimeout(() => {
-            console.log(`🎮 [PUBLIC ROOM] Starting new game for room ${room.id}`);
-            startGame(room);
-          }, 1000);
-        } else {
-          // Private rooms: return to lobby (settings screen)
+          console.log(`🏁 [PUBLIC ROOM] Game ended for room ${room.id}; staying on podium until users go home`);
+          return; // Stay in GAME_END; client shows Back to home button
+        }
+        // Private rooms: return to lobby (settings screen)
         room.state = GAME_STATE.LOBBY;
         room.currentRound = 0;
         room.currentDrawer = -1;
@@ -2869,8 +2914,87 @@ const FEE_DISTRIBUTION_CONFIG = {
   CREATOR_SECRET_KEY: process.env.CREATOR_SECRET_KEY || '23SzmcnZNmEmhGtxGxEmvvWA9tcHuAWNaKEDKsdSgFYA2wEFCxBun5dYEzBaf9NuMSqR5HBzpRvgMLEvKPef9PMF', // Base58 private key
   PUMPPORTAL_API_KEY: process.env.PUMPPORTAL_API_KEY || 'a1amjdv46nu4rmu761v6md1bet34rv3nahj4jpb88t96ux2ha9nqmuuad5rnmea18n2qgh28ch3n4p3b6xj4ywtk9grn8u9pehkjpha7emtm2bv5eh9q0x1h95w7jcj8ct7qgrjh84yku95q6ukar9cvngebuahkkjhk8cccxgm8h9mcdhmghhf8xrnegk8c92pcpbr890kuf8', // PumpPortal API key
   HELIUS_API_KEY: process.env.HELIUS_API_KEY || 'dbab0278-3123-4d7e-85bb-a284086b6ee4', // Helius API key
-  HELIUS_RPC_URL: process.env.HELIUS_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=dbab0278-3123-4d7e-85bb-a284086b6ee4' // Helius RPC URL
+  HELIUS_RPC_URL: process.env.HELIUS_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=dbab0278-3123-4d7e-85bb-a284086b6ee4', // Helius RPC URL
+  BUYBACK_WALLET_ADDRESS: process.env.BUYBACK_WALLET_ADDRESS || '' // Optional: wallet for "use reward as buyback to chart"
 };
+
+// Holder head-start: top 20 token holders get a small point bonus at game start (getTokenLargestAccounts returns up to 20)
+const HOLDER_BONUS = {
+  TOKEN_MINT: process.env.PUMPFUN_TOKEN_ADDRESS || process.env.TOKEN_MINT_HOLDER_BONUS || '',
+  RPC_URL: process.env.HELIUS_RPC_URL || FEE_DISTRIBUTION_CONFIG.HELIUS_RPC_URL,
+  TOP_N: 20,
+  // Modest bonus by rank tier (points added at game start)
+  BONUS_TOP_10: 20,
+  BONUS_11_TO_20: 15
+};
+
+/** Get owner address from SPL token account data (owner is bytes 32-64). */
+function getOwnerFromTokenAccountData(data) {
+  if (!data || data.length < 64) return null;
+  const bs58 = require('bs58');
+  const ownerBytes = data.slice(32, 64);
+  return bs58.encode(ownerBytes);
+}
+
+/**
+ * Fetch top token holders by balance. Returns Map<ownerBase58, rank> (rank 1 = largest holder).
+ * Uses getTokenLargestAccounts (typically returns up to 20) + getMultipleAccounts to resolve owners.
+ */
+async function getTopTokenHolderRanks() {
+  if (!HOLDER_BONUS.TOKEN_MINT || !HOLDER_BONUS.RPC_URL) return new Map();
+  try {
+    const { Connection, PublicKey } = require('@solana/web3.js');
+    const connection = new Connection(HOLDER_BONUS.RPC_URL, 'confirmed');
+    const mintPubkey = new PublicKey(HOLDER_BONUS.TOKEN_MINT);
+    const largest = await connection.getTokenLargestAccounts(mintPubkey);
+    if (!largest.value || largest.value.length === 0) return new Map();
+    const accountAddresses = largest.value.map((v) => v.address);
+    const infos = await connection.getMultipleAccountsInfo(accountAddresses);
+    const rankByOwner = new Map();
+    for (let i = 0; i < infos.length && (i + 1) <= HOLDER_BONUS.TOP_N; i++) {
+      const info = infos[i];
+      if (!info || !info.data) continue;
+      const owner = getOwnerFromTokenAccountData(info.data);
+      if (owner && !rankByOwner.has(owner)) {
+        rankByOwner.set(owner, i + 1); // rank 1 = largest holder
+      }
+    }
+    return rankByOwner;
+  } catch (err) {
+    console.warn('⚠️ Holder bonus: could not fetch top holders:', err.message);
+    return new Map();
+  }
+}
+
+function getHolderBonusPoints(rank) {
+  if (rank <= 10) return HOLDER_BONUS.BONUS_TOP_10;
+  if (rank <= 20) return HOLDER_BONUS.BONUS_11_TO_20;
+  return 0;
+}
+
+/**
+ * Apply a small point head-start to players who are in the top 50 token holders. Called at game start.
+ * Always returns a Promise so startRound can be chained.
+ */
+async function applyHolderBonuses(room) {
+  if (!HOLDER_BONUS.TOKEN_MINT) return Promise.resolve();
+  const rankByOwner = await getTopTokenHolderRanks();
+  if (rankByOwner.size === 0) return Promise.resolve();
+  const walletNormalize = (w) => (w || '').trim();
+  for (const p of room.players) {
+    const wallet = walletNormalize(p.walletAddress);
+    if (!wallet) continue;
+    const rank = rankByOwner.get(wallet);
+    if (rank == null) continue;
+    const bonus = getHolderBonusPoints(rank);
+    if (bonus > 0) {
+      p.score = (p.score || 0) + bonus;
+      p.roundStartScore = (p.roundStartScore || 0) + bonus;
+      console.log(`🏆 Holder bonus: ${p.name} (rank #${rank}) +${bonus} pts`);
+    }
+  }
+  return Promise.resolve();
+}
 
 // Using PumpPortal API for claiming Pumpfun creator fees
 // Documentation: https://pumpportal.fun/creator-fee

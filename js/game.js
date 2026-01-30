@@ -624,6 +624,8 @@
         "You unmuted '$'!": "Du hast die Stummschaltung für '$' aufgehoben!",
         "You are on a kick cooldown!": "Du bist noch in der Kick Abklingzeit!",
         "You are banned from this room!": "Du bist von diesem Raum gebannt!",
+        "Wallet required. Please connect your wallet to play.": "Wallet erforderlich. Bitte verbinde deine Wallet zum Spielen.",
+        "This wallet is already in use in another tab. Close the other tab or disconnect there first.": "Diese Wallet wird bereits in einem anderen Tab verwendet. Schließe den anderen Tab oder trenne die Verbindung dort zuerst.",
         "You need at least 2 players to start the game!": "Du brauchst mind. 2 Spieler um das Spiel zu starten!",
         "Server restarting in about $ seconds!": "Server Neustart in ungefähr $ Sekunden!",
         "Spam detected! You're sending messages too quickly.": "Spam erkannt! Du sendest Nachrichten zu schnell.",
@@ -673,6 +675,24 @@
         "is the winner!": "hat gewonnen!",
         "are the winners!": "haben gewonnen!",
         "Nobody won!": "Niemand hat gewonnen!",
+        "People tied - 1st place!": "Unentschieden - 1. Platz!",
+        "People tied - 2nd place!": "Unentschieden - 2. Platz!",
+        "People tied - 3rd place!": "Unentschieden - 3. Platz!",
+        "(tied)": "(Unentschieden)",
+        "Your prize: $ SOL": "Dein Gewinn: $ SOL",
+        "Claim $ SOL": "Claim $ SOL",
+        "Claim your prize": "Gewinn abholen",
+        "Claiming...": "Wird abgeholt...",
+        "Claimed!": "Abgeholt!",
+        "$ SOL each": "$ SOL je Person",
+        "Prize Pool: $ SOL": "Preisgeld: $ SOL",
+        "Claim $ SOL Reward!": "Claim $ SOL Belohnung!",
+        "Successfully claimed $ SOL! Transaction: $": "Erfolgreich $ SOL abgeholt! Transaktion: $",
+        "Back to home": "Zurück zur Startseite",
+        "Use as buyback to chart": "Als Buyback in die Chart",
+        "Sent to buyback!": "An Buyback gesendet!",
+        "Sending...": "Wird gesendet...",
+        "Sent $ SOL to buyback! Transaction: $": "$ SOL an Buyback gesendet! Transaktion: $",
         "Choose a word": "Wähle ein Wort",
         "The word was": "Das Wort war",
         User: "Spieler",
@@ -1388,9 +1408,13 @@
             vn(pn);
             break;
         case F:
-            vn(A),
-            A.textContent = E("Round $", e.data + 1);
-            // Ensure round text in game-bar is visible (it's separate from overlay)
+            vn(A);
+            var roundNum = (e.data && typeof e.data === "object" && e.data.round !== undefined) ? e.data.round : e.data;
+            A.textContent = E("Round $", (typeof roundNum === "number" ? roundNum : 0) + 1);
+            if (e.data && typeof e.data === "object" && Array.isArray(e.data.users)) {
+                for (var ui = 0; ui < e.data.users.length; ui++) za(e.data.users[ui], !1);
+                Ka();
+            }
             if (Un) {
                 Un.style.display = "";
                 Un.style.visibility = "visible";
@@ -1469,39 +1493,77 @@
                 prizePoolEl.textContent = E("Prize Pool: $ SOL", prizePool.toFixed(4));
             }
             
-            // Show claim button if user has a reward
+            var existingClaimContainer = I.querySelector(".claim-reward-container");
+            if (existingClaimContainer && myReward <= 0) existingClaimContainer.style.display = "none";
+            // Show claim section if user has a reward (1st, 2nd or 3rd prize)
             if (myReward > 0) {
                 var claimBtnContainer = I.querySelector(".claim-reward-container");
                 if (!claimBtnContainer) {
                     claimBtnContainer = c.createElement("div");
                     claimBtnContainer.className = "claim-reward-container";
-                    claimBtnContainer.style.cssText = "text-align: center; margin: 20px 0;";
-                    I.appendChild(claimBtnContainer);
+                    claimBtnContainer.style.cssText = "text-align: center; margin: 24px 0; padding: 20px; background: rgba(20, 241, 149, 0.12); border-radius: 12px; border: 2px solid rgba(20, 241, 149, 0.4);";
+                    var insertBeforeEl = I.querySelector(".podest-1") || I.querySelector(".ranks");
+                    if (insertBeforeEl) insertBeforeEl.parentNode.insertBefore(claimBtnContainer, insertBeforeEl);
+                    else I.appendChild(claimBtnContainer);
                 }
+                claimBtnContainer.style.display = "";
                 ce(claimBtnContainer);
+                var yourPrizeHeadline = c.createElement("div");
+                yourPrizeHeadline.className = "your-prize-headline";
+                yourPrizeHeadline.style.cssText = "color: #14F195; font-size: 1.3em; font-weight: 700; margin-bottom: 12px;";
+                yourPrizeHeadline.textContent = E("Your prize: $ SOL", myReward.toFixed(4));
+                claimBtnContainer.appendChild(yourPrizeHeadline);
                 var claimBtn = c.createElement("button");
                 claimBtn.className = "claim-reward-button";
+                claimBtn.setAttribute("data-claim-sol", myReward.toFixed(4));
                 claimBtn.style.cssText = "background: linear-gradient(135deg, #9945FF 0%, #14F195 100%); color: #fff; border: none; padding: 15px 30px; font-size: 1.2em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3);";
-                claimBtn.textContent = E("Claim $ SOL Reward!", myReward.toFixed(4));
+                claimBtn.textContent = E("Claim $ SOL", myReward.toFixed(4));
                 claimBtn.onclick = function() {
                     if (S) {
                         claimBtn.disabled = true;
                         claimBtn.textContent = E("Claiming...");
-                        S.emit("data", {
-                            id: claimRewardPacket,  // CLAIM_REWARD
-                            data: null
-                        });
+                        S.emit("data", { id: claimRewardPacket, data: null });
                     }
                 };
                 claimBtnContainer.appendChild(claimBtn);
+                var buybackBtn = c.createElement("button");
+                buybackBtn.className = "claim-buyback-button";
+                buybackBtn.setAttribute("data-claim-sol", myReward.toFixed(4));
+                buybackBtn.style.cssText = "background: linear-gradient(135deg, #14F195 0%, #9945FF 100%); color: #fff; border: none; padding: 15px 30px; font-size: 1.1em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3); margin-left: 12px;";
+                buybackBtn.textContent = E("Use as buyback to chart");
+                buybackBtn.onclick = function() {
+                    if (S && !buybackBtn.disabled) {
+                        buybackBtn.disabled = true;
+                        claimBtn.disabled = true;
+                        buybackBtn.textContent = E("Sending...");
+                        S.emit("data", { id: useRewardBuybackPacket, data: null });
+                    }
+                };
+                claimBtnContainer.appendChild(buybackBtn);
             }
+            // Back to home button (everyone, after game end)
+            var backToHomeContainer = I.querySelector(".back-to-home-container");
+            if (!backToHomeContainer) {
+                backToHomeContainer = c.createElement("div");
+                backToHomeContainer.className = "back-to-home-container";
+                backToHomeContainer.style.cssText = "text-align: center; margin: 24px 0;";
+                I.appendChild(backToHomeContainer);
+            }
+            ce(backToHomeContainer);
+            var backToHomeBtn = c.createElement("button");
+            backToHomeBtn.className = "back-to-home-button";
+            backToHomeBtn.style.cssText = "background: linear-gradient(180deg, #6e6e6e 0%, #5a5a5a 100%); color: #fff; border: none; padding: 14px 28px; font-size: 1.1em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 0 #4a4a4a;";
+            backToHomeBtn.textContent = E("Back to home");
+            backToHomeBtn.onclick = function() { h.location.href = h.location.origin + "/"; };
+            backToHomeContainer.appendChild(backToHomeBtn);
             
             if (0 < rankings.length) {
                 for (var u = [[], [], [], []], o = 0; o < rankings.length; o++)
                     (s = {
                         player: W(r = rankings[o][0]),
                         rank: rankings[o][1],
-                        title: rankings[o][2]
+                        title: rankings[o][2],
+                        id: r
                     }).player && u[Math.min(s.rank, 3)].push(s);
                 for (var h = 0; h < 3; h++) {
                     var p = u[h];
@@ -1514,9 +1576,19 @@
                           , l = $("avatar-container")
                           , y = (f.appendChild(l),
                         $("border"));
-                        y.appendChild($("rank-place", "#" + (h + 1))),
+                        y.appendChild($("rank-place", "#" + (h + 1) + (p.length > 1 ? " " + E("(tied)") : ""))),
                         y.appendChild($("rank-name", m)),
-                        y.appendChild($("rank-score", E("$ points", g))),
+                        y.appendChild($("rank-score", E("$ points", g)));
+                        // Show SOL prize for 1st, 2nd, 3rd
+                        var totalRewardForSlot = 0;
+                        for (var zi = 0; zi < p.length; zi++) totalRewardForSlot += playerRewards[p[zi].id] || 0;
+                        if (totalRewardForSlot > 0) {
+                            var solLine = c.createElement("div");
+                            solLine.className = "rank-sol";
+                            solLine.style.cssText = "color: #14F195; font-size: 0.95em; font-weight: 700; margin-top: 4px;";
+                            solLine.textContent = p.length > 1 ? E("$ SOL each", (totalRewardForSlot / p.length).toFixed(4)) : (totalRewardForSlot.toFixed(4) + " SOL");
+                            y.appendChild(solLine);
+                        }
                         f.appendChild(y),
                         0 == h && l.appendChild($("trophy"));
                         for (o = 0; o < p.length; o++)
@@ -1540,7 +1612,7 @@
                     return e.player.name
                 }).join(", "),
                 I.querySelector(".winner-name").textContent = (0 < u[0].length ? L : "<user left>") + " ",
-                I.querySelector(".winner-text").textContent = 1 == u[0].length ? E("is the winner!") : E("are the winners!")) : (I.querySelector(".winner-name").textContent = "",
+                I.querySelector(".winner-text").textContent = 1 == u[0].length ? E("is the winner!") : E("People tied - 1st place!")) : (I.querySelector(".winner-name").textContent = "",
                 I.querySelector(".winner-text").textContent = E("Nobody won!"))
             } else
                 I.querySelector(".winner-name").textContent = "",
@@ -1845,10 +1917,13 @@
                     errorMsg = E("Room is full! This room has reached its maximum player limit.");
                     break;
                 case 3:
-                    errorMsg = E("You are on a kick cooldown! Please wait before joining again.");
+                    errorMsg = E("Wallet required. Please connect your wallet to play.");
                     break;
                 case 4:
                     errorMsg = E("You are banned from this room!");
+                    break;
+                case 6:
+                    errorMsg = E("This wallet is already in use in another tab. Close the other tab or disconnect there first.");
                     break;
                 case 5:
                     errorMsg = E("Invalid room code! Please check the room code and try again.");
@@ -2554,7 +2629,8 @@
       , Oa = 32
       , prizePoolUpdatePacket = 33  // PRIZE_POOL_UPDATE
       , claimRewardPacket = 34  // CLAIM_REWARD
-      , rewardClaimedPacket = 35; // REWARD_CLAIMED
+      , rewardClaimedPacket = 35  // REWARD_CLAIMED
+      , useRewardBuybackPacket = 36; // USE_REWARD_BUYBACK
     function Pa(e) {
         var t = e.id
           , n = e.data;
@@ -2765,12 +2841,21 @@
             break;
         case rewardClaimedPacket:  // REWARD_CLAIMED
             if (n && n.amount && n.txSignature) {
-                var claimMsg = E("Successfully claimed $ SOL! Transaction: $", [n.amount.toFixed(4), "https://solscan.io/tx/" + n.txSignature]);
+                var claimMsg = n.buyback
+                    ? E("Sent $ SOL to buyback! Transaction: $", [n.amount.toFixed(4), "https://solscan.io/tx/" + n.txSignature])
+                    : E("Successfully claimed $ SOL! Transaction: $", [n.amount.toFixed(4), "https://solscan.io/tx/" + n.txSignature]);
                 y(claimMsg, "", f($e), !0);
-                // Hide claim button
                 var claimContainer = I.querySelector(".claim-reward-container");
                 if (claimContainer) {
-                    claimContainer.style.display = "none";
+                    var doneBtn = claimContainer.querySelector(".claim-reward-button");
+                    if (doneBtn) {
+                        doneBtn.disabled = true;
+                        doneBtn.textContent = n.buyback ? E("Sent to buyback!") : E("Claimed!");
+                    }
+                    var buybackBtnEl = claimContainer.querySelector(".claim-buyback-button");
+                    if (buybackBtnEl) { buybackBtnEl.disabled = true; buybackBtnEl.textContent = E("Sent to buyback!"); }
+                    var headline = claimContainer.querySelector(".your-prize-headline");
+                    if (headline) headline.style.opacity = "0.7";
                 }
             } else if (n && n.message) {
                 y(n.message, "", f(Ee), !0);
@@ -2792,10 +2877,24 @@
                 }
                 break;
             default:
-                // Generic error message
-                if (n.message) {
-                    ua();
-                    qe(ye, n.message); // Show error modal - clicking okay will redirect
+                // Generic error message (n can be string from server or { message, id })
+                var errMsg = typeof n === "string" ? n : (n && n.message);
+                if (errMsg) {
+                    var claimBtnEl = I.querySelector(".claim-reward-button");
+                    var isClaimError = /claim|reward|wallet|prize|buyback/i.test(errMsg);
+                    if ((claimBtnEl || I.querySelector(".claim-buyback-button")) && isClaimError) {
+                        y(errMsg, "", f(Ee), !0);
+                        if (claimBtnEl) {
+                            claimBtnEl.disabled = false;
+                            var claimAmount = claimBtnEl.getAttribute("data-claim-sol");
+                            claimBtnEl.textContent = claimAmount ? E("Claim $ SOL", claimAmount) : E("Claim your prize");
+                        }
+                        var buybackBtnErr = I.querySelector(".claim-buyback-button");
+                        if (buybackBtnErr) { buybackBtnErr.disabled = false; buybackBtnErr.textContent = E("Use as buyback to chart"); }
+                    } else {
+                        ua();
+                        qe(ye, errMsg);
+                    }
                 }
             }
             break;

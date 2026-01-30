@@ -4,7 +4,6 @@ import ReactDOM from 'react-dom/client';
 import { ConnectionProvider, WalletProvider, useWallet } from '@solana/wallet-adapter-react';
 import { WalletModalProvider, WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
-import { clusterApiUrl } from '@solana/web3.js';
 
 // Import wallet adapter CSS
 import '@solana/wallet-adapter-react-ui/styles.css';
@@ -31,11 +30,9 @@ function WalletConnectButton() {
         console.log('✅ Setting wallet address:', address);
         console.log('✅ Dispatching wallet-adapter-connected event');
         
-        // Dispatch the event to enable play buttons
-        const event = new CustomEvent('wallet-adapter-connected', {
-          detail: { address }
-        });
-        window.dispatchEvent(event);
+        // Dispatch events (turnkey-* for compatibility with existing game.js listeners)
+        window.dispatchEvent(new CustomEvent('turnkey-wallet-connected', { detail: { address } }));
+        window.dispatchEvent(new CustomEvent('wallet-adapter-connected', { detail: { address } }));
         
         // Show success notification
         setTimeout(() => {
@@ -67,6 +64,7 @@ function WalletConnectButton() {
       if (window.userWalletAddress) {
         console.log('Wallet disconnected, clearing address');
         window.userWalletAddress = null;
+        window.dispatchEvent(new CustomEvent('turnkey-wallet-disconnected'));
         window.dispatchEvent(new CustomEvent('wallet-adapter-disconnected'));
       }
     }

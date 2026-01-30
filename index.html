@@ -115,7 +115,7 @@
         <link href="https://fonts.googleapis.com/css2?family=Inconsolata&amp;display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&amp;display=swap" rel="stylesheet">
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-        <!-- Turnkey will be loaded via npm package @turnkey/react-wallet-kit -->
+        <!-- Solana wallet: Phantom, Solflare, etc. via @solana/wallet-adapter -->
     </head>
     <body translate="no">
         <div id="preroll"></div>
@@ -977,198 +977,26 @@
 // NO AUTO-JOIN - User should go to home screen and click Play button
 // The Play button will automatically use the room code from URL (game.js handles this)
 </script>
-        <!-- Turnkey AsyncStorage Preload - Must load BEFORE Turnkey app -->
-        <!-- This script MUST run first to set up AsyncStorage before Turnkey loads -->
+        <!-- Solana wallet (Phantom, Solflare) - vanilla JS, no build required -->
+        <script src="/js/solana-wallet.js"></script>
         <script>
-        // CRITICAL: Set up require interceptor BEFORE anything else loads
-        // This ensures AsyncStorage is available when Turnkey tries to require it
-        (function() {
-          'use strict';
-          
-          // Create AsyncStorage polyfill
-          const AsyncStoragePolyfill = {
-            getItem: function(key) {
-              try {
-                const value = localStorage.getItem(key);
-                return Promise.resolve(value);
-              } catch (e) {
-                return Promise.resolve(null);
-              }
-            },
-            setItem: function(key, value) {
-              try {
-                localStorage.setItem(key, value);
-                return Promise.resolve();
-              } catch (e) {
-                return Promise.reject(e);
-              }
-            },
-            removeItem: function(key) {
-              try {
-                localStorage.removeItem(key);
-                return Promise.resolve();
-              } catch (e) {
-                return Promise.reject(e);
-              }
-            },
-            clear: function() {
-              try {
-                localStorage.clear();
-                return Promise.resolve();
-              } catch (e) {
-                return Promise.reject(e);
-              }
-            },
-            getAllKeys: function() {
-              try {
-                return Promise.resolve(Object.keys(localStorage));
-              } catch (e) {
-                return Promise.resolve([]);
-              }
-            },
-            multiGet: function(keys) {
-              try {
-                const result = keys.map(key => [key, localStorage.getItem(key)]);
-                return Promise.resolve(result);
-              } catch (e) {
-                return Promise.resolve([]);
-              }
-            },
-            multiSet: function(keyValuePairs) {
-              try {
-                keyValuePairs.forEach(([key, value]) => {
-                  localStorage.setItem(key, value);
-                });
-                return Promise.resolve();
-              } catch (e) {
-                return Promise.reject(e);
-              }
-            },
-            multiRemove: function(keys) {
-              try {
-                keys.forEach(key => localStorage.removeItem(key));
-                return Promise.resolve();
-              } catch (e) {
-                return Promise.reject(e);
-              }
-            }
-          };
-          
-          // Make AsyncStorage available globally IMMEDIATELY
-          if (typeof window !== 'undefined') {
-            window.AsyncStorage = AsyncStoragePolyfill;
-          }
-          if (typeof globalThis !== 'undefined') {
-            globalThis.AsyncStorage = AsyncStoragePolyfill;
-          }
-          if (typeof global !== 'undefined') {
-            global.AsyncStorage = AsyncStoragePolyfill;
-          }
-          
-          // Intercept require() calls if it exists
-          if (typeof require !== 'undefined') {
-            const originalRequire = require;
-            const wrappedRequire = function(id) {
-              if (id === '@react-native-async-storage/async-storage' || 
-                  id.includes('async-storage')) {
-                return AsyncStoragePolyfill;
-              }
-              try {
-                return originalRequire.apply(this, arguments);
-              } catch (e) {
-                // If require fails and it's for async-storage, return our polyfill
-                if (id === '@react-native-async-storage/async-storage' || 
-                    id.includes('async-storage')) {
-                  return AsyncStoragePolyfill;
-                }
-                throw e;
-              }
-            };
-            
-            // Copy properties
-            Object.keys(originalRequire).forEach(key => {
-              wrappedRequire[key] = originalRequire[key];
-            });
-            
-            // Set up cache
-            if (!wrappedRequire.cache) {
-              wrappedRequire.cache = {};
-            }
-            wrappedRequire.cache['@react-native-async-storage/async-storage'] = {
-              exports: AsyncStoragePolyfill,
-              loaded: true,
-              id: '@react-native-async-storage/async-storage'
-            };
-            
-            // Override require.resolve
-            wrappedRequire.resolve = function(id) {
-              if (id === '@react-native-async-storage/async-storage') {
-                return '@react-native-async-storage/async-storage';
-              }
-              if (originalRequire.resolve) {
-                return originalRequire.resolve.apply(this, arguments);
-              }
-              return id;
-            };
-            
-            // Try to replace global require (may not work in all environments)
-            try {
-              if (typeof window !== 'undefined') {
-                window.require = wrappedRequire;
-              }
-            } catch (e) {
-              // Ignore
-            }
-          }
-          
-          console.log('✅ AsyncStorage polyfill initialized (inline)');
-        })();
-        </script>
-        <script src="/js/turnkey-async-storage-preload.js"></script>
-        <!-- Turnkey React App - Load bundled version -->
-        <script src="/dist/turnkey-app.js"></script>
-        <!-- Note: Turnkey app auto-initializes in turnkey-app.js, no need to call initTurnkeyApp here -->
-            
-            // Listen for wallet connection events (Turnkey)
+            // Listen for wallet connection events (same event names for compatibility)
             window.addEventListener('turnkey-wallet-connected', function(e) {
                 const address = e.detail.address;
                 window.userWalletAddress = address;
-                
-                console.log('✅ Wallet connected event received:', address);
-                
-                // Enable play buttons
-                const playBtn = document.getElementById('play-button');
-                const createBtn = document.getElementById('create-button');
-                if (playBtn) {
-                    playBtn.disabled = false;
-                    playBtn.style.opacity = '1';
-                    playBtn.style.cursor = 'pointer';
-                }
-                if (createBtn) {
-                    createBtn.disabled = false;
-                    createBtn.style.opacity = '1';
-                    createBtn.style.cursor = 'pointer';
-                }
+                console.log('✅ Wallet connected:', address);
+                var playBtn = document.getElementById('play-button');
+                var createBtn = document.getElementById('create-button');
+                if (playBtn) { playBtn.disabled = false; playBtn.style.opacity = '1'; playBtn.style.cursor = 'pointer'; }
+                if (createBtn) { createBtn.disabled = false; createBtn.style.opacity = '1'; createBtn.style.cursor = 'pointer'; }
             });
-            
             window.addEventListener('turnkey-wallet-disconnected', function() {
                 window.userWalletAddress = null;
-                
-                console.log('🔌 Wallet disconnected event received');
-                
-                // Disable play buttons
-                const playBtn = document.getElementById('play-button');
-                const createBtn = document.getElementById('create-button');
-                if (playBtn) {
-                    playBtn.disabled = true;
-                    playBtn.style.opacity = '0.5';
-                    playBtn.style.cursor = 'not-allowed';
-                }
-                if (createBtn) {
-                    createBtn.disabled = true;
-                    createBtn.style.opacity = '0.5';
-                    createBtn.style.cursor = 'not-allowed';
-                }
+                console.log('🔌 Wallet disconnected');
+                var playBtn = document.getElementById('play-button');
+                var createBtn = document.getElementById('create-button');
+                if (playBtn) { playBtn.disabled = true; playBtn.style.opacity = '0.5'; playBtn.style.cursor = 'not-allowed'; }
+                if (createBtn) { createBtn.disabled = true; createBtn.style.opacity = '0.5'; createBtn.style.cursor = 'not-allowed'; }
             });
         </script>
         <script src="js/game.js"></script>

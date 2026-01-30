@@ -13,22 +13,17 @@ A free multiplayer drawing and guessing game with SOL prize pools.
 
 ## Local Development
 
-1. Install dependencies:
+**Wallet is vanilla JS (no build step).** Just install server deps and start:
+
 ```bash
 npm install
-```
-
-2. Start the server:
-```bash
 npm start
 ```
 
-Or for development with auto-reload:
-```bash
-npm run dev
-```
+Then open **http://localhost:3000**. Connect with Phantom or Solflare (install from phantom.app or solflare.com if needed), then Play or Create Room.
 
-3. Open http://localhost:3000 in your browser
+- **Mac/Linux one-liner:** `./install-and-run.sh` (runs install + start; no build needed)
+- **Dev with auto-reload:** `npm run dev`
 
 ## Deploy to Render (Free)
 
