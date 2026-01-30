@@ -1069,7 +1069,9 @@ io.on('connection', (socket) => {
           drawCommands: room.drawCommands
         } : {}
       },
-      isPublic: isPublicRoom // Explicitly set isPublic flag (true for public, false for private)
+      isPublic: isPublicRoom, // Explicitly set isPublic flag (true for public, false for private)
+      prizePool: room.prizePool || 0,
+      prizePoolFrozen: room.prizePoolFrozen || false
     };
     
     // Add room code for private rooms (for invite links)
@@ -1149,7 +1151,9 @@ io.on('connection', (socket) => {
               time: 0,
               data: {}
             },
-            isPublic: true // CRITICAL: must be explicitly true
+            isPublic: true, // CRITICAL: must be explicitly true
+            prizePool: room.prizePool || 0,
+            prizePoolFrozen: room.prizePoolFrozen || false
           };
           io.to(p.id).emit('data', {
             id: PACKET.GAME_DATA,

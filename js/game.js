@@ -1406,6 +1406,7 @@
     function bn(e) {
         for (var t = 0; t < dn.children.length; t++)
             dn.children[t].classList.remove("show");
+        if (_lobbyPrizePoolEl) _lobbyPrizePoolEl.style.display = "none";
         switch (e.id) {
         case J:
             vn(pn);
@@ -1427,10 +1428,22 @@
         case G:
             vn(A),
             A.textContent = E("Waiting for players...");
+            if (!_lobbyPrizePoolEl) {
+                _lobbyPrizePoolEl = c.createElement("div");
+                _lobbyPrizePoolEl.id = "lobby-prize-pool";
+                _lobbyPrizePoolEl.style.cssText = "position:fixed;top:10px;left:10px;z-index:9999;background:rgba(0,0,0,0.6);color:#14F195;padding:8px 12px;border-radius:8px;font-size:14px;font-weight:700;border:1px solid rgba(20,241,149,0.4);";
+                c.querySelector("#game-canvas").appendChild(_lobbyPrizePoolEl);
+            }
+            _lobbyPrizePoolEl.style.display = "";
+            _lobbyPrizePoolEl.textContent = E("Prize pool: $ SOL", (_prizePool || 0).toFixed(4));
             break;
         case K:
             vn(A),
             A.textContent = E("Game starting in a few seconds...");
+            if (_lobbyPrizePoolEl) {
+                _lobbyPrizePoolEl.style.display = "";
+                _lobbyPrizePoolEl.textContent = E("Prize pool: $ SOL", (_prizePool || 0).toFixed(4));
+            }
             break;
         case Z:
             vn(hn),
@@ -1822,6 +1835,8 @@
       , Rn = 0
       , Tn = void 0
       , _pendingWordChoice = [] // Queue for WORD_CHOICE states that arrive before GAME_DATA
+      , _prizePool = 0
+      , _lobbyPrizePoolEl = null
       , R = new Dn
       , T = void 0
       , Nn = !1
@@ -2063,6 +2078,7 @@
         // CRITICAL: Set In based on isPublic or type
         // true = public, false = private, 0 = public (from type), 1 = private (from type)
         In = e.isPublic !== void 0 ? e.isPublic : (e.type !== void 0 ? (e.type === 0 ? true : false) : true),  // Store isPublic flag (backwards compat with type)
+        _prizePool = (e.prizePool != null && typeof e.prizePool === "number") ? e.prizePool : 0,
         Tn = e.code || e.id,  // Use room code if available (for private rooms), otherwise use room ID
         c.querySelector("#input-invite").value = h.location.origin + "/?" + (e.code || e.id),
         An = e.settings,
@@ -2421,6 +2437,7 @@
         },
         c.querySelector("#home").style.display = "",
         c.querySelector("#game").style.display = "none";
+        if (_lobbyPrizePoolEl) _lobbyPrizePoolEl.style.display = "none";
         // Check if user was kicked and show message
         if (h._kickMessage) {
             setTimeout(function() {
@@ -2839,6 +2856,11 @@
         case Wa:
             // SPAM packet (id: 31) - data is null, just show spam message
             y(E("Spam detected! You're sending messages too quickly."), "", f(Ee), !0);
+            break;
+        case prizePoolUpdatePacket:
+            _prizePool = (n.prizePool != null && typeof n.prizePool === "number") ? n.prizePool : _prizePool;
+            if (_lobbyPrizePoolEl && _lobbyPrizePoolEl.style.display !== "none")
+                _lobbyPrizePoolEl.textContent = E("Prize pool: $ SOL", (_prizePool || 0).toFixed(4));
             break;
         case rewardClaimedPacket:  // REWARD_CLAIMED
             if (n && n.amount && n.txSignature) {
