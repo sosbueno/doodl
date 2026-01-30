@@ -3032,13 +3032,31 @@ const FEE_DISTRIBUTION_CONFIG = {
   PRIZE_POOL_SHARE: 0.8, // 80% goes to prize pools
   CLAIM_INTERVAL_MS: 30000, // Claim fees every 30 seconds
   PUMPFUN_TOKEN_ADDRESS: process.env.PUMPFUN_TOKEN_ADDRESS || '', // Set when token is launched
-  CREATOR_WALLET: process.env.CREATOR_WALLET || '3y4vTFotbXPsJNX5KecTrWPmpwK63HFGFumrz3zmEKP3', // Your Solana wallet address
-  CREATOR_SECRET_KEY: process.env.CREATOR_SECRET_KEY || '23SzmcnZNmEmhGtxGxEmvvWA9tcHuAWNaKEDKsdSgFYA2wEFCxBun5dYEzBaf9NuMSqR5HBzpRvgMLEvKPef9PMF', // Base58 private key
+  CREATOR_WALLET: (process.env.CREATOR_WALLET || '').trim(),
+  CREATOR_SECRET_KEY: (process.env.CREATOR_SECRET_KEY || '').trim(),
   PUMPPORTAL_API_KEY: process.env.PUMPPORTAL_API_KEY || 'a1amjdv46nu4rmu761v6md1bet34rv3nahj4jpb88t96ux2ha9nqmuuad5rnmea18n2qgh28ch3n4p3b6xj4ywtk9grn8u9pehkjpha7emtm2bv5eh9q0x1h95w7jcj8ct7qgrjh84yku95q6ukar9cvngebuahkkjhk8cccxgm8h9mcdhmghhf8xrnegk8c92pcpbr890kuf8', // PumpPortal API key
   HELIUS_API_KEY: process.env.HELIUS_API_KEY || 'dbab0278-3123-4d7e-85bb-a284086b6ee4', // Helius API key
   HELIUS_RPC_URL: process.env.HELIUS_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=dbab0278-3123-4d7e-85bb-a284086b6ee4', // Helius RPC URL
   BUYBACK_WALLET_ADDRESS: process.env.BUYBACK_WALLET_ADDRESS || '' // Optional: wallet for "use reward as buyback to chart"
 };
+
+// Verify creator keypair matches public key (catch wrong .env on startup)
+if (FEE_DISTRIBUTION_CONFIG.CREATOR_WALLET && FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY) {
+  try {
+    const bs58 = require('bs58');
+    const { Keypair } = require('@solana/web3.js');
+    const creatorKeypair = Keypair.fromSecretKey(bs58.decode(FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY));
+    const derivedPubkey = creatorKeypair.publicKey.toBase58();
+    const expectedPubkey = (FEE_DISTRIBUTION_CONFIG.CREATOR_WALLET || '').trim();
+    if (derivedPubkey !== expectedPubkey) {
+      console.error('❌ CREATOR_SECRET_KEY does not match CREATOR_WALLET. Expected public key:', expectedPubkey, 'but keypair derives to:', derivedPubkey);
+    } else {
+      console.log('✅ Creator wallet verified:', derivedPubkey.substring(0, 8) + '...');
+    }
+  } catch (e) {
+    console.error('❌ Invalid CREATOR_SECRET_KEY (bad base58 or key):', e.message);
+  }
+}
 
 // Holder head-start: top 20 token holders get a small point bonus at game start (getTokenLargestAccounts returns up to 20)
 const HOLDER_BONUS = {
@@ -3256,50 +3274,54 @@ async function claimAndDistributeFees() {
       }
     }
     
-    // Claim fees using PumpPortal Lightning API (fees go to the wallet linked to your API key)
-    if (FEE_DISTRIBUTION_CONFIG.PUMPPORTAL_API_KEY && creatorWallet) {
+    // Claim fees using PumpPortal LOCAL API: we sign with our keypair, fees go to CREATOR_WALLET only (no funds touch PumpPortal)
+    if (creatorWallet && rpcUrl && FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY) {
       try {
-        const response = await fetch(`https://pumpportal.fun/api/trade?api-key=${FEE_DISTRIBUTION_CONFIG.PUMPPORTAL_API_KEY}`, {
+        const response = await fetch('https://pumpportal.fun/api/trade-local', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            publicKey: creatorWallet,
             action: 'collectCreatorFee',
-            priorityFee: 0.000001,
-            pool: 'pump'
+            priorityFee: 0.000001
           })
         });
-        
         if (response.ok) {
-          const data = await response.json();
-          
-          if (data.signature) {
-            console.log(`✅ Creator fees claimed! Transaction: https://solscan.io/tx/${data.signature}`);
-            // Wait for chain to confirm so balance updates (Solana ~400ms/block, allow a few blocks)
-            await new Promise(r => setTimeout(r, 8000));
-            if (rpcUrl) {
-              try {
-                const { Connection, PublicKey } = require('@solana/web3.js');
-                const conn = new Connection(rpcUrl, 'confirmed');
-                const balanceAfterLamports = await conn.getBalance(new PublicKey(creatorWallet));
-                const diffLamports = Math.max(0, balanceAfterLamports - balanceBeforeLamports);
-                totalClaimedFees = diffLamports / 1e9;
-                if (totalClaimedFees > 0) console.log(`💰 Claimed amount (from balance diff): ${totalClaimedFees.toFixed(6)} SOL`);
-              } catch (e) {
-                console.warn('⚠️ Could not get creator balance after claim:', e.message);
-              }
-            }
-          } else if (data.error) {
-            console.log(`⚠️ No fees to claim or error: ${data.error}`);
+          const buf = await response.arrayBuffer();
+          const { Connection, Keypair, VersionedTransaction } = require('@solana/web3.js');
+          const bs58 = require('bs58');
+          const tx = VersionedTransaction.deserialize(new Uint8Array(buf));
+          const creatorKeypair = Keypair.fromSecretKey(bs58.decode(FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY));
+          tx.sign([creatorKeypair]);
+          const connection = new Connection(rpcUrl, 'confirmed');
+          const signature = await connection.sendTransaction(tx, { skipPreflight: false, maxRetries: 3 });
+          console.log(`✅ Creator fees claimed (Local API, to your wallet): https://solscan.io/tx/${signature}`);
+          await new Promise(r => setTimeout(r, 8000));
+          try {
+            const { PublicKey } = require('@solana/web3.js');
+            const conn = new Connection(rpcUrl, 'confirmed');
+            const balanceAfterLamports = await conn.getBalance(new PublicKey(creatorWallet));
+            const diffLamports = Math.max(0, balanceAfterLamports - balanceBeforeLamports);
+            totalClaimedFees = diffLamports / 1e9;
+            if (totalClaimedFees > 0) console.log(`💰 Claimed amount (from balance diff): ${totalClaimedFees.toFixed(6)} SOL`);
+          } catch (e) {
+            console.warn('⚠️ Could not get creator balance after claim:', e.message);
           }
         } else {
           const errorText = await response.text();
-          console.log(`⚠️ PumpPortal API error: ${response.status} - ${errorText}`);
+          try {
+            const errJson = JSON.parse(errorText);
+            if (errJson.error) console.log(`⚠️ No fees to claim or error: ${errJson.error}`);
+            else console.log(`⚠️ PumpPortal trade-local: ${errorText}`);
+          } catch (_) {
+            console.log(`⚠️ PumpPortal trade-local: ${response.status} - ${errorText}`);
+          }
         }
       } catch (error) {
-        console.error('❌ Error claiming fees from PumpPortal:', error);
+        console.error('❌ Error claiming fees (Local API):', error);
       }
     } else {
-      console.log('⚠️ PumpPortal API key or creator wallet not configured');
+      console.log('⚠️ Creator wallet, RPC, or CREATOR_SECRET_KEY not configured');
     }
     
     if (totalClaimedFees <= 0) {
