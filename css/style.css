@@ -2935,6 +2935,31 @@ form.chat-form input {
     visibility: visible
 }
 
+#home .ca-copy {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    font-family: Nunito, sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: rgba(255,255,255,.9);
+    background: rgba(0,0,0,.25);
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    text-shadow: 0 1px 2px rgba(0,0,0,.3);
+    transition: background .2s, border-color .2s;
+}
+#home .ca-copy:hover {
+    background: rgba(0,0,0,.4);
+    border-color: rgba(255,255,255,.35);
+}
+#home .ca-copy:active {
+    transform: scale(0.98);
+}
+
 #home .wallet-connect-header {
     position: absolute;
     top: 20px;

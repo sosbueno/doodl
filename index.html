@@ -120,6 +120,8 @@
     <body translate="no">
         <div id="preroll"></div>
         <div id="home">
+            <!-- CA (Contract Address) - Top Left, click to copy -->
+            <button type="button" id="ca-copy" class="ca-copy" title="Click to copy contract address">CA: 14Bp...pump</button>
             <!-- Wallet Connect Button - Top Right -->
             <div id="wallet-connect-header" class="wallet-connect-header"></div>
             <div class="home-header">
@@ -600,6 +602,17 @@
                     // TODO: Replace with actual Google Form URL
                     const googleFormUrl = 'https://forms.google.com/your-form-id-here';
                     window.open(googleFormUrl, '_blank', 'noopener,noreferrer');
+                });
+            }
+            var caCopyBtn = document.getElementById('ca-copy');
+            if (caCopyBtn) {
+                var fullCA = '14BpwzrEeo7GGDEmNJ5XGw2gCPAd1DZyRKMek9aVpump';
+                caCopyBtn.addEventListener('click', function() {
+                    navigator.clipboard.writeText(fullCA).then(function() {
+                        var t = caCopyBtn.textContent;
+                        caCopyBtn.textContent = 'Copied!';
+                        setTimeout(function() { caCopyBtn.textContent = t; }, 1500);
+                    });
                 });
             }
         });
