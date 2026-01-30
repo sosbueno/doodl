@@ -3040,13 +3040,23 @@ const FEE_DISTRIBUTION_CONFIG = {
   BUYBACK_WALLET_ADDRESS: process.env.BUYBACK_WALLET_ADDRESS || '' // Optional: wallet for "use reward as buyback to chart"
 };
 
-// bs58 CJS build exports default.decode; ESM/interop may expose .decode directly
-function decodeBase58(str) {
+// bs58 CJS build exports default.decode/default.encode; ESM/interop may expose directly
+function getBs58() {
   const m = require('bs58');
   const d = (m && m.default) || m;
+  return d || m;
+}
+function decodeBase58(str) {
+  const d = getBs58();
   if (d && typeof d.decode === 'function') return d.decode(str);
-  if (typeof m.decode === 'function') return m.decode(str);
+  if (typeof require('bs58').decode === 'function') return require('bs58').decode(str);
   throw new Error('bs58.decode not available');
+}
+function encodeBase58(buf) {
+  const d = getBs58();
+  if (d && typeof d.encode === 'function') return d.encode(buf);
+  if (typeof require('bs58').encode === 'function') return require('bs58').encode(buf);
+  throw new Error('bs58.encode not available');
 }
 
 // Verify creator keypair matches public key (catch wrong .env on startup)
@@ -3079,9 +3089,8 @@ const HOLDER_BONUS = {
 /** Get owner address from SPL token account data (owner is bytes 32-64). */
 function getOwnerFromTokenAccountData(data) {
   if (!data || data.length < 64) return null;
-  const bs58 = require('bs58');
   const ownerBytes = data.slice(32, 64);
-  return bs58.encode(ownerBytes);
+  return encodeBase58(ownerBytes);
 }
 
 /**
