@@ -2690,7 +2690,7 @@ io.on('connection', (socket) => {
       if (room.timer <= 0) {
         clearInterval(countdownInterval);
         
-        // For public rooms, automatically start a new game (infinite loop - restart from round 1)
+        // For public rooms: stay on podium forever; no new game. Users use "Back to home".
         if (room.isPublic) {
           console.log(`🏁 [PUBLIC ROOM] Game ended for room ${room.id}; staying on podium until users go home`);
           return; // Stay in GAME_END; client shows Back to home button

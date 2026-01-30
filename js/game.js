@@ -688,6 +688,8 @@
         "Prize Pool: $ SOL": "Preisgeld: $ SOL",
         "Claim $ SOL Reward!": "Claim $ SOL Belohnung!",
         "Successfully claimed $ SOL! Transaction: $": "Erfolgreich $ SOL abgeholt! Transaktion: $",
+        "Solana rewards": "Solana-Belohnungen",
+        "Prize pool: $ SOL": "Preisgeld: $ SOL",
         "Back to home": "Zurück zur Startseite",
         "Use as buyback to chart": "Als Buyback in die Chart",
         "Sent to buyback!": "An Buyback gesendet!",
@@ -1474,80 +1476,69 @@
             vn(I);
             for (var d = [I.querySelector(".podest-1"), I.querySelector(".podest-2"), I.querySelector(".podest-3"), I.querySelector(".ranks")], o = 0; o < 4; o++)
                 ce(d[o]);
-            // Handle new game end data structure (with prize pool and rewards)
-            // Use document explicitly: another case in bn() reassigns c to a score element, so c may not be document here
             var gameEndData = e.data;
             var rankings = Array.isArray(gameEndData) ? gameEndData : (gameEndData.rankings || gameEndData);
             var prizePool = gameEndData.prizePool || 0;
             var playerRewards = gameEndData.playerRewards || {};
             var myReward = playerRewards[x] || 0;
-            
-            if (prizePool > 0) {
-                var prizePoolEl = I.querySelector(".prize-pool");
-                if (!prizePoolEl) {
-                    prizePoolEl = document.createElement("div");
-                    prizePoolEl.className = "prize-pool";
-                    prizePoolEl.style.cssText = "text-align: center; margin: 20px 0; color: #fff; font-size: 1.2em; font-weight: 700;";
-                    I.querySelector(".winner-name").parentElement.insertBefore(prizePoolEl, I.querySelector(".winner-name"));
-                }
-                prizePoolEl.textContent = E("Prize Pool: $ SOL", prizePool.toFixed(4));
+            // Single "Solana rewards" block: heading + prize pool + (if winner) claim/buyback + Back to home
+            var rewardsBlock = I.querySelector(".solana-rewards-block");
+            if (!rewardsBlock) {
+                rewardsBlock = document.createElement("div");
+                rewardsBlock.className = "solana-rewards-block";
+                rewardsBlock.style.cssText = "text-align: center; margin: 20px 0; padding: 20px; background: rgba(0,0,0,0.25); border-radius: 12px; border: 1px solid rgba(20, 241, 149, 0.3);";
+                var insertBeforePodest = I.querySelector(".podest-1") || I.querySelector(".ranks");
+                if (insertBeforePodest) insertBeforePodest.parentNode.insertBefore(rewardsBlock, insertBeforePodest);
+                else I.appendChild(rewardsBlock);
             }
-            
-            var existingClaimContainer = I.querySelector(".claim-reward-container");
-            if (existingClaimContainer && myReward <= 0) existingClaimContainer.style.display = "none";
+            ce(rewardsBlock);
+            var rewardsHeading = document.createElement("div");
+            rewardsHeading.className = "solana-rewards-heading";
+            rewardsHeading.style.cssText = "color: #14F195; font-size: 1.4em; font-weight: 700; margin-bottom: 12px;";
+            rewardsHeading.textContent = E("Solana rewards");
+            rewardsBlock.appendChild(rewardsHeading);
+            var prizePoolEl = document.createElement("div");
+            prizePoolEl.className = "prize-pool";
+            prizePoolEl.style.cssText = "color: #fff; font-size: 1.1em; font-weight: 700; margin-bottom: 16px;";
+            prizePoolEl.textContent = E("Prize pool: $ SOL", (prizePool || 0).toFixed(4));
+            rewardsBlock.appendChild(prizePoolEl);
             if (myReward > 0) {
-                var claimBtnContainer = I.querySelector(".claim-reward-container");
-                if (!claimBtnContainer) {
-                    claimBtnContainer = document.createElement("div");
-                    claimBtnContainer.className = "claim-reward-container";
-                    claimBtnContainer.style.cssText = "text-align: center; margin: 24px 0; padding: 20px; background: rgba(20, 241, 149, 0.12); border-radius: 12px; border: 2px solid rgba(20, 241, 149, 0.4);";
-                    var insertBeforeEl = I.querySelector(".podest-1") || I.querySelector(".ranks");
-                    if (insertBeforeEl) insertBeforeEl.parentNode.insertBefore(claimBtnContainer, insertBeforeEl);
-                    else I.appendChild(claimBtnContainer);
-                }
-                claimBtnContainer.style.display = "";
-                ce(claimBtnContainer);
+                var claimBtnContainer = document.createElement("div");
+                claimBtnContainer.className = "claim-reward-container";
+                claimBtnContainer.style.cssText = "margin: 16px 0; padding: 16px; background: rgba(20, 241, 149, 0.12); border-radius: 10px; border: 2px solid rgba(20, 241, 149, 0.4);";
                 var yourPrizeHeadline = document.createElement("div");
                 yourPrizeHeadline.className = "your-prize-headline";
-                yourPrizeHeadline.style.cssText = "color: #14F195; font-size: 1.3em; font-weight: 700; margin-bottom: 12px;";
+                yourPrizeHeadline.style.cssText = "color: #14F195; font-size: 1.2em; font-weight: 700; margin-bottom: 10px;";
                 yourPrizeHeadline.textContent = E("Your prize: $ SOL", myReward.toFixed(4));
                 claimBtnContainer.appendChild(yourPrizeHeadline);
                 var claimBtn = document.createElement("button");
                 claimBtn.className = "claim-reward-button";
                 claimBtn.setAttribute("data-claim-sol", myReward.toFixed(4));
-                claimBtn.style.cssText = "background: linear-gradient(135deg, #9945FF 0%, #14F195 100%); color: #fff; border: none; padding: 15px 30px; font-size: 1.2em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3);";
+                claimBtn.style.cssText = "background: linear-gradient(135deg, #9945FF 0%, #14F195 100%); color: #fff; border: none; padding: 12px 24px; font-size: 1.1em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3); margin: 4px;";
                 claimBtn.textContent = E("Claim $ SOL", myReward.toFixed(4));
                 claimBtn.onclick = function() {
-                    if (S) {
-                        claimBtn.disabled = true;
-                        claimBtn.textContent = E("Claiming...");
-                        S.emit("data", { id: claimRewardPacket, data: null });
-                    }
+                    if (S) { claimBtn.disabled = true; claimBtn.textContent = E("Claiming..."); S.emit("data", { id: claimRewardPacket, data: null }); }
                 };
                 claimBtnContainer.appendChild(claimBtn);
                 var buybackBtn = document.createElement("button");
                 buybackBtn.className = "claim-buyback-button";
                 buybackBtn.setAttribute("data-claim-sol", myReward.toFixed(4));
-                buybackBtn.style.cssText = "background: linear-gradient(135deg, #14F195 0%, #9945FF 100%); color: #fff; border: none; padding: 15px 30px; font-size: 1.1em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3); margin-left: 12px;";
+                buybackBtn.style.cssText = "background: linear-gradient(135deg, #14F195 0%, #9945FF 100%); color: #fff; border: none; padding: 12px 24px; font-size: 1em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3); margin: 4px;";
                 buybackBtn.textContent = E("Use as buyback to chart");
                 buybackBtn.onclick = function() {
                     if (S && !buybackBtn.disabled) {
-                        buybackBtn.disabled = true;
-                        claimBtn.disabled = true;
+                        buybackBtn.disabled = true; claimBtn.disabled = true;
                         buybackBtn.textContent = E("Sending...");
                         S.emit("data", { id: useRewardBuybackPacket, data: null });
                     }
                 };
                 claimBtnContainer.appendChild(buybackBtn);
+                rewardsBlock.appendChild(claimBtnContainer);
             }
-            var backToHomeContainer = I.querySelector(".back-to-home-container");
-            if (!backToHomeContainer) {
-                backToHomeContainer = document.createElement("div");
-                backToHomeContainer.className = "back-to-home-container";
-                backToHomeContainer.style.cssText = "text-align: center; margin: 24px 0;";
-                I.appendChild(backToHomeContainer);
-            }
-            ce(backToHomeContainer);
+            var backToHomeContainer = document.createElement("div");
+            backToHomeContainer.className = "back-to-home-container";
+            backToHomeContainer.style.cssText = "margin-top: 20px;";
+            rewardsBlock.appendChild(backToHomeContainer);
             var backToHomeBtn = document.createElement("button");
             backToHomeBtn.className = "back-to-home-button";
             backToHomeBtn.style.cssText = "background: linear-gradient(180deg, #6e6e6e 0%, #5a5a5a 100%); color: #fff; border: none; padding: 14px 28px; font-size: 1.1em; font-weight: 700; border-radius: 10px; cursor: pointer; box-shadow: 0 2px 0 #4a4a4a;";
