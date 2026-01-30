@@ -2763,7 +2763,6 @@ io.on('connection', (socket) => {
             data: {}
           }
         });
-        }
       }
     }, 1000);
   }

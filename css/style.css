@@ -2942,78 +2942,16 @@ form.chat-form input {
     z-index: 1000
 }
 
-/* Hero: split layout (left tagline, right play card) */
-#home .home-hero {
+#home .home-header {
     width: 100%;
-    max-width: 1100px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 48px;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-items: center;
-    margin: 40px 0 60px;
-    padding: 0 16px
+    margin-bottom: 25px;
+    padding-top: 20px
 }
 
-#home .hero-left {
-    text-align: left;
-    animation: fadeInUp 0.5s ease-out both
-}
-
-#home .hero-left .hero-logo {
-    display: inline-block;
-    margin-bottom: 16px
-}
-
-#home .hero-left .hero-logo img {
-    max-width: 320px;
-    width: 100%;
-    height: auto;
-    filter: drop-shadow(3px 3px 0 rgba(0,0,0,.25));
-    clip-path: inset(8% 0 15% 0)
-}
-
-#home .hero-tagline {
-    font-family: 'Nunito', sans-serif;
-    font-size: clamp(1.6rem, 4vw, 2.2rem);
-    font-weight: 800;
-    color: #fff;
-    text-shadow: 0 2px 12px rgba(0,0,0,.4);
-    margin: 0 0 12px;
-    letter-spacing: -.02em
-}
-
-#home .hero-desc {
-    font-size: 1rem;
-    color: rgba(255,255,255,.88);
-    line-height: 1.5;
-    margin: 0 0 24px;
-    max-width: 380px
-}
-
-#home .hero-avatar {
-    height: 48px;
-    display: flex;
-    justify-content: flex-start;
-    filter: drop-shadow(2px 2px 0 rgba(0,0,0,.25))
-}
-
-#home .hero-right {
-    animation: fadeInUp 0.5s ease-out 0.15s both
-}
-
-#home .card-play {
-    max-width: 380px;
-    width: 100%
-}
-
-#home .game-panel-wrapper {
-    width: 100%;
-    display: flex;
-    justify-content: center
-}
-
-/* Legacy home-main (kept for any refs) */
 #home .home-main {
     width: 100%;
     max-width: 1200px;
@@ -3022,6 +2960,21 @@ form.chat-form input {
     align-items: center;
     gap: 30px;
     flex: 1
+}
+
+#home .game-panel-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center
+}
+
+/* Subtle tagline under logo */
+#home .home-tagline {
+    font-size: 1rem;
+    font-weight: 600;
+    color: rgba(255,255,255,.85);
+    margin: 8px 0 20px;
+    letter-spacing: .02em
 }
 
 
@@ -3180,31 +3133,6 @@ form.chat-form input {
     margin: 16px 0 0
 }
 
-@media (max-width: 768px) {
-    #home .home-hero {
-        grid-template-columns: 1fr;
-        gap: 28px;
-        margin: 24px 0 48px
-    }
-
-    #home .hero-left {
-        text-align: center
-    }
-
-    #home .hero-left .hero-logo img {
-        max-width: 260px
-    }
-
-    #home .hero-desc {
-        margin-left: auto;
-        margin-right: auto
-    }
-
-    #home .hero-avatar {
-        justify-content: center
-    }
-}
-
 #home .ad-top {
     width: 100%;
     height: 100px;
@@ -3339,6 +3267,7 @@ form.chat-form input {
     opacity: 0;
     animation: fadeInUp 0.4s ease-out 0.1s both;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     will-change: opacity, transform
 }
 
@@ -4422,29 +4351,6 @@ form.chat-form input {
 
     #home {
         padding: 2vh
-    }
-
-    #home .home-hero {
-        grid-template-columns: 1fr;
-        gap: 32px;
-        margin: 24px 0 40px
-    }
-
-    #home .hero-left {
-        text-align: center
-    }
-
-    #home .hero-left .hero-logo img {
-        max-width: 280px
-    }
-
-    #home .hero-desc {
-        margin-left: auto;
-        margin-right: auto
-    }
-
-    #home .hero-avatar {
-        justify-content: center
     }
 
     #home .home-leaderboard {

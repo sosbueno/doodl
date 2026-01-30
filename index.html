@@ -122,18 +122,18 @@
         <div id="home">
             <!-- Wallet Connect Button - Top Right -->
             <div id="wallet-connect-header" class="wallet-connect-header"></div>
-            <!-- Hero: split layout (tagline left, play card right) -->
-            <section class="home-hero">
-                <div class="hero-left logo-big">
-                    <a href="/" class="logo-link hero-logo">
+            <div class="home-header">
+                <div class="logo-big">
+                    <a href="/" class="logo-link">
                         <img src="/img/doodllogo.gif" alt="doodls.fun">
                     </a>
-                    <p class="hero-tagline" data-translate="text">Draw. Guess. Win SOL.</p>
-                    <p class="hero-desc" data-translate="text">Free multiplayer pictionary with real Solana prizes. 100% of creator fees go to prize pools.</p>
-                    <div class="avatar-container hero-avatar"></div>
+                    <p class="home-tagline" data-translate="text">Draw. Guess. Win SOL.</p>
+                    <div class="avatar-container"></div>
                 </div>
-                <div class="hero-right">
-                    <div class="panel game-panel card-play">
+            </div>
+            <div class="home-main">
+                <div class="game-panel-wrapper">
+                    <div class="panel game-panel">
                         <div class="container-name-lang">
                             <input class="input-name" type="text" spellcheck="false" autocomplete="off" placeholder="Enter your name" maxlength="16" data-translate="placeholder">
                             <select disabled>
@@ -162,7 +162,7 @@
                         </button>
                     </div>
                 </div>
-            </section>
+            </div>
             <!-- 3D Leaderboard section (scroll down) -->
             <section class="home-leaderboard" id="leaderboard-section">
                 <h2 class="leaderboard-title">
