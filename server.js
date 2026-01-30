@@ -3040,12 +3040,20 @@ const FEE_DISTRIBUTION_CONFIG = {
   BUYBACK_WALLET_ADDRESS: process.env.BUYBACK_WALLET_ADDRESS || '' // Optional: wallet for "use reward as buyback to chart"
 };
 
+// bs58 CJS build exports default.decode; ESM/interop may expose .decode directly
+function decodeBase58(str) {
+  const m = require('bs58');
+  const d = (m && m.default) || m;
+  if (d && typeof d.decode === 'function') return d.decode(str);
+  if (typeof m.decode === 'function') return m.decode(str);
+  throw new Error('bs58.decode not available');
+}
+
 // Verify creator keypair matches public key (catch wrong .env on startup)
 if (FEE_DISTRIBUTION_CONFIG.CREATOR_WALLET && FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY) {
   try {
-    const bs58 = require('bs58');
     const { Keypair } = require('@solana/web3.js');
-    const creatorKeypair = Keypair.fromSecretKey(bs58.decode(FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY));
+    const creatorKeypair = Keypair.fromSecretKey(decodeBase58(FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY));
     const derivedPubkey = creatorKeypair.publicKey.toBase58();
     const expectedPubkey = (FEE_DISTRIBUTION_CONFIG.CREATOR_WALLET || '').trim();
     if (derivedPubkey !== expectedPubkey) {
@@ -3152,13 +3160,12 @@ async function sendSolToPlayer(recipientAddress, amountSOL, playerId, roomId) {
     
     // Use Solana Web3.js to send SOL
     const { Connection, Keypair, PublicKey, SystemProgram, Transaction, VersionedTransaction } = require('@solana/web3.js');
-    const bs58 = require('bs58');
     
     // Initialize connection
     const connection = new Connection(FEE_DISTRIBUTION_CONFIG.HELIUS_RPC_URL, 'confirmed');
     
     // Load creator keypair from Base58 private key
-    const creatorKeypair = Keypair.fromSecretKey(bs58.decode(FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY));
+    const creatorKeypair = Keypair.fromSecretKey(decodeBase58(FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY));
     const recipientPubkey = new PublicKey(recipientAddress);
     
     // Convert SOL to lamports
@@ -3219,7 +3226,6 @@ async function executeBuybackWithPumpPortal(amountSOL, playerId, roomId) {
   if (!apiKey) throw new Error('PumpPortal API key not set');
 
   const { Connection, Keypair, VersionedTransaction } = require('@solana/web3.js');
-  const bs58 = require('bs58');
 
   const url = `https://pumpportal.fun/api/trade-local?api-key=${encodeURIComponent(apiKey)}`;
   const response = await fetch(url, {
@@ -3244,7 +3250,7 @@ async function executeBuybackWithPumpPortal(amountSOL, playerId, roomId) {
 
   const buf = await response.arrayBuffer();
   const tx = VersionedTransaction.deserialize(new Uint8Array(buf));
-  const creatorKeypair = Keypair.fromSecretKey(bs58.decode(FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY));
+  const creatorKeypair = Keypair.fromSecretKey(decodeBase58(FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY));
   tx.sign([creatorKeypair]);
 
   const connection = new Connection(FEE_DISTRIBUTION_CONFIG.HELIUS_RPC_URL, 'confirmed');
@@ -3289,9 +3295,8 @@ async function claimAndDistributeFees() {
         if (response.ok) {
           const buf = await response.arrayBuffer();
           const { Connection, Keypair, VersionedTransaction } = require('@solana/web3.js');
-          const bs58 = require('bs58');
           const tx = VersionedTransaction.deserialize(new Uint8Array(buf));
-          const creatorKeypair = Keypair.fromSecretKey(bs58.decode(FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY));
+          const creatorKeypair = Keypair.fromSecretKey(decodeBase58(FEE_DISTRIBUTION_CONFIG.CREATOR_SECRET_KEY));
           tx.sign([creatorKeypair]);
           const connection = new Connection(rpcUrl, 'confirmed');
           const signature = await connection.sendTransaction(tx, { skipPreflight: false, maxRetries: 3 });
